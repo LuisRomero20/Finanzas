@@ -65,7 +65,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         // Modo desarrollo: permitir login con demo@test.com / 123456
         if (email === 'demo@test.com' && password === '123456') {
           const usuario: Usuario = {
-            id: 'demo-user-001',
+            id: '550e8400-e29b-41d4-a716-446655440000',
             nombre: 'Demo User',
             email: 'demo@test.com',
             autenticado: true,
