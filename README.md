@@ -1,24 +1,23 @@
-# 💼 Finanzas Personales — Aplicación Full-Stack
+# � DeudaTracker — Gestor de Deudas Personales
 
-**Gestión integral de finanzas personales con análisis avanzado y dashboards interactivos**
+**Controla tus deudas, calcula cuotas automáticamente y no te pierdas un pago**
 
 ![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
 ![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
 ![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
-![Node.js](https://img.shields.io/badge/Node.js-339933?style=flat-square&logo=node.js&logoColor=white)
-![SQL](https://img.shields.io/badge/SQL-336791?style=flat-square&logo=postgresql&logoColor=white)
 
 ---
 
 ## 📋 Descripción
 
-**Finanzas Personales** es una aplicación web moderna y responsiva para gestionar ingresos, gastos y presupuestos personales. Diseñada con arquitectura full-stack, ofrece herramientas intuitivas de análisis financiero sin necesidad de hojas de cálculo manuales.
+**DeudaTracker** es la herramienta que todo peruano necesita para organizar sus deudas. ¿Tienes crédito en el banco? ¿Prestamista? ¿Tarjeta de crédito? ¿Deuda informal? Gestiona todo en un solo lugar con cálculos automáticos, cronogramas de pago y alertas.
 
-### 🎯 Problema Resuelto
-- ❌ Gestión manual de finanzas en Excel (lento y propenso a errores)
-- ❌ Falta de visibilidad clara en gastos e ingresos
-- ❌ Análisis complejo de patrones de gasto
-- ✅ Solución: **Aplicación centralizada con análisis automático y visualización en tiempo real**
+### 🎯 Problema que Resuelve
+- ❌ Deudas dispersas sin seguimiento claro
+- ❌ Olvidos de fechas de pago
+- ❌ Desconocimiento del total a pagar con intereses
+- ❌ Cálculos manuales propensos a errores
+- ✅ **Solución: Una app que centraliza, calcula y alerta automáticamente**
 
 ---
 
@@ -26,28 +25,25 @@
 
 | Característica | Descripción |
 |---|---|
-| 💰 **Registro de Transacciones** | Ingresa ingresos y gastos con categoría, fecha y descripción |
-| 📊 **Análisis por Categoría** | Visualiza distribución de gastos por concepto |
-| 📈 **Seguimiento de Presupuesto** | Compara gasto real vs. presupuesto planificado |
-| 📅 **Historial Temporal** | Analiza tendencias de gastos por período |
-| 💾 **Persistencia de Datos** | Todos tus datos se guardan de forma segura |
-| 📱 **Responsive Design** | Funciona perfectamente en desktop, tablet y móvil |
-| 🎨 **UI Moderna** | Interface intuitiva y atractiva con React |
-| ⚡ **Rendimiento Optimizado** | Construido con Vite para máxima velocidad |
+| 📝 **Registro de Deudas** | Añade deudas con acreedor, monto, tasa y plazo |
+| 🧮 **Cálculo Automático** | Calcula cuotas, intereses y TCEA automáticamente |
+| 📅 **Cronograma de Pagos** | Ve todas tus cuotas mensuales en un cronograma completo |
+| 🚨 **Alertas de Vencimiento** | Recibe avisos de próximos pagos vencidos |
+| 📊 **Panel de Control** | Visualiza total adeudado, próximos vencimientos y resumen |
+| ✅ **Seguimiento de Pagos** | Marca cuotas como pagadas y rastrea tu progreso |
+| 📱 **Responsive Design** | Accede desde móvil, tablet o desktop |
+| ⚡ **Velocidad** | Cálculos instantáneos con Vite + React |
 
 ---
 
 ## 🛠️ Stack Tecnológico
 
 ### Frontend
-- **React 18+** — Library moderna para interfaces dinámicas
-- **TypeScript** — Type safety para código más robusto
-- **Vite** — Build tool ultrarrápido con Hot Module Replacement
-- **CSS3** — Estilos modernos y responsive
-- **HTML5** — Semántica correcta
-
-### Backend
-- **Node.js** — Runtime JavaScript del lado del servidor
+- **React 19+** — UI interactiva y eficiente
+- **TypeScript** — Tipo seguro para evitar errores
+- **Vite** — Build ultrarrápido
+- **Tailwind CSS** — Estilos modernos y responsive
+- **HTML5 + CSS3** — Semántica y diseño
 - **TypeScript** — Tipado estricto en backend
 - **APIs REST** — Endpoints para gestión de datos
 
