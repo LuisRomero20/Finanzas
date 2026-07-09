@@ -711,15 +711,15 @@ function Reportes() {
         ) : (
           <div className="space-y-3">
             {proximosVencimientos.slice(0, 5).map((d) => (
-              <div key={d.id} className={`flex items-center justify-between p-4 rounded-lg border ${d.prioridad === "alta" ? "bg-red-50 border-red-200" : d.prioridad === "media" ? "bg-amber-50 border-amber-200" : "bg-green-50 border-green-200"}`}>
+              <div key={d.id} className="flex items-center justify-between p-4 rounded-lg border bg-amber-50 border-amber-200">
                 <div>
                   <p className="font-semibold">{d.acreedor}</p>
                   <p className="text-sm text-gray-600">
                     <CalendarDays size={14} className="inline mr-1" />
-                    Próximo pago
+                    Cuota: {fmtMoney(d.moneda, calcularCuota(d))}
                   </p>
                 </div>
-                <Pill tone={d.prioridad === "alta" ? "red" : d.prioridad === "media" ? "amber" : "green"}>{d.prioridad.toUpperCase()}</Pill>
+                <Pill tone="amber">PENDIENTE</Pill>
               </div>
             ))}
           </div>
