@@ -1,294 +1,236 @@
-# � DeudaTracker — Gestor de Deudas Personales
+# 💳 DeudaTracker - Gestor Inteligente de Deudas Personales
 
-**Controla tus deudas, calcula cuotas automáticamente y no te pierdas un pago**
-
-![React](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
-![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![Vite](https://img.shields.io/badge/Vite-646CFF?style=flat-square&logo=vite&logoColor=white)
-
----
+[![Live Demo](https://img.shields.io/badge/Live-Demo-success?style=for-the-badge)](https://finanzas-tau-three.vercel.app)
+[![React](https://img.shields.io/badge/React-19-blue?style=for-the-badge&logo=react)](https://react.dev)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org)
+[![Vercel](https://img.shields.io/badge/Deployed-Vercel-black?style=for-the-badge&logo=vercel)](https://vercel.com)
+[![Supabase](https://img.shields.io/badge/Database-Supabase-green?style=for-the-badge&logo=supabase)](https://supabase.com)
 
 ## 📋 Descripción
 
-**DeudaTracker** es la herramienta que todo peruano necesita para organizar sus deudas. ¿Tienes crédito en el banco? ¿Prestamista? ¿Tarjeta de crédito? ¿Deuda informal? Gestiona todo en un solo lugar con cálculos automáticos, cronogramas de pago y alertas.
+**DeudaTracker** es una aplicación web moderna para gestionar tus deudas personales de forma inteligente. Proporciona:
 
-### 🎯 Problema que Resuelve
-- ❌ Deudas dispersas sin seguimiento claro
-- ❌ Olvidos de fechas de pago
-- ❌ Desconocimiento del total a pagar con intereses
-- ❌ Cálculos manuales propensos a errores
-- ✅ **Solución: Una app que centraliza, calcula y alerta automáticamente**
+- 📊 **Cálculos automáticos** de cuotas, intereses y cronogramas de pago
+- 🎯 **Seguimiento en tiempo real** de tus deudas
+- 📈 **Visualización de datos** con gráficos interactivos
+- 🔐 **Autenticación segura** con Supabase
+- 💾 **Sincronización en la nube** entre dispositivos
+- 📱 **Interfaz responsiva** que funciona en cualquier dispositivo
+- 🚀 **Rendimiento optimizado** con React y Vite
 
----
+## 🚀 Demostración Rápida
 
-## ✨ Características Principales
+Accede a la app en vivo:
+```
+https://finanzas-tau-three.vercel.app
+```
 
-| Característica | Descripción |
-|---|---|
-| 📝 **Registro de Deudas** | Añade deudas con acreedor, monto, tasa y plazo |
-| 🧮 **Cálculo Automático** | Calcula cuotas, intereses y TCEA automáticamente |
-| 📅 **Cronograma de Pagos** | Ve todas tus cuotas mensuales en un cronograma completo |
-| 🚨 **Alertas de Vencimiento** | Recibe avisos de próximos pagos vencidos |
-| 📊 **Panel de Control** | Visualiza total adeudado, próximos vencimientos y resumen |
-| ✅ **Seguimiento de Pagos** | Marca cuotas como pagadas y rastrea tu progreso |
-| 📱 **Responsive Design** | Accede desde móvil, tablet o desktop |
-| ⚡ **Velocidad** | Cálculos instantáneos con Vite + React |
+**Modo Demo (sin registro):**
+- 📧 Email: `demo@test.com`
+- 🔑 Contraseña: `123456`
 
----
+## 🎯 Características Principales
+
+### 1️⃣ Dashboard Intuitivo
+- Vista general de todas tus deudas
+- Total adeudado consolidado
+- Cuota mensual total
+- Cantidad de deudas activas
+
+### 2️⃣ Gestión de Deudas
+- ➕ Crear nuevas deudas con cálculos automáticos
+- ✏️ Editar deudas existentes
+- 🗑️ Eliminar deudas
+- ✅ Marcar cuotas como pagadas
+
+### 3️⃣ Cálculos Precisos
+- Conversión automática entre tasas nominales y efectivas
+- Cálculo de cuota mensual
+- Cálculo de interés total
+- Cálculo de tasa mensual equivalente
+- Múltiples monedas (Soles, Dólares)
+
+### 4️⃣ Visualizaciones
+- 📊 Gráfico de pastel con distribución de deudas
+- 📋 Tabla detallada de deudas
+- 📈 Resumen de métricas clave
+
+### 5️⃣ Cronograma Personalizado
+- Ver schedule completo de pagos
+- Seguimiento de meses pagados
+- Alertas de próximos vencimientos
+
+### 6️⃣ Reportes Detallados
+- Análisis de deudas por acreedor
+- Proyecciones de pago
+- Comparativas de monedas
 
 ## 🛠️ Stack Tecnológico
 
 ### Frontend
-- **React 19+** — UI interactiva y eficiente
-- **TypeScript** — Tipo seguro para evitar errores
-- **Vite** — Build ultrarrápido
-- **Tailwind CSS** — Estilos modernos y responsive
-- **HTML5 + CSS3** — Semántica y diseño
-- **TypeScript** — Tipado estricto en backend
-- **APIs REST** — Endpoints para gestión de datos
+- **React 19.1.1** - UI moderna y reactiva
+- **TypeScript 5.9.3** - Type safety
+- **Vite 5.4.21** - Build tool ultrarrápido
+- **Tailwind CSS 3.4.13** - Estilos utilitarios
+- **Zustand 5.0.14** - State management
+- **Recharts 3.9.2** - Gráficos interactivos
+- **Lucide React** - Iconos de calidad
 
-### Base de Datos
-- **SQL** — Persistencia relacional de transacciones y presupuestos
+### Backend
+- **Supabase** - PostgreSQL + Autenticación
+- **PostgreSQL** - Base de datos relacional
+- **Row Level Security (RLS)** - Seguridad por usuario
 
-### Herramientas
-- **Git** — Control de versiones
-- **npm/yarn** — Gestión de dependencias
+### Hosting
+- **Vercel** - Hosting y deployment continuo
+- **Git** - Control de versiones
 
----
+## 📦 Instalación Local
 
-## 📁 Estructura del Proyecto
-
-```
-Finanzas/
-├── src/
-│   ├── components/          # Componentes React reutilizables
-│   │   ├── TransactionForm/ # Formulario para nuevas transacciones
-│   │   ├── Dashboard/       # Dashboard principal con métricas
-│   │   ├── CategoryChart/   # Gráfico de distribución por categoría
-│   │   └── BudgetTracker/   # Tracker de presupuesto vs. gasto
-│   ├── pages/              # Páginas de la aplicación
-│   │   ├── Home/           # Página principal
-│   │   ├── History/        # Historial de transacciones
-│   │   └── Analysis/       # Análisis detallado
-│   ├── services/           # Llamadas a APIs backend
-│   │   └── api.ts          # Cliente HTTP para endpoints
-│   ├── types/              # Definiciones TypeScript
-│   │   └── Transaction.ts  # Interfaces de datos
-│   ├── App.tsx             # Componente raíz
-│   ├── main.tsx            # Punto de entrada React
-│   └── App.css             # Estilos globales
-├── backend/               # Backend Node.js/TypeScript
-│   ├── src/
-│   │   ├── routes/         # Endpoints API
-│   │   ├── controllers/    # Lógica de negocio
-│   │   ├── database/       # Conexión a base de datos
-│   │   └── server.ts       # Servidor Express
-│   └── package.json
-├── vite.config.ts          # Configuración Vite
-├── tsconfig.json           # Configuración TypeScript
-├── package.json            # Dependencias del proyecto
-└── README.md              # Este archivo
-```
-
----
-
-## 🚀 Instalación & Configuración
-
-### Prerrequisitos
-- Node.js 16+
+### Requisitos Previos
+- Node.js 18+ 
 - npm o yarn
 - Git
 
-### 1. Clonar el repositorio
+### Pasos
+
+1. **Clonar repositorio**
 ```bash
 git clone https://github.com/LuisRomero20/Finanzas.git
 cd Finanzas
 ```
 
-### 2. Instalar dependencias
-
-**Frontend:**
+2. **Instalar dependencias**
 ```bash
 npm install
 ```
 
-**Backend:**
+3. **Crear archivo `.env.local`**
 ```bash
-cd backend
-npm install
-cd ..
+VITE_SUPABASE_URL=tu_url_aqui
+VITE_SUPABASE_ANON_KEY=tu_clave_aqui
 ```
 
-### 3. Configurar variables de entorno
-
-Crea un archivo `.env` en la raíz:
-```env
-VITE_API_URL=http://localhost:3001/api
-```
-
-Y otro `.env` en `backend/`:
-```env
-PORT=3001
-DATABASE_URL=your_database_connection_string
-NODE_ENV=development
-```
-
-### 4. Ejecutar en desarrollo
-
-**Iniciar backend:**
-```bash
-npm run backend:dev
-```
-
-**En otra terminal, iniciar frontend:**
+4. **Ejecutar en desarrollo**
 ```bash
 npm run dev
 ```
 
-La aplicación estará disponible en `http://localhost:5173` (Vite)
-
----
-
-## 📊 Cómo Usar
-
-### 1. Registrar una Transacción
-- Click en "Nueva Transacción"
-- Completa monto, categoría, fecha y descripción
-- El sistema clasifica automáticamente el tipo (ingreso/gasto)
-
-### 2. Ver Dashboard
-- Dashboard principal muestra:
-  - Saldo actual
-  - Gastos del mes
-  - Ingresos del mes
-  - Proyección de saldo
-
-### 3. Analizar por Categoría
-- Visualiza distribución de gastos en gráfico circular
-- Identifica categorías con mayor gasto
-- Detecta patrones y oportunidades de ahorro
-
-### 4. Seguimiento de Presupuesto
-- Define presupuesto mensual por categoría
-- El sistema compara gasto real vs. planificado
-- Alertas cuando se supera el límite
-
-### 5. Historial & Exportación
-- Visualiza todas las transacciones registradas
-- Filtra por fecha, categoría o monto
-- Opción de exportar a CSV para análisis externo
-
----
-
-## 🔧 Comandos Disponibles
-
-```bash
-# Desarrollo
-npm run dev              # Inicia frontend + HMR
-npm run backend:dev     # Inicia backend con nodemon
-
-# Build
-npm run build           # Compila frontend para producción
-npm run build:backend   # Compila backend
-
-# Testing
-npm run test            # Ejecuta tests
-npm run test:watch     # Tests en modo watch
-
-# Linting
-npm run lint            # Verifica código con ESLint
-npm run lint:fix       # Arregla problemas automáticos
-
-# Producción
-npm run preview        # Preview de build local
-npm run start:prod     # Inicia backend en producción
+5. **Abrir en navegador**
+```
+http://localhost:5173
 ```
 
----
+## 🚀 Deployment
 
-## 📈 Próximas Mejoras
+### Vercel (Recomendado)
 
-- [ ] 🔐 Autenticación y autorización de usuarios
-- [ ] 📱 App móvil nativa (React Native)
-- [ ] 💳 Integración con APIs de bancos
-- [ ] 🎯 Metas de ahorro y seguimiento
-- [ ] 📧 Reportes mensuales por correo
-- [ ] 🤖 Recomendaciones basadas en IA
-- [ ] 📊 Gráficos avanzados (Recharts, Chart.js)
-- [ ] 🌙 Modo oscuro
+1. **Conectar repositorio**
+```bash
+vercel link
+```
 
----
+2. **Agregar variables de entorno**
+```bash
+vercel env add VITE_SUPABASE_URL
+vercel env add VITE_SUPABASE_ANON_KEY
+```
+
+3. **Deploy en producción**
+```bash
+vercel deploy --prod
+```
+
+## 📚 Estructura del Proyecto
+
+```
+Finanzas/
+├── src/
+│   ├── App.tsx                 # Componente principal
+│   ├── main.tsx               # Punto de entrada
+│   ├── store.ts               # Estado global (Zustand)
+│   ├── index.css              # Estilos globales
+│   ├── App.css                # Estilos de App
+│   ├── lib/
+│   │   └── supabase.ts        # Cliente y tipos Supabase
+│   ├── hooks/
+│   │   └── useAuthInit.ts     # Hook de inicialización de auth
+│   └── assets/
+├── public/                    # Archivos estáticos
+├── vite.config.ts            # Configuración Vite
+├── tsconfig.json             # Configuración TypeScript
+├── tailwind.config.js        # Configuración Tailwind
+├── postcss.config.js         # Configuración PostCSS
+├── eslint.config.js          # Configuración ESLint
+├── package.json              # Dependencias
+├── README.md                 # Este archivo
+└── USER_GUIDE.md             # Guía de usuario
+```
+
+## 🔐 Autenticación
+
+### Modo Demo
+- Sin registro requerido
+- Datos almacenados en localStorage
+- Perfecto para pruebas rápidas
+
+### Autenticación Real (Supabase)
+- Crea una cuenta con tu email
+- Contraseña segura
+- Datos sincronizados en la nube
+- Acceso desde múltiples dispositivos
+
+## 📖 Guía de Usuario
+
+Para una guía completa paso a paso, consulta [USER_GUIDE.md](./USER_GUIDE.md)
 
 ## 🧪 Testing
 
-```bash
-# Correr todos los tests
-npm run test
+El proyecto incluye pruebas manuales extensivas. Para validar que todo funciona:
 
-# Tests específicos
-npm run test -- TransactionForm
+1. Sigue los pasos en [USER_GUIDE.md](./USER_GUIDE.md)
+2. Prueba cada característica listada
+3. Verifica que los cálculos son correctos
+4. Comprueba la sincronización de datos
 
-# Coverage
-npm run test:coverage
-```
+## 🐛 Reporte de Bugs
 
----
+Si encuentras un bug:
+1. Abre un issue en GitHub
+2. Describe el problema detalladamente
+3. Incluye pasos para reproducirlo
+4. Adjunta screenshots si es relevante
 
-## 📝 Estructura de Datos
+## 💡 Sugerencias de Mejora
 
-### Transacción
-```typescript
-interface Transaction {
-  id: string;
-  amount: number;           // Monto en moneda local
-  category: string;         // Categoría (Comida, Transporte, etc.)
-  type: 'income' | 'expense'; // Tipo
-  date: Date;               // Fecha
-  description: string;      // Descripción
-  createdAt: Date;
-  updatedAt: Date;
-}
-```
-
-### Presupuesto
-```typescript
-interface Budget {
-  id: string;
-  category: string;
-  limit: number;            // Límite mensual
-  month: string;            // YYYY-MM
-  createdAt: Date;
-}
-```
-
----
-
-## 🤝 Contribuciones
-
-Las contribuciones son bienvenidas. Por favor:
-1. Fork el proyecto
-2. Crea una rama para tu feature: `git checkout -b feature/AmazingFeature`
-3. Commit tus cambios: `git commit -m 'Add AmazingFeature'`
-4. Push a la rama: `git push origin feature/AmazingFeature`
-5. Abre un Pull Request
-
----
+¿Tienes ideas para mejorar DeudaTracker? 
+- Abre una discussion en GitHub
+- Comparte tu feedback
+- Propón nuevas features
 
 ## 📄 Licencia
 
-Proyecto de uso personal. Todos los derechos reservados © 2025 Luis Jesús Romero Castro
+Este proyecto está disponible bajo la licencia MIT.
+
+## 👨‍💻 Autor
+
+**Luis Romero**
+- GitHub: [@LuisRomero20](https://github.com/LuisRomero20)
+
+## 🙏 Agradecimientos
+
+- React team por el framework increíble
+- Supabase por el backend en la nube
+- Vercel por el hosting
+- Comunidad open source
+
+## 🔗 Enlaces Útiles
+
+- 🌐 [Aplicación en vivo](https://finanzas-tau-three.vercel.app)
+- 📖 [Guía de Usuario](./USER_GUIDE.md)
+- 📊 [Supabase Console](https://supabase.com/dashboard)
+- 🚀 [Vercel Dashboard](https://vercel.com)
 
 ---
 
-## 👤 Autor
-
-**Luis Jesús Romero Castro**
-- 🔗 LinkedIn: [linkedin.com/in/luisjesusromerocastro](https://linkedin.com/in/luisjesusromerocastro)
-- 📧 Email: luis_jesusrc@hotmail.com
-- 💻 GitHub: [github.com/LuisRomero20](https://github.com/LuisRomero20)
-
----
-
-<p align="center">
-  <i>Gestiona tus finanzas de forma inteligente 💰 | Análisis en tiempo real 📊 | Decisiones financieras basadas en datos 📈</i>
-</p>
+**Hecho con ❤️ para gestionar tus finanzas de forma inteligente**
