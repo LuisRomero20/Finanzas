@@ -150,6 +150,23 @@ export const useAppStore = create<AppStore>((set, get) => {
         const usuario = get().usuario;
         if (!usuario) throw new Error('No hay usuario autenticado');
 
+        // Modo demo: guardar en localStorage
+        if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
+          const deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
+          const id = Date.now().toString();
+          const nuevaDeuda = {
+            id,
+            ...deuda,
+            estado: 'activa' as const,
+            meses_pagados: 0,
+          };
+          deudas.push(nuevaDeuda);
+          localStorage.setItem('demo_deudas', JSON.stringify(deudas));
+          set({ deudas: get().deudas.concat(nuevaDeuda) });
+          get().agregarNotificacion(`Deuda con ${deuda.acreedor} agregada`, 'success');
+          return;
+        }
+
         const { error } = await supabase
           .from('deudas')
           .insert([
@@ -173,6 +190,19 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     editarDeuda: async (id, deudaActualizada) => {
       try {
+        const usuario = get().usuario;
+        if (!usuario) throw new Error('No hay usuario autenticado');
+
+        // Modo demo: actualizar en localStorage
+        if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
+          let deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
+          deudas = deudas.map((d: any) => d.id === id ? { ...d, ...deudaActualizada } : d);
+          localStorage.setItem('demo_deudas', JSON.stringify(deudas));
+          set({ deudas });
+          get().agregarNotificacion('Deuda actualizada', 'success');
+          return;
+        }
+
         const { error } = await supabase
           .from('deudas')
           .update(deudaActualizada)
@@ -190,6 +220,19 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     eliminarDeuda: async (id) => {
       try {
+        const usuario = get().usuario;
+        if (!usuario) throw new Error('No hay usuario autenticado');
+
+        // Modo demo: eliminar de localStorage
+        if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
+          let deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
+          deudas = deudas.filter((d: any) => d.id !== id);
+          localStorage.setItem('demo_deudas', JSON.stringify(deudas));
+          set({ deudas });
+          get().agregarNotificacion('Deuda eliminada', 'success');
+          return;
+        }
+
         const { error } = await supabase.from('deudas').delete().eq('id', id);
         if (error) throw error;
 
@@ -203,11 +246,26 @@ export const useAppStore = create<AppStore>((set, get) => {
 
     marcarCuotaPagada: async (id) => {
       try {
+        const usuario = get().usuario;
+        if (!usuario) throw new Error('No hay usuario autenticado');
+
         const deuda = get().obtenerDeuda(id);
         if (!deuda) throw new Error('Deuda no encontrada');
 
         const nuevosMesesPagados = deuda.meses_pagados + 1;
         const nuevoEstado = nuevosMesesPagados >= deuda.plazo_meses ? 'pagada' : 'activa';
+
+        // Modo demo: actualizar en localStorage
+        if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
+          let deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
+          deudas = deudas.map((d: any) => 
+            d.id === id ? { ...d, meses_pagados: nuevosMesesPagados, estado: nuevoEstado } : d
+          );
+          localStorage.setItem('demo_deudas', JSON.stringify(deudas));
+          set({ deudas });
+          get().agregarNotificacion('Cuota marcada como pagada', 'success');
+          return;
+        }
 
         const { error } = await supabase
           .from('deudas')
@@ -231,6 +289,13 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         const usuario = get().usuario;
         if (!usuario) return;
+
+        // Modo demo: cargar desde localStorage
+        if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
+          const deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
+          set({ deudas });
+          return;
+        }
 
         const { data, error } = await supabase
           .from('deudas')
