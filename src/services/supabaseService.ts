@@ -55,11 +55,11 @@ export async function checkSupabaseHealth(): Promise<SupabaseHealth> {
 }
 
 /**
- * Inserta una transacción individual en Supabase.
+ * Inserta o actualiza una transacción individual en Supabase.
  */
 export async function insertTransactionToSupabase(tx: Transaction): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
-    const payload = {
+    const payload: any = {
       id: tx.id,
       tipo: tx.Tipo,
       fecha: tx.Fecha,
@@ -69,11 +69,22 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
       monto: tx.Monto,
       mes: tx.Mes,
     };
+    if (tx.estado) {
+      payload.estado = tx.estado;
+    }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('transacciones')
       .upsert(payload)
       .select();
+
+    // Si la columna 'estado' no existiera aún en el esquema remoto, reintentar sin ella
+    if (error && error.message?.toLowerCase().includes('estado')) {
+      delete payload.estado;
+      const retry = await supabase.from('transacciones').upsert(payload).select();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.warn('Supabase insert warning:', error.message);
@@ -93,8 +104,13 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
 export async function deleteTransactionFromSupabase(id: string): Promise<boolean> {
   try {
     const { error } = await supabase.from('transacciones').delete().eq('id', id);
-    return !error;
-  } catch {
+    if (error) {
+      console.warn('Supabase delete warning:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Supabase delete catch:', err);
     return false;
   }
 }
@@ -122,6 +138,7 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
       Entidad: row.entidad,
       Monto: Number(row.monto),
       Mes: row.mes,
+      estado: row.estado || 'confirmado',
     }));
   } catch {
     return null;

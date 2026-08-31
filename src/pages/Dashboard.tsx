@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useFinanceStore, MESES, ENTIDADES, CATEGORIAS } from '../store/financeStore';
+import { useFinanceStore, MESES, ENTIDADES, CATEGORIAS, getMonthNameFromDate } from '../store/financeStore';
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
-import { LINE_OVERRIDES, ACCOUNT_LABELS } from '../utils/masterData';
+import { LINE_OVERRIDES, ACCOUNT_LABELS, type Transaction } from '../utils/masterData';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
@@ -11,24 +11,20 @@ import {
   Download,
   Plus,
   Minus,
-  Edit3,
   TrendingUp,
   TrendingDown,
   CreditCard,
   Wallet,
   Building2,
   PieChart as PieIcon,
-  SlidersHorizontal,
-  FileSpreadsheet,
   CheckCircle2,
-  Calendar,
   Clock,
   Trash2,
   RotateCcw,
   Sparkles,
   X,
+  Edit3,
 } from 'lucide-react';
-import ConfigEditor from '../components/ui/ConfigEditor';
 import {
   BarChart,
   Bar,
@@ -45,8 +41,32 @@ const sortedMeses = [...MESES].sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORD
 
 const CHART_COLORS = ['#0F2A1D', '#047857', '#0284C7', '#6366F1', '#D97706', '#E11D48', '#0D9488'];
 
+const getDefaultDateForMonth = (monthName: string) => {
+  const monthMap: Record<string, string> = {
+    Enero: '01', Febrero: '02', Marzo: '03', Abril: '04', Mayo: '05', Junio: '06',
+    Julio: '07', Agosto: '08', Setiembre: '09', Octubre: '10', Noviembre: '11', Diciembre: '12'
+  };
+  const m = monthMap[monthName] || '10';
+  const now = new Date();
+  const year = now.getFullYear();
+  const curM = String(now.getMonth() + 1).padStart(2, '0');
+  if (curM === m) {
+    return now.toISOString().slice(0, 10);
+  }
+  return `${year}-${m}-01`;
+};
+
 export const Dashboard: React.FC = () => {
-  const { selectedMonth, selectedEntity, setMonth, setEntity, getFilteredTransactions } = useFinanceStore();
+  const {
+    selectedMonth,
+    selectedEntity,
+    setMonth,
+    setEntity,
+    getFilteredTransactions,
+    deleteTransaction,
+    addTransaction,
+    confirmTransaction,
+  } = useFinanceStore();
   const filtered = getFilteredTransactions();
 
   const isLineaTarjeta = (t: any) => typeof t.Concepto === 'string' && /linea\s*tarjeta/i.test(t.Concepto);
@@ -95,22 +115,23 @@ export const Dashboard: React.FC = () => {
 
   const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
-  const [localLineOverrides, setLocalLineOverrides] = useState<Record<string, number> | null>(null);
-  const [localAccountLabels, setLocalAccountLabels] = useState<Record<string, string> | null>(null);
-  const [showEditor, setShowEditor] = useState(false);
-  const [editorOverrides, setEditorOverrides] = useState<Record<string, number>>({});
-  const [editorLabels, setEditorLabels] = useState<Record<string, string>>({});
-
-  useEffect(() => {
+  const [localLineOverrides] = useState<Record<string, number> | null>(() => {
     try {
       const lo = localStorage.getItem('finper_line_overrides');
-      if (lo) setLocalLineOverrides(JSON.parse(lo));
-      const al = localStorage.getItem('finper_account_labels');
-      if (al) setLocalAccountLabels(JSON.parse(al));
-    } catch (e) {
-      // ignore
+      return lo ? JSON.parse(lo) : null;
+    } catch {
+      return null;
     }
-  }, []);
+  });
+
+  const [localAccountLabels] = useState<Record<string, string> | null>(() => {
+    try {
+      const al = localStorage.getItem('finper_account_labels');
+      return al ? JSON.parse(al) : null;
+    } catch {
+      return null;
+    }
+  });
 
   const { agregarNotificacion } = useAppStore();
 
@@ -134,32 +155,6 @@ export const Dashboard: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const openEditor = () => {
-    const baseOverrides = activeLineOverrides || LINE_OVERRIDES;
-    const baseLabels = activeAccountLabels || ACCOUNT_LABELS;
-    setEditorOverrides({ ...baseOverrides });
-    setEditorLabels({ ...baseLabels });
-    setShowEditor(true);
-  };
-
-  const saveEditor = () => {
-    try {
-      localStorage.setItem('finper_line_overrides', JSON.stringify(editorOverrides));
-      localStorage.setItem('finper_account_labels', JSON.stringify(editorLabels));
-      setLocalLineOverrides(editorOverrides);
-      setLocalAccountLabels(editorLabels);
-      setShowEditor(false);
-      agregarNotificacion('Configuración guardada correctamente.', 'success');
-    } catch (e) {
-      agregarNotificacion('Error al guardar la configuración.', 'error');
-    }
-  };
-
-  const handleEditorLineChange = (ent: string, value: string) => {
-    const num = parseFloat(value || '0');
-    setEditorOverrides(prev => ({ ...prev, [ent]: isNaN(num) ? 0 : num }));
-  };
-
   const {
     items: allPendingItems,
     getItemsByMonth,
@@ -168,7 +163,6 @@ export const Dashboard: React.FC = () => {
     deletePendingItem,
     addPendingItem,
     updatePendingItem,
-    revertCompletedPayment,
   } = usePendingPaymentsStore();
 
   const monthPendingItems = useMemo(() => {
@@ -188,6 +182,86 @@ export const Dashboard: React.FC = () => {
   const [pendFormCategoria, setPendFormCategoria] = useState('Servicio');
   const [pendFormEntidad, setPendFormEntidad] = useState('Interbank');
   const [pendFormFecha, setPendFormFecha] = useState(new Date().toISOString().slice(0, 10));
+
+  // Modal para agregar nueva fila / proyección en la tabla de transacciones
+  const [isNewRowModalOpen, setIsNewRowModalOpen] = useState(false);
+  const [newRowTipo, setNewRowTipo] = useState<'Ingreso' | 'Egreso'>('Egreso');
+  const [newRowConcepto, setNewRowConcepto] = useState('');
+  const [newRowMonto, setNewRowMonto] = useState<number>(0);
+  const [newRowCategoria, setNewRowCategoria] = useState('Gasto');
+  const [newRowEntidad, setNewRowEntidad] = useState('Interbank');
+  const [newRowFecha, setNewRowFecha] = useState(() => getDefaultDateForMonth(selectedMonth));
+  const [newRowEsProyeccion, setNewRowEsProyeccion] = useState(true);
+
+  // Actualizar fecha por defecto cuando cambia el mes seleccionado
+  useEffect(() => {
+    setNewRowFecha(getDefaultDateForMonth(selectedMonth));
+  }, [selectedMonth]);
+
+  const handleOpenNewRowModal = () => {
+    setNewRowTipo('Egreso');
+    setNewRowConcepto('');
+    setNewRowMonto(0);
+    setNewRowCategoria('Gasto');
+    setNewRowEntidad(selectedEntity !== 'Todas' ? selectedEntity : 'Interbank');
+    setNewRowFecha(getDefaultDateForMonth(selectedMonth));
+    setNewRowEsProyeccion(true);
+    setIsNewRowModalOpen(true);
+  };
+
+  const handleSaveNewRowModal = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newRowConcepto.trim()) return;
+
+    const mesName = selectedMonth === 'Todos' ? getMonthNameFromDate(newRowFecha) : selectedMonth;
+    addTransaction({
+      Tipo: newRowTipo,
+      Fecha: newRowFecha,
+      Concepto: newRowConcepto.trim(),
+      Categoria: newRowCategoria,
+      Entidad: newRowEntidad,
+      Monto: Number(newRowMonto),
+      Mes: mesName,
+      estado: newRowEsProyeccion ? 'provisional' : 'confirmado',
+    });
+
+    agregarNotificacion(
+      newRowEsProyeccion
+        ? `✨ Fila proyectada "${newRowConcepto}" agregada en amarillo (pendiente de confirmación).`
+        : `✅ Transacción "${newRowConcepto}" registrada correctamente.`,
+      'success'
+    );
+
+    setIsNewRowModalOpen(false);
+  };
+
+  const handleDeleteTransaction = (t: Transaction) => {
+    if (confirm(`¿Eliminar definitivamente "${t.Concepto}" (${formatterPEN.format(t.Monto)})? Esta acción la borrará permanentemente de la base de datos de Supabase.`)) {
+      deleteTransaction(t.id);
+      agregarNotificacion(`🗑️ Transacción "${t.Concepto}" eliminada de la base de datos.`, 'info');
+    }
+  };
+
+  const handleApproveTransaction = (t: Transaction) => {
+    confirmTransaction(t.id);
+    agregarNotificacion(`✅ Movimiento "${t.Concepto}" aprobado y consolidado.`, 'success');
+  };
+
+  const handleSendToPending = (t: Transaction) => {
+    addPendingItem({
+      tipo: t.Tipo,
+      concepto: t.Concepto,
+      monto: t.Monto,
+      categoria: t.Categoria,
+      entidad: t.Entidad,
+      fecha: t.Fecha,
+      origen: 'Manual',
+      mes: t.Mes,
+      mesStr: t.Fecha.slice(0, 7),
+    });
+    deleteTransaction(t.id);
+    agregarNotificacion(`⏳ Movimiento "${t.Concepto}" devuelto a la bandeja de Pagos Pendientes.`, 'info');
+  };
 
   const handleOpenNewPendingModal = () => {
     setEditingPending(null);
@@ -314,16 +388,6 @@ export const Dashboard: React.FC = () => {
           >
             <Download size={14} />
             <span>Exportar CSV</span>
-          </button>
-
-          {/* Config Editor Button */}
-          <button
-            onClick={openEditor}
-            className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold px-3 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 transition"
-            title="Configurar líneas de crédito y etiquetas"
-          >
-            <Edit3 size={14} />
-            <span>Configurar</span>
           </button>
         </div>
       </div>
@@ -624,17 +688,27 @@ export const Dashboard: React.FC = () => {
         {/* Tabla de Transacciones */}
         <div className="lg:col-span-2">
           <Card className="p-0 overflow-hidden">
-            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/40">
+            <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-slate-50/50 dark:bg-slate-800/40">
               <div>
                 <h3 className="font-bold text-slate-900 dark:text-white text-sm">Registro de Transacciones del Periodo</h3>
                 <p className="text-xs text-slate-400 dark:text-slate-500">Movimientos consolidados filtrados por mes y entidad</p>
               </div>
-              <Badge variant="default">{filtered.length} registros</Badge>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Badge variant="default">{filtered.length} registros</Badge>
+                <button
+                  onClick={handleOpenNewRowModal}
+                  className="flex items-center gap-1.5 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs hover:shadow transition"
+                  title="Agregar una nueva fila o gasto proyectado para el periodo"
+                >
+                  <Plus size={14} />
+                  <span>+ Nueva Fila / Proyección</span>
+                </button>
+              </div>
             </div>
 
             <div className="overflow-x-auto max-h-[440px] overflow-y-auto">
               <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700">
+                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                   <tr>
                     <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Fecha</th>
@@ -642,32 +716,101 @@ export const Dashboard: React.FC = () => {
                     <th className="px-4 py-3">Categoría</th>
                     <th className="px-4 py-3">Entidad</th>
                     <th className="px-4 py-3 text-right">Monto</th>
+                    <th className="px-4 py-3 text-center">Estado</th>
+                    <th className="px-4 py-3 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
+                      <td colSpan={8} className="px-4 py-8 text-center text-slate-400 dark:text-slate-500">
                         No hay movimientos registrados para el filtro seleccionado.
                       </td>
                     </tr>
                   ) : (
-                    filtered.map((t) => (
-                      <tr key={t.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition">
-                        <td className="px-4 py-2.5">
-                          <Badge variant={t.Tipo === 'Ingreso' ? 'success' : t.Categoria === 'Deuda' ? 'warning' : 'default'}>
-                            {t.Tipo}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{t.Fecha}</td>
-                        <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white max-w-xs truncate">{t.Concepto}</td>
-                        <td className="px-4 py-2.5 italic text-slate-500 dark:text-slate-400">{t.Categoria}</td>
-                        <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{t.Entidad}</td>
-                        <td className="px-4 py-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
-                          {formatterPEN.format(t.Monto)}
-                        </td>
-                      </tr>
-                    ))
+                    filtered.map((t) => {
+                      const isProvisional = t.estado === 'provisional' || t.estado === 'pendiente';
+
+                      return (
+                        <tr
+                          key={t.id}
+                          className={`transition ${
+                            isProvisional
+                              ? 'bg-amber-50/90 dark:bg-amber-950/40 border-l-4 border-amber-400 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 text-amber-950 dark:text-amber-100 font-medium'
+                              : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
+                          }`}
+                        >
+                          <td className="px-4 py-2.5">
+                            <Badge variant={t.Tipo === 'Ingreso' ? 'success' : t.Categoria === 'Deuda' ? 'warning' : 'default'}>
+                              {t.Tipo}
+                            </Badge>
+                          </td>
+                          <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{t.Fecha}</td>
+                          <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white max-w-xs truncate">
+                            <div className="flex items-center gap-1.5">
+                              <span>{t.Concepto}</span>
+                              {isProvisional && (
+                                <span className="text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded font-bold">
+                                  Proyección
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-2.5 italic text-slate-500 dark:text-slate-400">{t.Categoria}</td>
+                          <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{t.Entidad}</td>
+                          <td className="px-4 py-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
+                            {formatterPEN.format(t.Monto)}
+                          </td>
+                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                            {isProvisional ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
+                                <Clock size={10} /> Proyección
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300">
+                                <CheckCircle2 size={10} /> Consolidado
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1.5">
+                              {/* Si está en proyección / amarillo: Mostrar Check de Aprobación */}
+                              {isProvisional && (
+                                <button
+                                  onClick={() => handleApproveTransaction(t)}
+                                  className="p-1.5 text-emerald-700 hover:text-emerald-950 dark:text-emerald-400 dark:hover:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg transition shadow-xs"
+                                  title="Aprobar registro (Consolidar y quitar color amarillo)"
+                                >
+                                  <CheckCircle2 size={15} />
+                                </button>
+                              )}
+
+                              {/* Botón de Devolver / Mover a Pago Pendiente */}
+                              <button
+                                onClick={() => handleSendToPending(t)}
+                                className={`p-1.5 rounded-lg transition ${
+                                  isProvisional
+                                    ? 'text-amber-800 hover:text-amber-950 dark:text-amber-300 bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/80 dark:hover:bg-amber-800 shadow-xs'
+                                    : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                                }`}
+                                title="Devolver a bandeja de Pagos Pendientes"
+                              >
+                                <RotateCcw size={15} />
+                              </button>
+
+                              {/* Botón de Eliminar permanente de la Base */}
+                              <button
+                                onClick={() => handleDeleteTransaction(t)}
+                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                                title="Eliminar fila de la tabla y de la base de datos permanentemente"
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -681,8 +824,8 @@ export const Dashboard: React.FC = () => {
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-                    <PieIcon size={16} className="text-emerald-700" />
+                  <h3 className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
+                    <PieIcon size={16} className="text-emerald-700 dark:text-emerald-400" />
                     <span>Estructura de Gastos</span>
                   </h3>
                   <p className="text-xs text-slate-400">Distribución por categoría en el mes</p>
@@ -716,14 +859,14 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* Resumen Top Categorías */}
-            <div className="mt-4 pt-3 border-t border-slate-100 space-y-1.5">
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
               {chartData.slice(0, 4).map((c, i) => (
                 <div key={c.name} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2">
                     <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
-                    <span className="text-slate-600 font-medium truncate">{c.name}</span>
+                    <span className="text-slate-600 dark:text-slate-400 font-medium truncate">{c.name}</span>
                   </div>
-                  <span className="font-bold text-slate-800">{formatterPEN.format(c.value)}</span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200">{formatterPEN.format(c.value)}</span>
                 </div>
               ))}
             </div>
@@ -731,18 +874,6 @@ export const Dashboard: React.FC = () => {
         </div>
 
       </div>
-
-      {/* Editor Modal */}
-      {showEditor && (
-        <ConfigEditor
-          overrides={editorOverrides}
-          labels={editorLabels}
-          onLineChange={handleEditorLineChange}
-          onLabelChange={handleEditorLabelChange}
-          onSave={saveEditor}
-          onClose={() => setShowEditor(false)}
-        />
-      )}
 
       {/* ── MODAL AGREGAR / EDITAR PAGO PENDIENTE ── */}
       {isPendingModalOpen && (
@@ -850,7 +981,7 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setPendFormEntidad(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {['Interbank', 'BBVA Bfree', 'Interbank Amex', 'Ripley', 'BCP', 'Scotiabank', 'Efectivo'].map(e => (
+                    {['Interbank', 'BBVA Bfree', 'Interbank Amex', 'Ripley', 'BCP', 'Scotiabank', 'Efectivo', 'Yape', 'Plin'].map(e => (
                       <option key={e} value={e}>{e}</option>
                     ))}
                   </select>
@@ -878,6 +1009,175 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
+      {/* ── MODAL AGREGAR NUEVA FILA / PROYECCIÓN EN TABLA ── */}
+      {isNewRowModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsNewRowModalOpen(false)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+            
+            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Sparkles size={18} className="text-amber-400" />
+                <h3 className="font-bold text-sm">
+                  Agregar Nueva Fila / Proyección
+                </h3>
+              </div>
+              <button onClick={() => setIsNewRowModalOpen(false)} className="text-emerald-300 hover:text-white p-1">
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewRowModal} className="p-6 space-y-4 text-xs">
+              <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                <Clock size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
+                <p className="text-[11px] leading-relaxed">
+                  Las partidas agregadas como <strong>Proyección</strong> aparecerán pintadas de <strong>amarillo</strong> en la tabla, permitiéndote simular gastos futuros en el mes con opción de aprobarlas o devolverlas a pagos pendientes.
+                </p>
+              </div>
+
+              {/* Tipo: Ingreso / Egreso */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tipo de Movimiento</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewRowTipo('Egreso')}
+                    className={`p-2.5 rounded-xl border text-center font-bold transition ${
+                      newRowTipo === 'Egreso'
+                        ? 'border-rose-600 bg-rose-50 dark:bg-rose-950/60 text-rose-900 dark:text-rose-300 ring-2 ring-rose-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    🔴 Egreso / Gasto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewRowTipo('Ingreso')}
+                    className={`p-2.5 rounded-xl border text-center font-bold transition ${
+                      newRowTipo === 'Ingreso'
+                        ? 'border-emerald-600 bg-emerald-50 dark:bg-emerald-950/60 text-emerald-900 dark:text-emerald-300 ring-2 ring-emerald-500/20'
+                        : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                    }`}
+                  >
+                    🟢 Ingreso / Entrada
+                  </button>
+                </div>
+              </div>
+
+              {/* Concepto */}
+              <div>
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Concepto / Detalle</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Ej: Salida a cenar, Servicio de luz, etc."
+                  value={newRowConcepto}
+                  onChange={e => setNewRowConcepto(e.target.value)}
+                  className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+              </div>
+
+              {/* Monto y Fecha */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Monto (S/)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    required
+                    value={newRowMonto || ''}
+                    onChange={e => setNewRowMonto(parseFloat(e.target.value) || 0)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-black focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    required
+                    value={newRowFecha}
+                    onChange={e => setNewRowFecha(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              {/* Categoría y Entidad */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Categoría</label>
+                  <select
+                    value={newRowCategoria}
+                    onChange={e => setNewRowCategoria(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {CATEGORIAS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Entidad Bancaria</label>
+                  <select
+                    value={newRowEntidad}
+                    onChange={e => setNewRowEntidad(e.target.value)}
+                    className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    {['Interbank', 'BBVA Bfree', 'Interbank Amex', 'Ripley', 'BCP', 'Scotiabank', 'Efectivo', 'Yape', 'Plin'].map(e => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Modo de Registro */}
+              <div className="pt-1">
+                <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1.5">Estado Inicial</label>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
+                    <input
+                      type="radio"
+                      name="rowMode"
+                      checked={newRowEsProyeccion}
+                      onChange={() => setNewRowEsProyeccion(true)}
+                      className="accent-amber-500"
+                    />
+                    <span className="font-semibold">🟡 Proyección (Pintada de amarillo)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer text-slate-700 dark:text-slate-300">
+                    <input
+                      type="radio"
+                      name="rowMode"
+                      checked={!newRowEsProyeccion}
+                      onChange={() => setNewRowEsProyeccion(false)}
+                      className="accent-emerald-600"
+                    />
+                    <span className="font-semibold">🟢 Consolidada</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsNewRowModalOpen(false)}
+                  className="px-4 py-2 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-semibold"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl shadow-md transition"
+                >
+                  Agregar a la Tabla
+                </button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
+

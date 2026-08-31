@@ -7,6 +7,7 @@ export interface Transaction {
   Monto: number;
   Entidad: string;
   Mes: string;
+  estado?: 'confirmado' | 'pendiente' | 'provisional';
 }
 
 export const CATEGORIAS = [

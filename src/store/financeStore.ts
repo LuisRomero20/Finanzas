@@ -74,6 +74,8 @@ interface FinanceState {
   setMonth: (month: string) => void;
   setEntity: (entity: string) => void;
   addTransaction: (tx: Omit<Transaction, 'id'> & { id?: string }) => Transaction;
+  updateTransaction: (id: string, updates: Partial<Transaction>) => void;
+  confirmTransaction: (id: string) => void;
   deleteTransaction: (id: string) => void;
   getFilteredTransactions: () => Transaction[];
   syncFromSupabase: () => Promise<number>;
@@ -102,6 +104,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       Monto: Number(txData.Monto),
       Entidad: txData.Entidad,
       Mes: mes,
+      estado: txData.estado || 'confirmado',
     };
 
     set((state) => {
@@ -114,6 +117,28 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     insertTransactionToSupabase(newTx).catch(err => console.warn('Cloud sync error:', err));
 
     return newTx;
+  },
+
+  updateTransaction: (id: string, updates: Partial<Transaction>) => {
+    set((state) => {
+      let updatedTx: Transaction | null = null;
+      const updated = state.transactions.map((t) => {
+        if (t.id === id) {
+          updatedTx = { ...t, ...updates };
+          return updatedTx;
+        }
+        return t;
+      });
+      safeSetStorage(LS_TX_KEY, JSON.stringify(updated));
+      if (updatedTx) {
+        insertTransactionToSupabase(updatedTx).catch(err => console.warn('Cloud sync update error:', err));
+      }
+      return { transactions: updated };
+    });
+  },
+
+  confirmTransaction: (id: string) => {
+    get().updateTransaction(id, { estado: 'confirmado' });
   },
 
   deleteTransaction: (id: string) => {
