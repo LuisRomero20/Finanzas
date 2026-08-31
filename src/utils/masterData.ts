@@ -120,26 +120,6 @@ export const masterTransactions: Transaction[] = [
   {
     "id": "tx-8",
     "Tipo": "Egreso",
-    "Fecha": "2026-01-14",
-    "Categoria": "Servicio",
-    "Concepto": "iCloud",
-    "Monto": 4.02,
-    "Entidad": "Interbank",
-    "Mes": "Enero"
-  },
-  {
-    "id": "tx-9",
-    "Tipo": "Egreso",
-    "Fecha": "2026-01-15",
-    "Categoria": "Servicio",
-    "Concepto": "Telefonia Movil",
-    "Monto": 39.9,
-    "Entidad": "Interbank",
-    "Mes": "Enero"
-  },
-  {
-    "id": "tx-10",
-    "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Servicio",
     "Concepto": "IA",
@@ -148,7 +128,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-11",
+    "id": "tx-9",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Servicio",
@@ -158,7 +138,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-12",
+    "id": "tx-10",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Servicio",
@@ -168,7 +148,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-13",
+    "id": "tx-11",
     "Tipo": "Ingreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -178,7 +158,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-14",
+    "id": "tx-12",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -188,17 +168,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-15",
+    "id": "tx-13",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 14.1,
     "Entidad": "BBVA Bfree",
     "Mes": "Enero"
   },
   {
-    "id": "tx-16",
+    "id": "tx-14",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -208,7 +188,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-17",
+    "id": "tx-15",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -218,7 +198,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-18",
+    "id": "tx-16",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -228,7 +208,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-19",
+    "id": "tx-17",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -238,27 +218,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
+    "id": "tx-18",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-01",
+    "Categoria": "Gasto",
+    "Concepto": "Chupete",
+    "Monto": 5,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-19",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 5,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
     "id": "tx-20",
-    "Tipo": "Egreso",
-    "Fecha": "2026-01-01",
-    "Categoria": "Gasto",
-    "Concepto": "Dulce",
-    "Monto": 5,
-    "Entidad": "Interbank",
-    "Mes": "Enero"
-  },
-  {
-    "id": "tx-21",
-    "Tipo": "Egreso",
-    "Fecha": "2026-01-01",
-    "Categoria": "Gasto",
-    "Concepto": "Transporte",
-    "Monto": 5,
-    "Entidad": "Interbank",
-    "Mes": "Enero"
-  },
-  {
-    "id": "tx-22",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -268,7 +248,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-23",
+    "id": "tx-21",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
@@ -278,27 +258,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-24",
+    "id": "tx-22",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
-    "Concepto": "Medicinas",
+    "Concepto": "Condones",
     "Monto": 20.8,
     "Entidad": "BBVA Bfree",
     "Mes": "Enero"
   },
   {
-    "id": "tx-25",
+    "id": "tx-23",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Turron",
     "Monto": 5,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
-    "id": "tx-26",
+    "id": "tx-24",
     "Tipo": "Egreso",
     "Fecha": "2026-01-01",
     "Categoria": "Servicio",
@@ -308,7 +288,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-27",
+    "id": "tx-25",
     "Tipo": "Egreso",
     "Fecha": "2026-01-02",
     "Categoria": "Gasto",
@@ -318,7 +298,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-28",
+    "id": "tx-26",
     "Tipo": "Egreso",
     "Fecha": "2026-01-02",
     "Categoria": "Gasto",
@@ -328,7 +308,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-29",
+    "id": "tx-27",
     "Tipo": "Egreso",
     "Fecha": "2026-01-04",
     "Categoria": "Gasto",
@@ -338,7 +318,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-30",
+    "id": "tx-28",
     "Tipo": "Egreso",
     "Fecha": "2026-01-04",
     "Categoria": "Gasto",
@@ -348,7 +328,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-31",
+    "id": "tx-29",
     "Tipo": "Egreso",
     "Fecha": "2026-01-04",
     "Categoria": "Gasto",
@@ -358,7 +338,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-32",
+    "id": "tx-30",
     "Tipo": "Ingreso",
     "Fecha": "2026-01-05",
     "Categoria": "Otro Ing",
@@ -368,7 +348,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-33",
+    "id": "tx-31",
     "Tipo": "Egreso",
     "Fecha": "2026-01-06",
     "Categoria": "Gasto",
@@ -378,17 +358,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-34",
+    "id": "tx-32",
     "Tipo": "Egreso",
     "Fecha": "2026-01-06",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 18.6,
     "Entidad": "BBVA Bfree",
     "Mes": "Enero"
   },
   {
-    "id": "tx-35",
+    "id": "tx-33",
     "Tipo": "Egreso",
     "Fecha": "2026-01-06",
     "Categoria": "Gasto",
@@ -398,7 +378,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-36",
+    "id": "tx-34",
     "Tipo": "Egreso",
     "Fecha": "2026-01-06",
     "Categoria": "Gasto",
@@ -408,7 +388,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-37",
+    "id": "tx-35",
     "Tipo": "Egreso",
     "Fecha": "2026-01-08",
     "Categoria": "Gasto",
@@ -418,7 +398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-38",
+    "id": "tx-36",
     "Tipo": "Egreso",
     "Fecha": "2026-01-10",
     "Categoria": "Servicio",
@@ -428,7 +408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-39",
+    "id": "tx-37",
     "Tipo": "Egreso",
     "Fecha": "2026-01-10",
     "Categoria": "Gasto",
@@ -438,17 +418,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-40",
+    "id": "tx-38",
     "Tipo": "Egreso",
     "Fecha": "2026-01-11",
     "Categoria": "Gasto",
-    "Concepto": "Dulce",
+    "Concepto": "Shawarma",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
-    "id": "tx-41",
+    "id": "tx-39",
     "Tipo": "Egreso",
     "Fecha": "2026-01-11",
     "Categoria": "Gasto",
@@ -458,7 +438,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-42",
+    "id": "tx-40",
     "Tipo": "Egreso",
     "Fecha": "2026-01-11",
     "Categoria": "Gasto",
@@ -468,7 +448,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-43",
+    "id": "tx-41",
     "Tipo": "Egreso",
     "Fecha": "2026-01-12",
     "Categoria": "Gasto",
@@ -478,22 +458,42 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-44",
+    "id": "tx-42",
     "Tipo": "Egreso",
     "Fecha": "2026-01-13",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Camisa",
     "Monto": 90.9,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-43",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-14",
+    "Categoria": "Servicio",
+    "Concepto": "iCloud",
+    "Monto": 4.02,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-44",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-14",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 9,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
     "id": "tx-45",
     "Tipo": "Egreso",
-    "Fecha": "2026-01-14",
-    "Categoria": "Gasto",
-    "Concepto": "Broaster",
-    "Monto": 9,
+    "Fecha": "2026-01-15",
+    "Categoria": "Servicio",
+    "Concepto": "Telefonia Movil",
+    "Monto": 39.9,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
@@ -522,8 +522,8 @@ export const masterTransactions: Transaction[] = [
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
-    "Concepto": "Concierto Bad Bunny",
-    "Monto": 86.5,
+    "Concepto": "Gorra",
+    "Monto": 30,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
@@ -532,9 +532,9 @@ export const masterTransactions: Transaction[] = [
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
-    "Concepto": "Concierto Bad Bunny",
-    "Monto": 32.3,
-    "Entidad": "BBVA Bfree",
+    "Concepto": "Taxi",
+    "Monto": 20,
+    "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
@@ -542,13 +542,43 @@ export const masterTransactions: Transaction[] = [
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
-    "Monto": 2.5,
+    "Concepto": "Cerveza",
+    "Monto": 16.5,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
     "id": "tx-51",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-17",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 20,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-52",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-17",
+    "Categoria": "Gasto",
+    "Concepto": "Cerveza",
+    "Monto": 32.3,
+    "Entidad": "BBVA Bfree",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-53",
+    "Tipo": "Egreso",
+    "Fecha": "2026-01-17",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 2.5,
+    "Entidad": "Interbank",
+    "Mes": "Enero"
+  },
+  {
+    "id": "tx-54",
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
@@ -558,7 +588,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-52",
+    "id": "tx-55",
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
@@ -568,7 +598,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-53",
+    "id": "tx-56",
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
@@ -578,7 +608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-54",
+    "id": "tx-57",
     "Tipo": "Egreso",
     "Fecha": "2026-01-17",
     "Categoria": "Gasto",
@@ -588,7 +618,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-55",
+    "id": "tx-58",
     "Tipo": "Egreso",
     "Fecha": "2026-01-19",
     "Categoria": "Gasto",
@@ -598,7 +628,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-56",
+    "id": "tx-59",
     "Tipo": "Egreso",
     "Fecha": "2026-01-21",
     "Categoria": "Gasto",
@@ -608,27 +638,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-57",
+    "id": "tx-60",
     "Tipo": "Egreso",
     "Fecha": "2026-01-21",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 6.25,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
-    "id": "tx-58",
+    "id": "tx-61",
     "Tipo": "Egreso",
     "Fecha": "2026-01-21",
     "Categoria": "Gasto",
-    "Concepto": "Alcohol",
+    "Concepto": "FourLoko",
     "Monto": 9.19,
     "Entidad": "BBVA Bfree",
     "Mes": "Enero"
   },
   {
-    "id": "tx-59",
+    "id": "tx-62",
     "Tipo": "Egreso",
     "Fecha": "2026-01-22",
     "Categoria": "Gasto",
@@ -638,27 +668,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-60",
+    "id": "tx-63",
     "Tipo": "Egreso",
     "Fecha": "2026-01-22",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 5.5,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
-    "id": "tx-61",
+    "id": "tx-64",
     "Tipo": "Egreso",
     "Fecha": "2026-01-22",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 5.5,
     "Entidad": "Interbank",
     "Mes": "Enero"
   },
   {
-    "id": "tx-62",
+    "id": "tx-65",
     "Tipo": "Egreso",
     "Fecha": "2026-01-22",
     "Categoria": "Gasto",
@@ -668,7 +698,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-63",
+    "id": "tx-66",
     "Tipo": "Egreso",
     "Fecha": "2026-01-23",
     "Categoria": "Gasto",
@@ -678,7 +708,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-64",
+    "id": "tx-67",
     "Tipo": "Egreso",
     "Fecha": "2026-01-23",
     "Categoria": "Gasto",
@@ -688,7 +718,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-65",
+    "id": "tx-68",
     "Tipo": "Egreso",
     "Fecha": "2026-01-25",
     "Categoria": "Gasto",
@@ -698,7 +728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Enero"
   },
   {
-    "id": "tx-66",
+    "id": "tx-69",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-01",
     "Categoria": "Otro Ing",
@@ -708,7 +738,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-67",
+    "id": "tx-70",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-01",
     "Categoria": "Sueldo",
@@ -718,7 +748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-68",
+    "id": "tx-71",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -728,7 +758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-69",
+    "id": "tx-72",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -738,7 +768,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-70",
+    "id": "tx-73",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -748,7 +778,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-71",
+    "id": "tx-74",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -758,7 +788,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-72",
+    "id": "tx-75",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -768,17 +798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-73",
-    "Tipo": "Egreso",
-    "Fecha": "2026-02-15",
-    "Categoria": "Servicio",
-    "Concepto": "Telefonia Movil",
-    "Monto": 39.9,
-    "Entidad": "Interbank",
-    "Mes": "Febrero"
-  },
-  {
-    "id": "tx-74",
+    "id": "tx-76",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -788,7 +808,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-75",
+    "id": "tx-77",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -798,7 +818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-76",
+    "id": "tx-78",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Otro Egre",
@@ -808,7 +828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-77",
+    "id": "tx-79",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -818,7 +838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-78",
+    "id": "tx-80",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -828,7 +848,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-79",
+    "id": "tx-81",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -838,7 +858,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-80",
+    "id": "tx-82",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -848,17 +868,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-81",
+    "id": "tx-83",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Papa Rellena",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-82",
+    "id": "tx-84",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Otro Egre",
@@ -868,7 +888,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-83",
+    "id": "tx-85",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -878,17 +898,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-84",
+    "id": "tx-86",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Menú",
     "Monto": 11,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-85",
+    "id": "tx-87",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -898,7 +918,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-86",
+    "id": "tx-88",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -908,17 +928,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-87",
+    "id": "tx-89",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-88",
+    "id": "tx-90",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -928,7 +948,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-89",
+    "id": "tx-91",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Otro Egre",
@@ -938,17 +958,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-90",
+    "id": "tx-92",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-91",
+    "id": "tx-93",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -958,7 +978,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-92",
+    "id": "tx-94",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -968,7 +988,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-93",
+    "id": "tx-95",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -978,7 +998,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-94",
+    "id": "tx-96",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -988,7 +1008,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-95",
+    "id": "tx-97",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -998,7 +1018,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-96",
+    "id": "tx-98",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -1008,7 +1028,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-97",
+    "id": "tx-99",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Servicio",
@@ -1018,7 +1038,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-98",
+    "id": "tx-100",
     "Tipo": "Egreso",
     "Fecha": "2026-02-01",
     "Categoria": "Gasto",
@@ -1028,7 +1048,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-99",
+    "id": "tx-101",
     "Tipo": "Egreso",
     "Fecha": "2026-02-02",
     "Categoria": "Gasto",
@@ -1038,7 +1058,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-100",
+    "id": "tx-102",
     "Tipo": "Egreso",
     "Fecha": "2026-02-02",
     "Categoria": "Gasto",
@@ -1048,7 +1068,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-101",
+    "id": "tx-103",
     "Tipo": "Egreso",
     "Fecha": "2026-02-02",
     "Categoria": "Gasto",
@@ -1058,7 +1078,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-102",
+    "id": "tx-104",
     "Tipo": "Egreso",
     "Fecha": "2026-02-04",
     "Categoria": "Gasto",
@@ -1068,7 +1088,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-103",
+    "id": "tx-105",
     "Tipo": "Egreso",
     "Fecha": "2026-02-04",
     "Categoria": "Gasto",
@@ -1078,17 +1098,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-104",
+    "id": "tx-106",
     "Tipo": "Egreso",
     "Fecha": "2026-02-04",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Menú",
     "Monto": 13.65,
     "Entidad": "BBVA Bfree",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-105",
+    "id": "tx-107",
     "Tipo": "Egreso",
     "Fecha": "2026-02-04",
     "Categoria": "Gasto",
@@ -1098,7 +1118,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-106",
+    "id": "tx-108",
     "Tipo": "Egreso",
     "Fecha": "2026-02-05",
     "Categoria": "Gasto",
@@ -1108,7 +1128,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-107",
+    "id": "tx-109",
     "Tipo": "Egreso",
     "Fecha": "2026-02-06",
     "Categoria": "Gasto",
@@ -1118,7 +1138,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-108",
+    "id": "tx-110",
     "Tipo": "Egreso",
     "Fecha": "2026-02-06",
     "Categoria": "Servicio",
@@ -1128,7 +1148,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-109",
+    "id": "tx-111",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-06",
     "Categoria": "Otro Ing",
@@ -1138,17 +1158,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-110",
-    "Tipo": "Egreso",
+    "id": "tx-112",
+    "Tipo": "Ingreso",
     "Fecha": "2026-02-06",
-    "Categoria": "Otro Egre",
+    "Categoria": "Otro Ing",
     "Concepto": "Viaje Argentina",
     "Monto": 600,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-111",
+    "id": "tx-113",
+    "Tipo": "Egreso",
+    "Fecha": "2026-02-06",
+    "Categoria": "Gasto",
+    "Concepto": "Viaje Argentina",
+    "Monto": 600,
+    "Entidad": "Interbank",
+    "Mes": "Febrero"
+  },
+  {
+    "id": "tx-114",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-06",
     "Categoria": "Otro Ing",
@@ -1158,7 +1188,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-112",
+    "id": "tx-115",
     "Tipo": "Egreso",
     "Fecha": "2026-02-06",
     "Categoria": "Gasto",
@@ -1168,41 +1198,11 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-113",
-    "Tipo": "Egreso",
-    "Fecha": "2026-02-07",
-    "Categoria": "Gasto",
-    "Concepto": "Dulce",
-    "Monto": 3.5,
-    "Entidad": "BBVA Bfree",
-    "Mes": "Febrero"
-  },
-  {
-    "id": "tx-114",
-    "Tipo": "Egreso",
-    "Fecha": "2026-02-07",
-    "Categoria": "Gasto",
-    "Concepto": "Gaseosa",
-    "Monto": 3.29,
-    "Entidad": "BBVA Bfree",
-    "Mes": "Febrero"
-  },
-  {
-    "id": "tx-115",
-    "Tipo": "Egreso",
-    "Fecha": "2026-02-07",
-    "Categoria": "Gasto",
-    "Concepto": "Broaster",
-    "Monto": 30.57,
-    "Entidad": "BBVA Bfree",
-    "Mes": "Febrero"
-  },
-  {
     "id": "tx-116",
     "Tipo": "Egreso",
     "Fecha": "2026-02-07",
     "Categoria": "Gasto",
-    "Concepto": "Gaseosa",
+    "Concepto": "Dulce de Leche",
     "Monto": 3.5,
     "Entidad": "BBVA Bfree",
     "Mes": "Febrero"
@@ -1212,13 +1212,43 @@ export const masterTransactions: Transaction[] = [
     "Tipo": "Egreso",
     "Fecha": "2026-02-07",
     "Categoria": "Gasto",
+    "Concepto": "Gaseosa",
+    "Monto": 3.29,
+    "Entidad": "BBVA Bfree",
+    "Mes": "Febrero"
+  },
+  {
+    "id": "tx-118",
+    "Tipo": "Egreso",
+    "Fecha": "2026-02-07",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 30.57,
+    "Entidad": "BBVA Bfree",
+    "Mes": "Febrero"
+  },
+  {
+    "id": "tx-119",
+    "Tipo": "Egreso",
+    "Fecha": "2026-02-07",
+    "Categoria": "Gasto",
+    "Concepto": "Gaseosa",
+    "Monto": 3.5,
+    "Entidad": "BBVA Bfree",
+    "Mes": "Febrero"
+  },
+  {
+    "id": "tx-120",
+    "Tipo": "Egreso",
+    "Fecha": "2026-02-07",
+    "Categoria": "Gasto",
     "Concepto": "Broaster",
     "Monto": 15,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-118",
+    "id": "tx-121",
     "Tipo": "Egreso",
     "Fecha": "2026-02-09",
     "Categoria": "Gasto",
@@ -1228,7 +1258,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-119",
+    "id": "tx-122",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-10",
     "Categoria": "Gasto",
@@ -1238,7 +1268,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-120",
+    "id": "tx-123",
     "Tipo": "Egreso",
     "Fecha": "2026-02-10",
     "Categoria": "Gasto",
@@ -1248,17 +1278,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-121",
+    "id": "tx-124",
     "Tipo": "Egreso",
     "Fecha": "2026-02-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 4,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-122",
+    "id": "tx-125",
     "Tipo": "Egreso",
     "Fecha": "2026-02-10",
     "Categoria": "Gasto",
@@ -1268,17 +1298,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-123",
+    "id": "tx-126",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 20,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-124",
+    "id": "tx-127",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
@@ -1288,17 +1318,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-125",
+    "id": "tx-128",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Polo",
     "Monto": 42.46,
     "Entidad": "Interbank Amex",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-126",
+    "id": "tx-129",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
@@ -1308,17 +1338,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-127",
+    "id": "tx-130",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
-    "Concepto": "Zapatillas",
+    "Concepto": "Arreglar Zapatillas",
     "Monto": 50.89,
     "Entidad": "Interbank Amex",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-128",
+    "id": "tx-131",
     "Tipo": "Egreso",
     "Fecha": "2026-02-11",
     "Categoria": "Gasto",
@@ -1328,17 +1358,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-129",
+    "id": "tx-132",
     "Tipo": "Egreso",
     "Fecha": "2026-02-12",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Camisa",
     "Monto": 69.5,
     "Entidad": "Interbank Amex",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-130",
+    "id": "tx-133",
     "Tipo": "Egreso",
     "Fecha": "2026-02-13",
     "Categoria": "Otro Egre",
@@ -1348,7 +1378,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-131",
+    "id": "tx-134",
     "Tipo": "Egreso",
     "Fecha": "2026-02-13",
     "Categoria": "Gasto",
@@ -1358,7 +1388,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-132",
+    "id": "tx-135",
     "Tipo": "Egreso",
     "Fecha": "2026-02-14",
     "Categoria": "Gasto",
@@ -1368,7 +1398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-133",
+    "id": "tx-136",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-14",
     "Categoria": "Otro Ing",
@@ -1378,7 +1408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-134",
+    "id": "tx-137",
     "Tipo": "Egreso",
     "Fecha": "2026-02-14",
     "Categoria": "Servicio",
@@ -1388,7 +1418,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-135",
+    "id": "tx-138",
     "Tipo": "Egreso",
     "Fecha": "2026-02-14",
     "Categoria": "Gasto",
@@ -1398,7 +1428,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-136",
+    "id": "tx-139",
     "Tipo": "Egreso",
     "Fecha": "2026-02-14",
     "Categoria": "Gasto",
@@ -1408,7 +1438,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-137",
+    "id": "tx-140",
     "Tipo": "Egreso",
     "Fecha": "2026-02-14",
     "Categoria": "Gasto",
@@ -1418,7 +1448,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-138",
+    "id": "tx-141",
+    "Tipo": "Egreso",
+    "Fecha": "2026-02-15",
+    "Categoria": "Servicio",
+    "Concepto": "Telefonia Movil",
+    "Monto": 39.9,
+    "Entidad": "Interbank",
+    "Mes": "Febrero"
+  },
+  {
+    "id": "tx-142",
     "Tipo": "Egreso",
     "Fecha": "2026-02-15",
     "Categoria": "Deuda",
@@ -1428,7 +1468,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-139",
+    "id": "tx-143",
     "Tipo": "Egreso",
     "Fecha": "2026-02-15",
     "Categoria": "Gasto",
@@ -1438,7 +1478,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-140",
+    "id": "tx-144",
     "Tipo": "Egreso",
     "Fecha": "2026-02-15",
     "Categoria": "Gasto",
@@ -1448,7 +1488,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-141",
+    "id": "tx-145",
     "Tipo": "Egreso",
     "Fecha": "2026-02-16",
     "Categoria": "Gasto",
@@ -1458,7 +1498,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-142",
+    "id": "tx-146",
     "Tipo": "Egreso",
     "Fecha": "2026-02-16",
     "Categoria": "Gasto",
@@ -1468,7 +1508,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-143",
+    "id": "tx-147",
     "Tipo": "Egreso",
     "Fecha": "2026-02-16",
     "Categoria": "Gasto",
@@ -1478,7 +1518,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-144",
+    "id": "tx-148",
     "Tipo": "Egreso",
     "Fecha": "2026-02-18",
     "Categoria": "Gasto",
@@ -1488,17 +1528,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-145",
+    "id": "tx-149",
     "Tipo": "Egreso",
     "Fecha": "2026-02-19",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 6,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-146",
+    "id": "tx-150",
     "Tipo": "Egreso",
     "Fecha": "2026-02-19",
     "Categoria": "Gasto",
@@ -1508,7 +1548,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-147",
+    "id": "tx-151",
     "Tipo": "Egreso",
     "Fecha": "2026-02-20",
     "Categoria": "Gasto",
@@ -1518,7 +1558,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-148",
+    "id": "tx-152",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-20",
     "Categoria": "Otro Ing",
@@ -1528,7 +1568,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-149",
+    "id": "tx-153",
     "Tipo": "Egreso",
     "Fecha": "2026-02-20",
     "Categoria": "Gasto",
@@ -1538,17 +1578,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-150",
+    "id": "tx-154",
     "Tipo": "Egreso",
     "Fecha": "2026-02-20",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 20,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-151",
+    "id": "tx-155",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1558,7 +1598,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-152",
+    "id": "tx-156",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-21",
     "Categoria": "Otro Ing",
@@ -1568,7 +1608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-153",
+    "id": "tx-157",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1578,7 +1618,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-154",
+    "id": "tx-158",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1588,7 +1628,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-155",
+    "id": "tx-159",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1598,7 +1638,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-156",
+    "id": "tx-160",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1608,7 +1648,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-157",
+    "id": "tx-161",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1618,7 +1658,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-158",
+    "id": "tx-162",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1628,7 +1668,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-159",
+    "id": "tx-163",
     "Tipo": "Egreso",
     "Fecha": "2026-02-21",
     "Categoria": "Gasto",
@@ -1638,7 +1678,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-160",
+    "id": "tx-164",
     "Tipo": "Egreso",
     "Fecha": "2026-02-22",
     "Categoria": "Gasto",
@@ -1648,7 +1688,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-161",
+    "id": "tx-165",
     "Tipo": "Egreso",
     "Fecha": "2026-02-22",
     "Categoria": "Gasto",
@@ -1658,7 +1698,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-162",
+    "id": "tx-166",
     "Tipo": "Egreso",
     "Fecha": "2026-02-22",
     "Categoria": "Gasto",
@@ -1668,17 +1708,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-163",
+    "id": "tx-167",
     "Tipo": "Egreso",
     "Fecha": "2026-02-22",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-164",
+    "id": "tx-168",
     "Tipo": "Egreso",
     "Fecha": "2026-02-22",
     "Categoria": "Servicio",
@@ -1688,7 +1728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-165",
+    "id": "tx-169",
     "Tipo": "Egreso",
     "Fecha": "2026-02-24",
     "Categoria": "Gasto",
@@ -1698,7 +1738,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-166",
+    "id": "tx-170",
     "Tipo": "Egreso",
     "Fecha": "2026-02-24",
     "Categoria": "Servicio",
@@ -1708,7 +1748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-167",
+    "id": "tx-171",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-24",
     "Categoria": "Gasto",
@@ -1718,7 +1758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-168",
+    "id": "tx-172",
     "Tipo": "Egreso",
     "Fecha": "2026-02-25",
     "Categoria": "Gasto",
@@ -1728,17 +1768,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Febrero"
   },
   {
-    "id": "tx-169",
+    "id": "tx-173",
     "Tipo": "Egreso",
     "Fecha": "2026-02-25",
     "Categoria": "Gasto",
-    "Concepto": "Dulce",
+    "Concepto": "Dulce de Leche",
     "Monto": 3,
     "Entidad": "Interbank",
     "Mes": "Febrero"
   },
   {
-    "id": "tx-170",
+    "id": "tx-174",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
     "Categoria": "Otro Ing",
@@ -1748,7 +1788,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-171",
+    "id": "tx-175",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
     "Categoria": "Sueldo",
@@ -1758,7 +1798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-172",
+    "id": "tx-176",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1768,7 +1808,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-173",
+    "id": "tx-177",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1778,7 +1818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-174",
+    "id": "tx-178",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1788,7 +1828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-175",
+    "id": "tx-179",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1798,17 +1838,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-176",
-    "Tipo": "Egreso",
+    "id": "tx-180",
+    "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
-    "Categoria": "Otro Egre",
+    "Categoria": "Otro Ing",
     "Concepto": "Viaje Argentina",
     "Monto": 1050,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-177",
+    "id": "tx-181",
+    "Tipo": "Egreso",
+    "Fecha": "2026-03-01",
+    "Categoria": "Gasto",
+    "Concepto": "Viaje Argentina",
+    "Monto": 1050,
+    "Entidad": "Interbank",
+    "Mes": "Marzo"
+  },
+  {
+    "id": "tx-182",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1818,7 +1868,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-178",
+    "id": "tx-183",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1828,7 +1878,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-179",
+    "id": "tx-184",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1838,7 +1888,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-180",
+    "id": "tx-185",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1848,7 +1898,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-181",
+    "id": "tx-186",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1858,7 +1908,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-182",
+    "id": "tx-187",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
     "Categoria": "Otro Ing",
@@ -1868,7 +1918,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-183",
+    "id": "tx-188",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Otro Egre",
@@ -1878,7 +1928,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-184",
+    "id": "tx-189",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1888,47 +1938,47 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-185",
+    "id": "tx-190",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
-    "Concepto": "Pantalones y Shorts",
+    "Concepto": "Pantalon",
     "Monto": 99,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-186",
+    "id": "tx-191",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 20,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-187",
+    "id": "tx-192",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Polo",
     "Monto": 55,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-188",
+    "id": "tx-193",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Camisa",
     "Monto": 40,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-189",
+    "id": "tx-194",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1938,7 +1988,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-190",
+    "id": "tx-195",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1948,7 +1998,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-191",
+    "id": "tx-196",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1958,7 +2008,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-192",
+    "id": "tx-197",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1968,7 +2018,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-193",
+    "id": "tx-198",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Gasto",
@@ -1978,7 +2028,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-194",
+    "id": "tx-199",
     "Tipo": "Egreso",
     "Fecha": "2026-03-01",
     "Categoria": "Servicio",
@@ -1988,7 +2038,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-195",
+    "id": "tx-200",
     "Tipo": "Egreso",
     "Fecha": "2026-03-02",
     "Categoria": "Servicio",
@@ -1998,7 +2048,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-196",
+    "id": "tx-201",
     "Tipo": "Egreso",
     "Fecha": "2026-03-03",
     "Categoria": "Gasto",
@@ -2008,7 +2058,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-197",
+    "id": "tx-202",
     "Tipo": "Egreso",
     "Fecha": "2026-03-03",
     "Categoria": "Gasto",
@@ -2018,7 +2068,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-198",
+    "id": "tx-203",
     "Tipo": "Egreso",
     "Fecha": "2026-03-03",
     "Categoria": "Gasto",
@@ -2028,7 +2078,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-199",
+    "id": "tx-204",
     "Tipo": "Egreso",
     "Fecha": "2026-03-03",
     "Categoria": "Gasto",
@@ -2038,7 +2088,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-200",
+    "id": "tx-205",
     "Tipo": "Egreso",
     "Fecha": "2026-03-04",
     "Categoria": "Gasto",
@@ -2048,7 +2098,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-201",
+    "id": "tx-206",
     "Tipo": "Egreso",
     "Fecha": "2026-03-04",
     "Categoria": "Gasto",
@@ -2058,7 +2108,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-202",
+    "id": "tx-207",
     "Tipo": "Egreso",
     "Fecha": "2026-03-04",
     "Categoria": "Gasto",
@@ -2068,27 +2118,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-203",
+    "id": "tx-208",
     "Tipo": "Egreso",
     "Fecha": "2026-03-05",
     "Categoria": "Gasto",
-    "Concepto": "Dulce",
+    "Concepto": "Galleta Casino",
     "Monto": 3,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-204",
+    "id": "tx-209",
     "Tipo": "Egreso",
     "Fecha": "2026-03-05",
     "Categoria": "Gasto",
-    "Concepto": "Abrigos",
+    "Concepto": "Arreglar Abrigo",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-205",
+    "id": "tx-210",
     "Tipo": "Egreso",
     "Fecha": "2026-03-06",
     "Categoria": "Otro Egre",
@@ -2098,7 +2148,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-206",
+    "id": "tx-211",
     "Tipo": "Egreso",
     "Fecha": "2026-03-07",
     "Categoria": "Gasto",
@@ -2108,7 +2158,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-207",
+    "id": "tx-212",
     "Tipo": "Egreso",
     "Fecha": "2026-03-07",
     "Categoria": "Gasto",
@@ -2118,27 +2168,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-208",
+    "id": "tx-213",
     "Tipo": "Egreso",
     "Fecha": "2026-03-07",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Polo",
     "Monto": 50,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-209",
+    "id": "tx-214",
     "Tipo": "Egreso",
     "Fecha": "2026-03-07",
     "Categoria": "Gasto",
-    "Concepto": "Alcohol",
+    "Concepto": "Ron",
     "Monto": 50,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-210",
+    "id": "tx-215",
     "Tipo": "Egreso",
     "Fecha": "2026-03-07",
     "Categoria": "Gasto",
@@ -2148,7 +2198,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-211",
+    "id": "tx-216",
     "Tipo": "Egreso",
     "Fecha": "2026-03-08",
     "Categoria": "Gasto",
@@ -2158,7 +2208,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-212",
+    "id": "tx-217",
     "Tipo": "Egreso",
     "Fecha": "2026-03-09",
     "Categoria": "Gasto",
@@ -2168,7 +2218,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-213",
+    "id": "tx-218",
     "Tipo": "Egreso",
     "Fecha": "2026-03-09",
     "Categoria": "Gasto",
@@ -2178,17 +2228,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-214",
+    "id": "tx-219",
     "Tipo": "Egreso",
     "Fecha": "2026-03-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 40,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-215",
+    "id": "tx-220",
     "Tipo": "Egreso",
     "Fecha": "2026-03-10",
     "Categoria": "Gasto",
@@ -2198,17 +2248,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-216",
+    "id": "tx-221",
     "Tipo": "Egreso",
     "Fecha": "2026-03-10",
     "Categoria": "Gasto",
-    "Concepto": "Dulce",
+    "Concepto": "Torta de Chocolate",
     "Monto": 16.98,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-217",
+    "id": "tx-222",
     "Tipo": "Egreso",
     "Fecha": "2026-03-14",
     "Categoria": "Servicio",
@@ -2218,7 +2268,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-218",
+    "id": "tx-223",
     "Tipo": "Egreso",
     "Fecha": "2026-03-15",
     "Categoria": "Deuda",
@@ -2228,7 +2278,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-219",
+    "id": "tx-224",
     "Tipo": "Egreso",
     "Fecha": "2026-03-15",
     "Categoria": "Servicio",
@@ -2238,7 +2288,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-220",
+    "id": "tx-225",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-15",
     "Categoria": "Otro Ing",
@@ -2248,17 +2298,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-221",
+    "id": "tx-226",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-15",
     "Categoria": "Otro Ing",
-    "Concepto": "Jacko",
+    "Concepto": "Concierto Milo J",
     "Monto": 80,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-222",
+    "id": "tx-227",
     "Tipo": "Egreso",
     "Fecha": "2026-03-21",
     "Categoria": "Gasto",
@@ -2268,7 +2318,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-223",
+    "id": "tx-228",
     "Tipo": "Egreso",
     "Fecha": "2026-03-21",
     "Categoria": "Gasto",
@@ -2278,17 +2328,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-224",
+    "id": "tx-229",
     "Tipo": "Egreso",
     "Fecha": "2026-03-24",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3.5,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-225",
+    "id": "tx-230",
     "Tipo": "Egreso",
     "Fecha": "2026-03-24",
     "Categoria": "Gasto",
@@ -2298,17 +2348,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Marzo"
   },
   {
-    "id": "tx-226",
+    "id": "tx-231",
     "Tipo": "Egreso",
     "Fecha": "2026-03-26",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 6,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
   {
-    "id": "tx-227",
+    "id": "tx-232",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-01",
     "Categoria": "Otro Ing",
@@ -2318,7 +2368,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-228",
+    "id": "tx-233",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-01",
     "Categoria": "Sueldo",
@@ -2328,7 +2378,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-229",
+    "id": "tx-234",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2338,7 +2388,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-230",
+    "id": "tx-235",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2348,7 +2398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-231",
+    "id": "tx-236",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Deuda",
@@ -2358,7 +2408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-232",
+    "id": "tx-237",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2368,7 +2418,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-233",
+    "id": "tx-238",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2378,7 +2428,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-234",
+    "id": "tx-239",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2388,7 +2438,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-235",
+    "id": "tx-240",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2398,7 +2448,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-236",
+    "id": "tx-241",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2408,7 +2458,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-237",
+    "id": "tx-242",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2418,7 +2468,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-238",
+    "id": "tx-243",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2428,7 +2478,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-239",
+    "id": "tx-244",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2438,7 +2488,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-240",
+    "id": "tx-245",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2448,7 +2498,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-241",
+    "id": "tx-246",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
@@ -2458,7 +2508,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-242",
+    "id": "tx-247",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2468,7 +2518,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-243",
+    "id": "tx-248",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2478,7 +2528,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-244",
+    "id": "tx-249",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2488,7 +2538,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-245",
+    "id": "tx-250",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Otro Egre",
@@ -2498,17 +2548,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-246",
+    "id": "tx-251",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Menú",
     "Monto": 22,
     "Entidad": "Interbank",
     "Mes": "Abril"
   },
   {
-    "id": "tx-247",
+    "id": "tx-252",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2518,17 +2568,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-248",
+    "id": "tx-253",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 29.5,
     "Entidad": "Interbank",
     "Mes": "Abril"
   },
   {
-    "id": "tx-249",
+    "id": "tx-254",
     "Tipo": "Egreso",
     "Fecha": "2026-04-01",
     "Categoria": "Servicio",
@@ -2538,17 +2588,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-250",
+    "id": "tx-255",
     "Tipo": "Egreso",
     "Fecha": "2026-04-02",
     "Categoria": "Gasto",
-    "Concepto": "Pantalones y Shorts",
+    "Concepto": "Pantalon",
     "Monto": 55.89,
     "Entidad": "Interbank Amex",
     "Mes": "Abril"
   },
   {
-    "id": "tx-251",
+    "id": "tx-256",
     "Tipo": "Egreso",
     "Fecha": "2026-04-02",
     "Categoria": "Gasto",
@@ -2558,7 +2608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-252",
+    "id": "tx-257",
     "Tipo": "Egreso",
     "Fecha": "2026-04-02",
     "Categoria": "Gasto",
@@ -2568,7 +2618,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-253",
+    "id": "tx-258",
     "Tipo": "Egreso",
     "Fecha": "2026-04-03",
     "Categoria": "Gasto",
@@ -2578,7 +2628,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-254",
+    "id": "tx-259",
     "Tipo": "Egreso",
     "Fecha": "2026-04-03",
     "Categoria": "Gasto",
@@ -2588,7 +2638,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-255",
+    "id": "tx-260",
     "Tipo": "Egreso",
     "Fecha": "2026-04-04",
     "Categoria": "Gasto",
@@ -2598,7 +2648,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-256",
+    "id": "tx-261",
     "Tipo": "Egreso",
     "Fecha": "2026-04-04",
     "Categoria": "Gasto",
@@ -2608,7 +2658,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-257",
+    "id": "tx-262",
     "Tipo": "Egreso",
     "Fecha": "2026-04-05",
     "Categoria": "Gasto",
@@ -2618,7 +2668,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-258",
+    "id": "tx-263",
     "Tipo": "Egreso",
     "Fecha": "2026-04-06",
     "Categoria": "Gasto",
@@ -2628,7 +2678,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-259",
+    "id": "tx-264",
     "Tipo": "Egreso",
     "Fecha": "2026-04-06",
     "Categoria": "Otro Egre",
@@ -2638,17 +2688,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-260",
-    "Tipo": "Egreso",
-    "Fecha": "2026-04-15",
-    "Categoria": "Servicio",
-    "Concepto": "Telefonia Movil",
-    "Monto": 39.9,
-    "Entidad": "Interbank Amex",
-    "Mes": "Abril"
-  },
-  {
-    "id": "tx-261",
+    "id": "tx-265",
     "Tipo": "Egreso",
     "Fecha": "2026-04-07",
     "Categoria": "Gasto",
@@ -2658,7 +2698,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-262",
+    "id": "tx-266",
     "Tipo": "Egreso",
     "Fecha": "2026-04-08",
     "Categoria": "Gasto",
@@ -2668,7 +2708,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-263",
+    "id": "tx-267",
     "Tipo": "Egreso",
     "Fecha": "2026-04-09",
     "Categoria": "Gasto",
@@ -2678,7 +2718,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-264",
+    "id": "tx-268",
     "Tipo": "Egreso",
     "Fecha": "2026-04-09",
     "Categoria": "Gasto",
@@ -2688,7 +2728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-265",
+    "id": "tx-269",
     "Tipo": "Egreso",
     "Fecha": "2026-04-09",
     "Categoria": "Gasto",
@@ -2698,7 +2738,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-266",
+    "id": "tx-270",
     "Tipo": "Egreso",
     "Fecha": "2026-04-09",
     "Categoria": "Gasto",
@@ -2708,7 +2748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-267",
+    "id": "tx-271",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-09",
     "Categoria": "Otro Ing",
@@ -2718,7 +2758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-268",
+    "id": "tx-272",
     "Tipo": "Egreso",
     "Fecha": "2026-04-10",
     "Categoria": "Gasto",
@@ -2728,27 +2768,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-269",
+    "id": "tx-273",
     "Tipo": "Egreso",
     "Fecha": "2026-04-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 22.22,
     "Entidad": "Interbank Amex",
     "Mes": "Abril"
   },
   {
-    "id": "tx-270",
+    "id": "tx-274",
     "Tipo": "Egreso",
     "Fecha": "2026-04-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Abril"
   },
   {
-    "id": "tx-271",
+    "id": "tx-275",
     "Tipo": "Egreso",
     "Fecha": "2026-04-11",
     "Categoria": "Gasto",
@@ -2758,7 +2798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-272",
+    "id": "tx-276",
     "Tipo": "Egreso",
     "Fecha": "2026-04-14",
     "Categoria": "Servicio",
@@ -2768,7 +2808,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-273",
+    "id": "tx-277",
+    "Tipo": "Egreso",
+    "Fecha": "2026-04-15",
+    "Categoria": "Servicio",
+    "Concepto": "Telefonia Movil",
+    "Monto": 39.9,
+    "Entidad": "Interbank Amex",
+    "Mes": "Abril"
+  },
+  {
+    "id": "tx-278",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-15",
     "Categoria": "Otro Ing",
@@ -2778,7 +2828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-274",
+    "id": "tx-279",
     "Tipo": "Egreso",
     "Fecha": "2026-04-15",
     "Categoria": "Otro Egre",
@@ -2788,7 +2838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-275",
+    "id": "tx-280",
     "Tipo": "Egreso",
     "Fecha": "2026-04-16",
     "Categoria": "Otro Egre",
@@ -2798,7 +2848,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-276",
+    "id": "tx-281",
     "Tipo": "Ingreso",
     "Fecha": "2026-04-17",
     "Categoria": "Otro Ing",
@@ -2808,7 +2858,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-277",
+    "id": "tx-282",
     "Tipo": "Egreso",
     "Fecha": "2026-04-17",
     "Categoria": "Gasto",
@@ -2818,7 +2868,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-278",
+    "id": "tx-283",
     "Tipo": "Egreso",
     "Fecha": "2026-04-17",
     "Categoria": "Gasto",
@@ -2828,7 +2878,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-279",
+    "id": "tx-284",
     "Tipo": "Egreso",
     "Fecha": "2026-04-18",
     "Categoria": "Gasto",
@@ -2838,7 +2888,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-280",
+    "id": "tx-285",
     "Tipo": "Egreso",
     "Fecha": "2026-04-18",
     "Categoria": "Gasto",
@@ -2848,7 +2898,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-281",
+    "id": "tx-286",
     "Tipo": "Egreso",
     "Fecha": "2026-04-18",
     "Categoria": "Gasto",
@@ -2858,7 +2908,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-282",
+    "id": "tx-287",
     "Tipo": "Egreso",
     "Fecha": "2026-04-19",
     "Categoria": "Gasto",
@@ -2868,7 +2918,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-283",
+    "id": "tx-288",
     "Tipo": "Egreso",
     "Fecha": "2026-04-20",
     "Categoria": "Gasto",
@@ -2878,7 +2928,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-284",
+    "id": "tx-289",
     "Tipo": "Egreso",
     "Fecha": "2026-04-24",
     "Categoria": "Gasto",
@@ -2888,7 +2938,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-285",
+    "id": "tx-290",
     "Tipo": "Egreso",
     "Fecha": "2026-04-25",
     "Categoria": "Servicio",
@@ -2898,17 +2948,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-286",
+    "id": "tx-291",
     "Tipo": "Egreso",
     "Fecha": "2026-04-25",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 9.3,
     "Entidad": "Interbank",
     "Mes": "Abril"
   },
   {
-    "id": "tx-287",
+    "id": "tx-292",
     "Tipo": "Egreso",
     "Fecha": "2026-04-26",
     "Categoria": "Gasto",
@@ -2918,7 +2968,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Abril"
   },
   {
-    "id": "tx-288",
+    "id": "tx-293",
     "Tipo": "Ingreso",
     "Fecha": "2026-05-01",
     "Categoria": "Otro Ing",
@@ -2928,7 +2978,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-289",
+    "id": "tx-294",
     "Tipo": "Ingreso",
     "Fecha": "2026-05-01",
     "Categoria": "Sueldo",
@@ -2938,7 +2988,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-290",
+    "id": "tx-295",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -2948,7 +2998,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-291",
+    "id": "tx-296",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -2958,7 +3008,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-292",
+    "id": "tx-297",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -2968,7 +3018,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-293",
+    "id": "tx-298",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -2978,7 +3028,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-294",
+    "id": "tx-299",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -2988,7 +3038,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-295",
+    "id": "tx-300",
     "Tipo": "Ingreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -2998,7 +3048,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-296",
+    "id": "tx-301",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -3008,7 +3058,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-297",
+    "id": "tx-302",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3018,7 +3068,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-298",
+    "id": "tx-303",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3028,7 +3078,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-299",
+    "id": "tx-304",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3038,7 +3088,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-300",
+    "id": "tx-305",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3048,7 +3098,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-301",
+    "id": "tx-306",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3058,7 +3108,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-302",
+    "id": "tx-307",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3068,7 +3118,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-303",
+    "id": "tx-308",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3078,7 +3128,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-304",
+    "id": "tx-309",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Deuda",
@@ -3088,17 +3138,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-305",
+    "id": "tx-310",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 14,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-306",
+    "id": "tx-311",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3108,7 +3158,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-307",
+    "id": "tx-312",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3118,7 +3168,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-308",
+    "id": "tx-313",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Gasto",
@@ -3128,7 +3178,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-309",
+    "id": "tx-314",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3138,7 +3188,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-310",
+    "id": "tx-315",
     "Tipo": "Egreso",
     "Fecha": "2026-05-01",
     "Categoria": "Servicio",
@@ -3148,7 +3198,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-311",
+    "id": "tx-316",
     "Tipo": "Egreso",
     "Fecha": "2026-05-02",
     "Categoria": "Gasto",
@@ -3158,7 +3208,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-312",
+    "id": "tx-317",
     "Tipo": "Egreso",
     "Fecha": "2026-05-02",
     "Categoria": "Gasto",
@@ -3168,7 +3218,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-313",
+    "id": "tx-318",
     "Tipo": "Egreso",
     "Fecha": "2026-05-03",
     "Categoria": "Gasto",
@@ -3178,7 +3228,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-314",
+    "id": "tx-319",
     "Tipo": "Egreso",
     "Fecha": "2026-05-04",
     "Categoria": "Servicio",
@@ -3188,7 +3238,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-315",
+    "id": "tx-320",
     "Tipo": "Egreso",
     "Fecha": "2026-05-04",
     "Categoria": "Gasto",
@@ -3198,7 +3248,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-316",
+    "id": "tx-321",
     "Tipo": "Egreso",
     "Fecha": "2026-05-04",
     "Categoria": "Gasto",
@@ -3208,7 +3258,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-317",
+    "id": "tx-322",
     "Tipo": "Egreso",
     "Fecha": "2026-05-05",
     "Categoria": "Gasto",
@@ -3218,7 +3268,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-318",
+    "id": "tx-323",
     "Tipo": "Egreso",
     "Fecha": "2026-05-05",
     "Categoria": "Gasto",
@@ -3228,7 +3278,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-319",
+    "id": "tx-324",
     "Tipo": "Egreso",
     "Fecha": "2026-05-06",
     "Categoria": "Gasto",
@@ -3238,17 +3288,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-320",
+    "id": "tx-325",
     "Tipo": "Egreso",
     "Fecha": "2026-05-06",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 18,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-321",
+    "id": "tx-326",
     "Tipo": "Egreso",
     "Fecha": "2026-05-07",
     "Categoria": "Gasto",
@@ -3258,7 +3308,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-322",
+    "id": "tx-327",
     "Tipo": "Egreso",
     "Fecha": "2026-05-07",
     "Categoria": "Gasto",
@@ -3268,7 +3318,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-323",
+    "id": "tx-328",
     "Tipo": "Egreso",
     "Fecha": "2026-05-08",
     "Categoria": "Gasto",
@@ -3278,17 +3328,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-324",
+    "id": "tx-329",
     "Tipo": "Egreso",
     "Fecha": "2026-05-09",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 14.5,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-325",
+    "id": "tx-330",
     "Tipo": "Egreso",
     "Fecha": "2026-05-09",
     "Categoria": "Gasto",
@@ -3298,7 +3348,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-326",
+    "id": "tx-331",
     "Tipo": "Egreso",
     "Fecha": "2026-05-10",
     "Categoria": "Gasto",
@@ -3308,7 +3358,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-327",
+    "id": "tx-332",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
@@ -3318,7 +3368,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-328",
+    "id": "tx-333",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
@@ -3328,17 +3378,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-329",
+    "id": "tx-334",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 2.5,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-330",
+    "id": "tx-335",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
@@ -3348,7 +3398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-331",
+    "id": "tx-336",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
@@ -3358,7 +3408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-332",
+    "id": "tx-337",
     "Tipo": "Egreso",
     "Fecha": "2026-05-12",
     "Categoria": "Gasto",
@@ -3368,7 +3418,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-333",
+    "id": "tx-338",
     "Tipo": "Ingreso",
     "Fecha": "2026-05-13",
     "Categoria": "Sueldo",
@@ -3378,7 +3428,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-334",
+    "id": "tx-339",
     "Tipo": "Egreso",
     "Fecha": "2026-05-13",
     "Categoria": "Otro Egre",
@@ -3388,17 +3438,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-335",
+    "id": "tx-340",
     "Tipo": "Egreso",
     "Fecha": "2026-05-14",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Polo",
     "Monto": 59.99,
     "Entidad": "Interbank Amex",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-336",
+    "id": "tx-341",
     "Tipo": "Egreso",
     "Fecha": "2026-05-14",
     "Categoria": "Gasto",
@@ -3408,7 +3458,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-337",
+    "id": "tx-342",
     "Tipo": "Egreso",
     "Fecha": "2026-05-14",
     "Categoria": "Servicio",
@@ -3418,7 +3468,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-338",
+    "id": "tx-343",
     "Tipo": "Egreso",
     "Fecha": "2026-05-15",
     "Categoria": "Servicio",
@@ -3428,7 +3478,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-339",
+    "id": "tx-344",
     "Tipo": "Egreso",
     "Fecha": "2026-05-15",
     "Categoria": "Gasto",
@@ -3438,7 +3488,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-340",
+    "id": "tx-345",
     "Tipo": "Egreso",
     "Fecha": "2026-05-16",
     "Categoria": "Gasto",
@@ -3448,27 +3498,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-341",
+    "id": "tx-346",
     "Tipo": "Egreso",
     "Fecha": "2026-05-16",
     "Categoria": "Gasto",
-    "Concepto": "Polo y/o Camisa",
+    "Concepto": "Camisa",
     "Monto": 62,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-342",
+    "id": "tx-347",
     "Tipo": "Egreso",
     "Fecha": "2026-05-16",
     "Categoria": "Gasto",
-    "Concepto": "Pantalones y Shorts",
+    "Concepto": "Pantalon",
     "Monto": 60.19,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-343",
+    "id": "tx-348",
     "Tipo": "Egreso",
     "Fecha": "2026-05-16",
     "Categoria": "Gasto",
@@ -3478,7 +3528,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-344",
+    "id": "tx-349",
     "Tipo": "Egreso",
     "Fecha": "2026-05-16",
     "Categoria": "Gasto",
@@ -3488,7 +3538,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-345",
+    "id": "tx-350",
     "Tipo": "Egreso",
     "Fecha": "2026-05-18",
     "Categoria": "Otro Egre",
@@ -3498,17 +3548,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-346",
+    "id": "tx-351",
     "Tipo": "Egreso",
     "Fecha": "2026-05-18",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-347",
+    "id": "tx-352",
     "Tipo": "Egreso",
     "Fecha": "2026-05-18",
     "Categoria": "Gasto",
@@ -3518,17 +3568,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-348",
+    "id": "tx-353",
     "Tipo": "Egreso",
     "Fecha": "2026-05-18",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7.5,
     "Entidad": "Interbank",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-349",
+    "id": "tx-354",
     "Tipo": "Egreso",
     "Fecha": "2026-05-19",
     "Categoria": "Servicio",
@@ -3538,7 +3588,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-350",
+    "id": "tx-355",
     "Tipo": "Egreso",
     "Fecha": "2026-05-21",
     "Categoria": "Gasto",
@@ -3548,7 +3598,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-351",
+    "id": "tx-356",
     "Tipo": "Egreso",
     "Fecha": "2026-05-22",
     "Categoria": "Gasto",
@@ -3558,7 +3608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-352",
+    "id": "tx-357",
     "Tipo": "Egreso",
     "Fecha": "2026-05-23",
     "Categoria": "Gasto",
@@ -3568,17 +3618,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-353",
+    "id": "tx-358",
     "Tipo": "Egreso",
     "Fecha": "2026-05-26",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Café",
     "Monto": 60,
     "Entidad": "Interbank Amex",
     "Mes": "Mayo"
   },
   {
-    "id": "tx-354",
+    "id": "tx-359",
     "Tipo": "Egreso",
     "Fecha": "2026-05-26",
     "Categoria": "Gasto",
@@ -3588,7 +3638,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-355",
+    "id": "tx-360",
     "Tipo": "Egreso",
     "Fecha": "2026-05-27",
     "Categoria": "Gasto",
@@ -3598,7 +3648,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Mayo"
   },
   {
-    "id": "tx-356",
+    "id": "tx-361",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Ing",
@@ -3608,7 +3658,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-357",
+    "id": "tx-362",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-01",
     "Categoria": "Sueldo",
@@ -3618,7 +3668,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-358",
+    "id": "tx-363",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3628,7 +3678,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-359",
+    "id": "tx-364",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3638,7 +3688,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-360",
+    "id": "tx-365",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3648,7 +3698,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-361",
+    "id": "tx-366",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3658,7 +3708,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-362",
+    "id": "tx-367",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3668,7 +3718,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-363",
+    "id": "tx-368",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3678,7 +3728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-364",
+    "id": "tx-369",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3688,7 +3738,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-365",
+    "id": "tx-370",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3698,7 +3748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-366",
+    "id": "tx-371",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3708,7 +3758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-367",
+    "id": "tx-372",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3718,7 +3768,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-368",
+    "id": "tx-373",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Deuda",
@@ -3728,37 +3778,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-369",
+    "id": "tx-374",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "HappyLand",
     "Monto": 60,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-370",
+    "id": "tx-375",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Makis",
     "Monto": 75,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-371",
+    "id": "tx-376",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3.67,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-372",
+    "id": "tx-377",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3768,7 +3818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-373",
+    "id": "tx-378",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3778,7 +3828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-374",
+    "id": "tx-379",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3788,7 +3838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-375",
+    "id": "tx-380",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3798,37 +3848,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-376",
+    "id": "tx-381",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-377",
+    "id": "tx-382",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 2,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-378",
+    "id": "tx-383",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
-    "Concepto": "Medicinas",
+    "Concepto": "Bepanten",
     "Monto": 27.5,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-379",
+    "id": "tx-384",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3838,7 +3888,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-380",
+    "id": "tx-385",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Gasto",
@@ -3848,7 +3898,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-381",
+    "id": "tx-386",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3858,7 +3908,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-382",
+    "id": "tx-387",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3868,7 +3918,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-383",
+    "id": "tx-388",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Otro Egre",
@@ -3878,7 +3928,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-384",
+    "id": "tx-389",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3888,7 +3938,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-385",
+    "id": "tx-390",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3898,7 +3948,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-386",
+    "id": "tx-391",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3908,7 +3958,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-387",
+    "id": "tx-392",
     "Tipo": "Egreso",
     "Fecha": "2026-06-01",
     "Categoria": "Servicio",
@@ -3918,27 +3968,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-388",
+    "id": "tx-393",
     "Tipo": "Egreso",
     "Fecha": "2026-06-02",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Cine",
     "Monto": 79.9,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-389",
+    "id": "tx-394",
     "Tipo": "Egreso",
     "Fecha": "2026-06-02",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-390",
+    "id": "tx-395",
     "Tipo": "Egreso",
     "Fecha": "2026-06-02",
     "Categoria": "Otro Egre",
@@ -3948,17 +3998,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-391",
+    "id": "tx-396",
     "Tipo": "Egreso",
     "Fecha": "2026-06-02",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 3.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-392",
+    "id": "tx-397",
     "Tipo": "Egreso",
     "Fecha": "2026-06-03",
     "Categoria": "Gasto",
@@ -3968,17 +4018,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-393",
+    "id": "tx-398",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Cine",
     "Monto": 29.8,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-394",
+    "id": "tx-399",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
     "Categoria": "Gasto",
@@ -3988,37 +4038,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-395",
+    "id": "tx-400",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 20,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-396",
+    "id": "tx-401",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Fridays",
     "Monto": 100.5,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-397",
+    "id": "tx-402",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
     "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Concepto": "Karts",
     "Monto": 30,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-398",
+    "id": "tx-403",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
     "Categoria": "Servicio",
@@ -4028,17 +4078,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-399",
+    "id": "tx-404",
     "Tipo": "Egreso",
     "Fecha": "2026-06-05",
     "Categoria": "Gasto",
-    "Concepto": "Videojuegos",
+    "Concepto": "Fifa 26",
     "Monto": 67.8,
     "Entidad": "Ripley",
     "Mes": "Junio"
   },
   {
-    "id": "tx-400",
+    "id": "tx-405",
     "Tipo": "Egreso",
     "Fecha": "2026-06-07",
     "Categoria": "Gasto",
@@ -4048,7 +4098,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-401",
+    "id": "tx-406",
     "Tipo": "Egreso",
     "Fecha": "2026-06-08",
     "Categoria": "Gasto",
@@ -4058,17 +4108,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-402",
+    "id": "tx-407",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-08",
     "Categoria": "Otro Ing",
     "Concepto": "Prestamo BCP",
-    "Monto": 117.86,
+    "Monto": 1717.92,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-403",
+    "id": "tx-408",
+    "Tipo": "Egreso",
+    "Fecha": "2026-06-08",
+    "Categoria": "Gasto",
+    "Concepto": "Viaje Brasil",
+    "Monto": 1600.06,
+    "Entidad": "Interbank",
+    "Mes": "Junio"
+  },
+  {
+    "id": "tx-409",
     "Tipo": "Egreso",
     "Fecha": "2026-06-08",
     "Categoria": "Gasto",
@@ -4078,17 +4138,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-404",
+    "id": "tx-410",
     "Tipo": "Egreso",
     "Fecha": "2026-06-08",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 50,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-405",
+    "id": "tx-411",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Gasto",
@@ -4098,47 +4158,47 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-406",
+    "id": "tx-412",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 2.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-407",
+    "id": "tx-413",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Concepto": "Café",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-408",
+    "id": "tx-414",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 6.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-409",
+    "id": "tx-415",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 4,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-410",
+    "id": "tx-416",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Gasto",
@@ -4148,17 +4208,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-411",
+    "id": "tx-417",
     "Tipo": "Egreso",
     "Fecha": "2026-06-09",
     "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Concepto": "Planet Chicken",
     "Monto": 55.3,
     "Entidad": "Ripley",
     "Mes": "Junio"
   },
   {
-    "id": "tx-412",
+    "id": "tx-418",
     "Tipo": "Egreso",
     "Fecha": "2026-06-10",
     "Categoria": "Gasto",
@@ -4168,7 +4228,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-413",
+    "id": "tx-419",
     "Tipo": "Egreso",
     "Fecha": "2026-06-10",
     "Categoria": "Gasto",
@@ -4178,27 +4238,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-414",
+    "id": "tx-420",
     "Tipo": "Egreso",
     "Fecha": "2026-06-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 5.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-415",
+    "id": "tx-421",
     "Tipo": "Egreso",
     "Fecha": "2026-06-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 11.6,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-416",
+    "id": "tx-422",
     "Tipo": "Egreso",
     "Fecha": "2026-06-11",
     "Categoria": "Servicio",
@@ -4208,17 +4268,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-417",
+    "id": "tx-423",
     "Tipo": "Egreso",
     "Fecha": "2026-06-11",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
-    "Monto": 69,
+    "Categoria": "Gasto",
+    "Concepto": "Hotel",
+    "Monto": 50,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-418",
+    "id": "tx-424",
+    "Tipo": "Egreso",
+    "Fecha": "2026-06-11",
+    "Categoria": "Gasto",
+    "Concepto": "Condones",
+    "Monto": 12,
+    "Entidad": "Interbank",
+    "Mes": "Junio"
+  },
+  {
+    "id": "tx-425",
+    "Tipo": "Egreso",
+    "Fecha": "2026-06-11",
+    "Categoria": "Gasto",
+    "Concepto": "Agua Mineral",
+    "Monto": 7,
+    "Entidad": "Interbank",
+    "Mes": "Junio"
+  },
+  {
+    "id": "tx-426",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-11",
     "Categoria": "Otro Ing",
@@ -4228,7 +4308,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-419",
+    "id": "tx-427",
     "Tipo": "Egreso",
     "Fecha": "2026-06-11",
     "Categoria": "Gasto",
@@ -4238,7 +4318,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-420",
+    "id": "tx-428",
     "Tipo": "Egreso",
     "Fecha": "2026-06-11",
     "Categoria": "Gasto",
@@ -4248,7 +4328,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-421",
+    "id": "tx-429",
     "Tipo": "Egreso",
     "Fecha": "2026-06-12",
     "Categoria": "Gasto",
@@ -4258,17 +4338,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-422",
+    "id": "tx-430",
     "Tipo": "Egreso",
     "Fecha": "2026-06-12",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-423",
+    "id": "tx-431",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Otro Egre",
@@ -4278,7 +4358,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-424",
+    "id": "tx-432",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
@@ -4288,47 +4368,47 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-425",
+    "id": "tx-433",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 21.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-426",
+    "id": "tx-434",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Café",
     "Monto": 16.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-427",
+    "id": "tx-435",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Taxi",
     "Monto": 16,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-428",
+    "id": "tx-436",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
-    "Concepto": "Abrigos",
+    "Concepto": "Casaca",
     "Monto": 100,
     "Entidad": "Ripley",
     "Mes": "Junio"
   },
   {
-    "id": "tx-429",
+    "id": "tx-437",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
@@ -4338,27 +4418,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-430",
+    "id": "tx-438",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Café",
     "Monto": 106,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-431",
+    "id": "tx-439",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 10.4,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-432",
+    "id": "tx-440",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Otro Egre",
@@ -4368,47 +4448,47 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-433",
+    "id": "tx-441",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Gaseosa",
     "Monto": 5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-434",
+    "id": "tx-442",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Dollarcity",
     "Monto": 39.9,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-435",
+    "id": "tx-443",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-436",
+    "id": "tx-444",
     "Tipo": "Egreso",
     "Fecha": "2026-06-13",
     "Categoria": "Gasto",
-    "Concepto": "Abrigos",
+    "Concepto": "Abrigo",
     "Monto": 144.92,
     "Entidad": "Ripley",
     "Mes": "Junio"
   },
   {
-    "id": "tx-437",
+    "id": "tx-445",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-13",
     "Categoria": "Otro Ing",
@@ -4418,7 +4498,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-438",
+    "id": "tx-446",
     "Tipo": "Egreso",
     "Fecha": "2026-06-14",
     "Categoria": "Servicio",
@@ -4428,7 +4508,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-439",
+    "id": "tx-447",
     "Tipo": "Egreso",
     "Fecha": "2026-06-14",
     "Categoria": "Gasto",
@@ -4438,7 +4518,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-440",
+    "id": "tx-448",
     "Tipo": "Egreso",
     "Fecha": "2026-06-15",
     "Categoria": "Servicio",
@@ -4448,7 +4528,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-441",
+    "id": "tx-449",
     "Tipo": "Egreso",
     "Fecha": "2026-06-15",
     "Categoria": "Servicio",
@@ -4458,7 +4538,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-442",
+    "id": "tx-450",
     "Tipo": "Egreso",
     "Fecha": "2026-06-15",
     "Categoria": "Servicio",
@@ -4468,17 +4548,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-443",
+    "id": "tx-451",
     "Tipo": "Egreso",
     "Fecha": "2026-06-16",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-444",
+    "id": "tx-452",
     "Tipo": "Egreso",
     "Fecha": "2026-06-16",
     "Categoria": "Gasto",
@@ -4488,7 +4568,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-445",
+    "id": "tx-453",
     "Tipo": "Egreso",
     "Fecha": "2026-06-16",
     "Categoria": "Gasto",
@@ -4498,7 +4578,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-446",
+    "id": "tx-454",
     "Tipo": "Egreso",
     "Fecha": "2026-06-17",
     "Categoria": "Gasto",
@@ -4508,7 +4588,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-447",
+    "id": "tx-455",
     "Tipo": "Ingreso",
     "Fecha": "2026-06-19",
     "Categoria": "Otro Ing",
@@ -4518,7 +4598,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-448",
+    "id": "tx-456",
     "Tipo": "Egreso",
     "Fecha": "2026-06-19",
     "Categoria": "Gasto",
@@ -4528,7 +4608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-449",
+    "id": "tx-457",
     "Tipo": "Egreso",
     "Fecha": "2026-06-19",
     "Categoria": "Gasto",
@@ -4538,27 +4618,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-450",
+    "id": "tx-458",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 1.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-451",
+    "id": "tx-459",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 4.5,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-452",
+    "id": "tx-460",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
@@ -4568,27 +4648,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-453",
+    "id": "tx-461",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
-    "Concepto": "Comida",
+    "Concepto": "Menú",
     "Monto": 22,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-454",
+    "id": "tx-462",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
-    "Concepto": "Dulce",
+    "Concepto": "Dulce de Leche",
     "Monto": 3.99,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-455",
+    "id": "tx-463",
     "Tipo": "Egreso",
     "Fecha": "2026-06-20",
     "Categoria": "Gasto",
@@ -4598,7 +4678,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-456",
+    "id": "tx-464",
     "Tipo": "Egreso",
     "Fecha": "2026-06-21",
     "Categoria": "Gasto",
@@ -4608,37 +4688,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-457",
+    "id": "tx-465",
     "Tipo": "Egreso",
     "Fecha": "2026-06-21",
     "Categoria": "Gasto",
-    "Concepto": "Medicinas",
+    "Concepto": "Medicina Madre",
     "Monto": 18.9,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-458",
+    "id": "tx-466",
     "Tipo": "Egreso",
     "Fecha": "2026-06-21",
     "Categoria": "Gasto",
-    "Concepto": "Medicinas",
+    "Concepto": "Medicina Madre",
     "Monto": 35.2,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-459",
+    "id": "tx-467",
     "Tipo": "Egreso",
     "Fecha": "2026-06-22",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Hotel",
     "Monto": 55,
     "Entidad": "Interbank Amex",
     "Mes": "Junio"
   },
   {
-    "id": "tx-460",
+    "id": "tx-468",
     "Tipo": "Egreso",
     "Fecha": "2026-06-22",
     "Categoria": "Gasto",
@@ -4648,7 +4728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-461",
+    "id": "tx-469",
     "Tipo": "Egreso",
     "Fecha": "2026-06-22",
     "Categoria": "Gasto",
@@ -4658,17 +4738,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-462",
+    "id": "tx-470",
     "Tipo": "Egreso",
     "Fecha": "2026-06-22",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 13,
     "Entidad": "Interbank",
     "Mes": "Junio"
   },
   {
-    "id": "tx-463",
+    "id": "tx-471",
     "Tipo": "Egreso",
     "Fecha": "2026-06-22",
     "Categoria": "Gasto",
@@ -4678,7 +4758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-464",
+    "id": "tx-472",
     "Tipo": "Egreso",
     "Fecha": "2026-06-23",
     "Categoria": "Gasto",
@@ -4688,17 +4768,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Junio"
   },
   {
-    "id": "tx-465",
+    "id": "tx-473",
     "Tipo": "Egreso",
     "Fecha": "2026-06-23",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
     "Monto": 40,
     "Entidad": "Ripley",
     "Mes": "Junio"
   },
   {
-    "id": "tx-466",
+    "id": "tx-474",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-01",
     "Categoria": "Otro Ing",
@@ -4708,7 +4788,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-467",
+    "id": "tx-475",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-01",
     "Categoria": "Sueldo",
@@ -4718,7 +4798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-468",
+    "id": "tx-476",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-01",
     "Categoria": "Gasto",
@@ -4728,7 +4808,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-469",
+    "id": "tx-477",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4738,7 +4818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-470",
+    "id": "tx-478",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-01",
     "Categoria": "Gasto",
@@ -4748,7 +4828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-471",
+    "id": "tx-479",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Otro Egre",
@@ -4758,7 +4838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-472",
+    "id": "tx-480",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4768,7 +4848,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-473",
+    "id": "tx-481",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4778,7 +4858,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-474",
+    "id": "tx-482",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4788,7 +4868,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-475",
+    "id": "tx-483",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Deuda",
@@ -4798,7 +4878,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-476",
+    "id": "tx-484",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4808,93 +4888,13 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-477",
+    "id": "tx-485",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Deuda",
     "Concepto": "iPhone 16",
     "Monto": 245.75,
     "Entidad": "Interbank",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-478",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Gasto",
-    "Concepto": "Broaster",
-    "Monto": 12,
-    "Entidad": "Interbank",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-479",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Gasto",
-    "Concepto": "Transporte",
-    "Monto": 4,
-    "Entidad": "Interbank",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-480",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
-    "Monto": 47,
-    "Entidad": "Interbank Amex",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-481",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
-    "Monto": 58.5,
-    "Entidad": "Interbank Amex",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-482",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
-    "Monto": 50,
-    "Entidad": "Interbank Amex",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-483",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Gasto",
-    "Concepto": "Transporte",
-    "Monto": 8,
-    "Entidad": "Interbank",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-484",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Gasto",
-    "Concepto": "Broaster",
-    "Monto": 10,
-    "Entidad": "Interbank",
-    "Mes": "Julio"
-  },
-  {
-    "id": "tx-485",
-    "Tipo": "Egreso",
-    "Fecha": "2026-07-01",
-    "Categoria": "Gasto",
-    "Concepto": "Utencilios de Limpieza",
-    "Monto": 15.6,
-    "Entidad": "Interbank Amex",
     "Mes": "Julio"
   },
   {
@@ -4912,13 +4912,93 @@ export const masterTransactions: Transaction[] = [
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
-    "Monto": 6,
+    "Concepto": "Bus",
+    "Monto": 4,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
     "id": "tx-488",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Cine",
+    "Monto": 47,
+    "Entidad": "Interbank Amex",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-489",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Pollo a la Brasa",
+    "Monto": 58.5,
+    "Entidad": "Interbank Amex",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-490",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Coptel",
+    "Monto": 50,
+    "Entidad": "Interbank Amex",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-491",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 8,
+    "Entidad": "Interbank",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-492",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 10,
+    "Entidad": "Interbank",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-493",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Utencilios de Limpieza",
+    "Monto": 15.6,
+    "Entidad": "Interbank Amex",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-494",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 12,
+    "Entidad": "Interbank",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-495",
+    "Tipo": "Egreso",
+    "Fecha": "2026-07-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 6,
+    "Entidad": "Interbank",
+    "Mes": "Julio"
+  },
+  {
+    "id": "tx-496",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Gasto",
@@ -4928,7 +5008,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-489",
+    "id": "tx-497",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Otro Egre",
@@ -4938,7 +5018,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-490",
+    "id": "tx-498",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Otro Egre",
@@ -4948,7 +5028,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-491",
+    "id": "tx-499",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Servicio",
@@ -4958,17 +5038,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-492",
+    "id": "tx-500",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 8,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-493",
+    "id": "tx-501",
     "Tipo": "Egreso",
     "Fecha": "2026-07-01",
     "Categoria": "Otro Egre",
@@ -4978,7 +5058,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-494",
+    "id": "tx-502",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-02",
     "Categoria": "Gasto",
@@ -4988,7 +5068,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-495",
+    "id": "tx-503",
     "Tipo": "Egreso",
     "Fecha": "2026-07-02",
     "Categoria": "Gasto",
@@ -4998,7 +5078,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-496",
+    "id": "tx-504",
     "Tipo": "Egreso",
     "Fecha": "2026-07-03",
     "Categoria": "Otro Egre",
@@ -5008,17 +5088,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-497",
+    "id": "tx-505",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 15.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-498",
+    "id": "tx-506",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Servicio",
@@ -5028,7 +5108,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-499",
+    "id": "tx-507",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Otro Egre",
@@ -5038,7 +5118,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-500",
+    "id": "tx-508",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Otro Egre",
@@ -5048,7 +5128,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-501",
+    "id": "tx-509",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Otro Egre",
@@ -5058,7 +5138,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-502",
+    "id": "tx-510",
     "Tipo": "Egreso",
     "Fecha": "2026-07-04",
     "Categoria": "Gasto",
@@ -5068,7 +5148,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-503",
+    "id": "tx-511",
     "Tipo": "Egreso",
     "Fecha": "2026-07-06",
     "Categoria": "Otro Egre",
@@ -5078,7 +5158,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-504",
+    "id": "tx-512",
     "Tipo": "Egreso",
     "Fecha": "2026-07-06",
     "Categoria": "Otro Egre",
@@ -5088,17 +5168,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-505",
+    "id": "tx-513",
     "Tipo": "Egreso",
     "Fecha": "2026-07-06",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 11,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-506",
+    "id": "tx-514",
     "Tipo": "Egreso",
     "Fecha": "2026-07-06",
     "Categoria": "Gasto",
@@ -5108,7 +5188,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-507",
+    "id": "tx-515",
     "Tipo": "Egreso",
     "Fecha": "2026-07-06",
     "Categoria": "Otro Egre",
@@ -5118,7 +5198,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-508",
+    "id": "tx-516",
     "Tipo": "Egreso",
     "Fecha": "2026-07-07",
     "Categoria": "Gasto",
@@ -5128,17 +5208,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-509",
+    "id": "tx-517",
     "Tipo": "Egreso",
     "Fecha": "2026-07-07",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 2.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-510",
+    "id": "tx-518",
     "Tipo": "Egreso",
     "Fecha": "2026-07-08",
     "Categoria": "Gasto",
@@ -5148,7 +5228,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-511",
+    "id": "tx-519",
     "Tipo": "Egreso",
     "Fecha": "2026-07-10",
     "Categoria": "Otro Egre",
@@ -5158,7 +5238,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-512",
+    "id": "tx-520",
     "Tipo": "Ingreso",
     "Fecha": "2026-07-10",
     "Categoria": "Sueldo",
@@ -5168,7 +5248,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-513",
+    "id": "tx-521",
     "Tipo": "Egreso",
     "Fecha": "2026-07-10",
     "Categoria": "Gasto",
@@ -5178,7 +5258,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-514",
+    "id": "tx-522",
     "Tipo": "Egreso",
     "Fecha": "2026-07-10",
     "Categoria": "Otro Egre",
@@ -5188,7 +5268,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-515",
+    "id": "tx-523",
     "Tipo": "Egreso",
     "Fecha": "2026-07-10",
     "Categoria": "Servicio",
@@ -5198,17 +5278,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-516",
+    "id": "tx-524",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 34.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-517",
+    "id": "tx-525",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
     "Categoria": "Gasto",
@@ -5218,7 +5298,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-518",
+    "id": "tx-526",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
     "Categoria": "Otro Egre",
@@ -5228,17 +5308,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-519",
+    "id": "tx-527",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Crema de Manos",
     "Monto": 49.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-520",
+    "id": "tx-528",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
     "Categoria": "Gasto",
@@ -5248,7 +5328,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-521",
+    "id": "tx-529",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
     "Categoria": "Gasto",
@@ -5258,17 +5338,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-522",
+    "id": "tx-530",
     "Tipo": "Egreso",
     "Fecha": "2026-07-11",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Pizza",
     "Monto": 56,
     "Entidad": "BBVA Bfree",
     "Mes": "Julio"
   },
   {
-    "id": "tx-523",
+    "id": "tx-531",
     "Tipo": "Egreso",
     "Fecha": "2026-07-12",
     "Categoria": "Gasto",
@@ -5278,7 +5358,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-524",
+    "id": "tx-532",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Deuda",
@@ -5288,7 +5368,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-525",
+    "id": "tx-533",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Gasto",
@@ -5298,17 +5378,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-526",
+    "id": "tx-534",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 17.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-527",
+    "id": "tx-535",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Gasto",
@@ -5318,7 +5398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-528",
+    "id": "tx-536",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Gasto",
@@ -5328,7 +5408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-529",
+    "id": "tx-537",
     "Tipo": "Egreso",
     "Fecha": "2026-07-15",
     "Categoria": "Otro Egre",
@@ -5338,17 +5418,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-530",
+    "id": "tx-538",
     "Tipo": "Egreso",
     "Fecha": "2026-07-17",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 11.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-531",
+    "id": "tx-539",
     "Tipo": "Egreso",
     "Fecha": "2026-07-17",
     "Categoria": "Otro Egre",
@@ -5358,17 +5438,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-532",
+    "id": "tx-540",
     "Tipo": "Egreso",
     "Fecha": "2026-07-18",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 55,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-533",
+    "id": "tx-541",
     "Tipo": "Egreso",
     "Fecha": "2026-07-18",
     "Categoria": "Gasto",
@@ -5378,17 +5458,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-534",
+    "id": "tx-542",
     "Tipo": "Egreso",
     "Fecha": "2026-07-18",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Makis",
     "Monto": 74.72,
     "Entidad": "Interbank Amex",
     "Mes": "Julio"
   },
   {
-    "id": "tx-535",
+    "id": "tx-543",
     "Tipo": "Egreso",
     "Fecha": "2026-07-19",
     "Categoria": "Gasto",
@@ -5398,27 +5478,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-536",
+    "id": "tx-544",
     "Tipo": "Egreso",
     "Fecha": "2026-07-19",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 8,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-537",
+    "id": "tx-545",
     "Tipo": "Egreso",
     "Fecha": "2026-07-19",
     "Categoria": "Gasto",
-    "Concepto": "Videojuegos",
+    "Concepto": "In Game",
     "Monto": 14,
     "Entidad": "BBVA Bfree",
     "Mes": "Julio"
   },
   {
-    "id": "tx-538",
+    "id": "tx-546",
     "Tipo": "Egreso",
     "Fecha": "2026-07-19",
     "Categoria": "Gasto",
@@ -5428,27 +5508,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-539",
+    "id": "tx-547",
     "Tipo": "Egreso",
     "Fecha": "2026-07-20",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 9.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-540",
+    "id": "tx-548",
     "Tipo": "Egreso",
     "Fecha": "2026-07-20",
     "Categoria": "Gasto",
-    "Concepto": "Videojuegos",
+    "Concepto": "Minecraft",
     "Monto": 3.5,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-541",
+    "id": "tx-549",
     "Tipo": "Egreso",
     "Fecha": "2026-07-20",
     "Categoria": "Servicio",
@@ -5458,7 +5538,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-542",
+    "id": "tx-550",
     "Tipo": "Egreso",
     "Fecha": "2026-07-20",
     "Categoria": "Otro Egre",
@@ -5468,7 +5548,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-543",
+    "id": "tx-551",
     "Tipo": "Egreso",
     "Fecha": "2026-07-20",
     "Categoria": "Gasto",
@@ -5478,7 +5558,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-544",
+    "id": "tx-552",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Servicio",
@@ -5488,17 +5568,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-545",
+    "id": "tx-553",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 18.9,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-546",
+    "id": "tx-554",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Gasto",
@@ -5508,7 +5588,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-547",
+    "id": "tx-555",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Otro Egre",
@@ -5518,7 +5598,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-548",
+    "id": "tx-556",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Gasto",
@@ -5528,7 +5608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-549",
+    "id": "tx-557",
     "Tipo": "Egreso",
     "Fecha": "2026-07-23",
     "Categoria": "Otro Egre",
@@ -5538,7 +5618,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-550",
+    "id": "tx-558",
     "Tipo": "Egreso",
     "Fecha": "2026-07-24",
     "Categoria": "Gasto",
@@ -5548,7 +5628,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-551",
+    "id": "tx-559",
     "Tipo": "Egreso",
     "Fecha": "2026-07-24",
     "Categoria": "Gasto",
@@ -5558,27 +5638,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-552",
+    "id": "tx-560",
     "Tipo": "Egreso",
     "Fecha": "2026-07-25",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 11.9,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-553",
+    "id": "tx-561",
     "Tipo": "Egreso",
     "Fecha": "2026-07-25",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 12.1,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-554",
+    "id": "tx-562",
     "Tipo": "Egreso",
     "Fecha": "2026-07-25",
     "Categoria": "Gasto",
@@ -5588,17 +5668,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-555",
+    "id": "tx-563",
     "Tipo": "Egreso",
     "Fecha": "2026-07-26",
     "Categoria": "Gasto",
-    "Concepto": "Videojuegos",
+    "Concepto": "Skin de Valorant",
     "Monto": 31.9,
     "Entidad": "Interbank Amex",
     "Mes": "Julio"
   },
   {
-    "id": "tx-556",
+    "id": "tx-564",
     "Tipo": "Egreso",
     "Fecha": "2026-07-26",
     "Categoria": "Gasto",
@@ -5608,17 +5688,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-557",
+    "id": "tx-565",
     "Tipo": "Egreso",
     "Fecha": "2026-07-27",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 2,
     "Entidad": "Interbank",
     "Mes": "Julio"
   },
   {
-    "id": "tx-558",
+    "id": "tx-566",
     "Tipo": "Egreso",
     "Fecha": "2026-07-27",
     "Categoria": "Gasto",
@@ -5628,7 +5708,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Julio"
   },
   {
-    "id": "tx-559",
+    "id": "tx-567",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Ing",
@@ -5638,7 +5718,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-560",
+    "id": "tx-568",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-01",
     "Categoria": "Sueldo",
@@ -5648,7 +5728,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-561",
+    "id": "tx-569",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5658,7 +5738,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-562",
+    "id": "tx-570",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5668,7 +5748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-563",
+    "id": "tx-571",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5678,7 +5758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-564",
+    "id": "tx-572",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5688,7 +5768,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-565",
+    "id": "tx-573",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Deuda",
@@ -5698,7 +5778,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-566",
+    "id": "tx-574",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5708,7 +5788,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-567",
+    "id": "tx-575",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Deuda",
@@ -5718,7 +5798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-568",
+    "id": "tx-576",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5728,7 +5808,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-569",
+    "id": "tx-577",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5738,7 +5818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-570",
+    "id": "tx-578",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5748,7 +5828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-571",
+    "id": "tx-579",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5758,7 +5838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-572",
+    "id": "tx-580",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5768,7 +5848,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-573",
+    "id": "tx-581",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5778,7 +5858,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-574",
+    "id": "tx-582",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5788,7 +5868,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-575",
+    "id": "tx-583",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5798,17 +5878,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-576",
+    "id": "tx-584",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 14,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-577",
+    "id": "tx-585",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5818,7 +5898,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-578",
+    "id": "tx-586",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5828,27 +5908,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-579",
+    "id": "tx-587",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 8,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-580",
+    "id": "tx-588",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
-    "Concepto": "Perfume",
+    "Concepto": "Perfume Invictus",
     "Monto": 40,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-581",
+    "id": "tx-589",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5858,7 +5938,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-582",
+    "id": "tx-590",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5868,7 +5948,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-583",
+    "id": "tx-591",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5878,7 +5958,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-584",
+    "id": "tx-592",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Otro Egre",
@@ -5888,7 +5968,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-585",
+    "id": "tx-593",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5898,7 +5978,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-586",
+    "id": "tx-594",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5908,27 +5988,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-587",
+    "id": "tx-595",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
-    "Concepto": "Poster",
+    "Concepto": "Poster de Spiderman",
     "Monto": 10,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-588",
+    "id": "tx-596",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 12,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-589",
+    "id": "tx-597",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5938,7 +6018,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-590",
+    "id": "tx-598",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5948,7 +6028,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-591",
+    "id": "tx-599",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5958,7 +6038,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-592",
+    "id": "tx-600",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Servicio",
@@ -5968,7 +6048,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-593",
+    "id": "tx-601",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5978,7 +6058,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-594",
+    "id": "tx-602",
     "Tipo": "Egreso",
     "Fecha": "2026-08-01",
     "Categoria": "Gasto",
@@ -5988,17 +6068,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-595",
+    "id": "tx-603",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 14.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-596",
+    "id": "tx-604",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Gasto",
@@ -6008,7 +6088,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-597",
+    "id": "tx-605",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Otro Egre",
@@ -6018,7 +6098,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-598",
+    "id": "tx-606",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Otro Egre",
@@ -6028,7 +6108,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-599",
+    "id": "tx-607",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Gasto",
@@ -6038,17 +6118,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-600",
+    "id": "tx-608",
     "Tipo": "Egreso",
     "Fecha": "2026-08-02",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-601",
+    "id": "tx-609",
     "Tipo": "Egreso",
     "Fecha": "2026-08-03",
     "Categoria": "Gasto",
@@ -6058,7 +6138,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-602",
+    "id": "tx-610",
     "Tipo": "Egreso",
     "Fecha": "2026-08-03",
     "Categoria": "Otro Egre",
@@ -6068,27 +6148,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-603",
+    "id": "tx-611",
     "Tipo": "Egreso",
     "Fecha": "2026-08-03",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 25.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-604",
+    "id": "tx-612",
     "Tipo": "Egreso",
     "Fecha": "2026-08-04",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 4,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-605",
+    "id": "tx-613",
     "Tipo": "Egreso",
     "Fecha": "2026-08-04",
     "Categoria": "Gasto",
@@ -6098,17 +6178,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-606",
+    "id": "tx-614",
     "Tipo": "Egreso",
     "Fecha": "2026-08-05",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 19.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-607",
+    "id": "tx-615",
     "Tipo": "Egreso",
     "Fecha": "2026-08-05",
     "Categoria": "Otro Egre",
@@ -6118,7 +6198,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-608",
+    "id": "tx-616",
     "Tipo": "Egreso",
     "Fecha": "2026-08-05",
     "Categoria": "Otro Egre",
@@ -6128,17 +6208,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-609",
+    "id": "tx-617",
     "Tipo": "Egreso",
     "Fecha": "2026-08-06",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 12,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-610",
+    "id": "tx-618",
     "Tipo": "Egreso",
     "Fecha": "2026-08-06",
     "Categoria": "Gasto",
@@ -6148,7 +6228,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-611",
+    "id": "tx-619",
     "Tipo": "Egreso",
     "Fecha": "2026-08-07",
     "Categoria": "Servicio",
@@ -6158,7 +6238,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-612",
+    "id": "tx-620",
     "Tipo": "Egreso",
     "Fecha": "2026-08-07",
     "Categoria": "Gasto",
@@ -6168,7 +6248,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-613",
+    "id": "tx-621",
     "Tipo": "Egreso",
     "Fecha": "2026-08-08",
     "Categoria": "Gasto",
@@ -6178,7 +6258,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-614",
+    "id": "tx-622",
     "Tipo": "Egreso",
     "Fecha": "2026-08-08",
     "Categoria": "Gasto",
@@ -6188,7 +6268,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-615",
+    "id": "tx-623",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Otro Egre",
@@ -6198,17 +6278,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-616",
+    "id": "tx-624",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 23,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-617",
+    "id": "tx-625",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Otro Egre",
@@ -6218,7 +6298,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-618",
+    "id": "tx-626",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Gasto",
@@ -6228,17 +6308,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-619",
+    "id": "tx-627",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Gasto",
-    "Concepto": "Medicinas",
+    "Concepto": "Medicina Madre",
     "Monto": 173.2,
     "Entidad": "Ripley",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-620",
+    "id": "tx-628",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-09",
     "Categoria": "Otro Ing",
@@ -6248,7 +6328,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-621",
+    "id": "tx-629",
     "Tipo": "Egreso",
     "Fecha": "2026-08-09",
     "Categoria": "Servicio",
@@ -6258,17 +6338,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-622",
+    "id": "tx-630",
     "Tipo": "Egreso",
     "Fecha": "2026-08-10",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 21,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-623",
+    "id": "tx-631",
     "Tipo": "Egreso",
     "Fecha": "2026-08-10",
     "Categoria": "Otro Egre",
@@ -6278,7 +6358,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-624",
+    "id": "tx-632",
     "Tipo": "Egreso",
     "Fecha": "2026-08-11",
     "Categoria": "Servicio",
@@ -6288,7 +6368,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-625",
+    "id": "tx-633",
     "Tipo": "Egreso",
     "Fecha": "2026-08-11",
     "Categoria": "Servicio",
@@ -6298,7 +6378,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-626",
+    "id": "tx-634",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-11",
     "Categoria": "Otro Ing",
@@ -6308,7 +6388,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-627",
+    "id": "tx-635",
     "Tipo": "Egreso",
     "Fecha": "2026-08-11",
     "Categoria": "Gasto",
@@ -6318,7 +6398,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-628",
+    "id": "tx-636",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Otro Egre",
@@ -6328,7 +6408,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-629",
+    "id": "tx-637",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Gasto",
@@ -6338,7 +6418,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-630",
+    "id": "tx-638",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Otro Egre",
@@ -6348,37 +6428,37 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-631",
+    "id": "tx-639",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Planet Chicken",
     "Monto": 75.9,
     "Entidad": "Interbank Amex",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-632",
+    "id": "tx-640",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-633",
+    "id": "tx-641",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 8.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-634",
+    "id": "tx-642",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Gasto",
@@ -6388,27 +6468,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-635",
+    "id": "tx-643",
     "Tipo": "Egreso",
     "Fecha": "2026-08-12",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 7,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-636",
+    "id": "tx-644",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-637",
+    "id": "tx-645",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
     "Categoria": "Otro Egre",
@@ -6418,27 +6498,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-638",
+    "id": "tx-646",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 19,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-639",
+    "id": "tx-647",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 8,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-640",
+    "id": "tx-648",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
     "Categoria": "Gasto",
@@ -6448,27 +6528,27 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-641",
+    "id": "tx-649",
     "Tipo": "Egreso",
     "Fecha": "2026-08-13",
-    "Categoria": "Otro Egre",
-    "Concepto": "Carol",
+    "Categoria": "Gasto",
+    "Concepto": "Makis",
     "Monto": 118,
     "Entidad": "Interbank Amex",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-642",
+    "id": "tx-650",
     "Tipo": "Egreso",
     "Fecha": "2026-08-14",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Bus",
     "Monto": 9.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-643",
+    "id": "tx-651",
     "Tipo": "Egreso",
     "Fecha": "2026-08-14",
     "Categoria": "Gasto",
@@ -6478,7 +6558,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-644",
+    "id": "tx-652",
     "Tipo": "Egreso",
     "Fecha": "2026-08-15",
     "Categoria": "Deuda",
@@ -6488,7 +6568,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-645",
+    "id": "tx-653",
     "Tipo": "Egreso",
     "Fecha": "2026-08-15",
     "Categoria": "Gasto",
@@ -6498,7 +6578,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-646",
+    "id": "tx-654",
     "Tipo": "Egreso",
     "Fecha": "2026-08-15",
     "Categoria": "Gasto",
@@ -6508,17 +6588,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-647",
+    "id": "tx-655",
     "Tipo": "Egreso",
     "Fecha": "2026-08-15",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 15.5,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-648",
+    "id": "tx-656",
     "Tipo": "Egreso",
     "Fecha": "2026-08-15",
     "Categoria": "Gasto",
@@ -6528,7 +6608,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-649",
+    "id": "tx-657",
     "Tipo": "Egreso",
     "Fecha": "2026-08-16",
     "Categoria": "Gasto",
@@ -6538,7 +6618,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-650",
+    "id": "tx-658",
     "Tipo": "Egreso",
     "Fecha": "2026-08-17",
     "Categoria": "Gasto",
@@ -6548,7 +6628,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-651",
+    "id": "tx-659",
     "Tipo": "Egreso",
     "Fecha": "2026-08-17",
     "Categoria": "Gasto",
@@ -6558,7 +6638,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-652",
+    "id": "tx-660",
     "Tipo": "Egreso",
     "Fecha": "2026-08-18",
     "Categoria": "Gasto",
@@ -6568,7 +6648,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-653",
+    "id": "tx-661",
     "Tipo": "Egreso",
     "Fecha": "2026-08-19",
     "Categoria": "Gasto",
@@ -6578,7 +6658,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-654",
+    "id": "tx-662",
     "Tipo": "Egreso",
     "Fecha": "2026-08-20",
     "Categoria": "Gasto",
@@ -6588,7 +6668,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-655",
+    "id": "tx-663",
     "Tipo": "Egreso",
     "Fecha": "2026-08-21",
     "Categoria": "Gasto",
@@ -6598,7 +6678,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-656",
+    "id": "tx-664",
     "Tipo": "Egreso",
     "Fecha": "2026-08-21",
     "Categoria": "Gasto",
@@ -6608,7 +6688,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-657",
+    "id": "tx-665",
     "Tipo": "Egreso",
     "Fecha": "2026-08-22",
     "Categoria": "Gasto",
@@ -6618,7 +6698,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-658",
+    "id": "tx-666",
     "Tipo": "Egreso",
     "Fecha": "2026-08-22",
     "Categoria": "Gasto",
@@ -6628,7 +6708,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-659",
+    "id": "tx-667",
     "Tipo": "Egreso",
     "Fecha": "2026-08-23",
     "Categoria": "Servicio",
@@ -6638,7 +6718,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-660",
+    "id": "tx-668",
     "Tipo": "Egreso",
     "Fecha": "2026-08-23",
     "Categoria": "Gasto",
@@ -6648,17 +6728,17 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-661",
+    "id": "tx-669",
     "Tipo": "Egreso",
     "Fecha": "2026-08-23",
     "Categoria": "Gasto",
-    "Concepto": "Transporte",
+    "Concepto": "Taxi",
     "Monto": 15,
     "Entidad": "Interbank",
     "Mes": "Agosto"
   },
   {
-    "id": "tx-662",
+    "id": "tx-670",
     "Tipo": "Egreso",
     "Fecha": "2026-08-24",
     "Categoria": "Gasto",
@@ -6668,7 +6748,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-663",
+    "id": "tx-671",
     "Tipo": "Egreso",
     "Fecha": "2026-08-24",
     "Categoria": "Gasto",
@@ -6678,7 +6758,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-664",
+    "id": "tx-672",
     "Tipo": "Egreso",
     "Fecha": "2026-08-27",
     "Categoria": "Gasto",
@@ -6688,7 +6768,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-665",
+    "id": "tx-673",
     "Tipo": "Egreso",
     "Fecha": "2026-08-27",
     "Categoria": "Gasto",
@@ -6698,7 +6778,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-666",
+    "id": "tx-674",
     "Tipo": "Ingreso",
     "Fecha": "2026-08-27",
     "Categoria": "Otro Ing",
@@ -6708,7 +6788,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Agosto"
   },
   {
-    "id": "tx-667",
+    "id": "tx-675",
     "Tipo": "Ingreso",
     "Fecha": "2026-09-01",
     "Categoria": "Otro Ing",
@@ -6718,7 +6798,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-668",
+    "id": "tx-676",
     "Tipo": "Ingreso",
     "Fecha": "2026-09-01",
     "Categoria": "Sueldo",
@@ -6728,7 +6808,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-669",
+    "id": "tx-677",
     "Tipo": "Ingreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
@@ -6738,7 +6818,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-670",
+    "id": "tx-678",
     "Tipo": "Ingreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
@@ -6748,7 +6828,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-671",
+    "id": "tx-679",
     "Tipo": "Ingreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
@@ -6758,7 +6838,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-672",
+    "id": "tx-680",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Servicio",
@@ -6768,7 +6848,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-673",
+    "id": "tx-681",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Deuda",
@@ -6778,7 +6858,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-674",
+    "id": "tx-682",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Servicio",
@@ -6788,7 +6868,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-675",
+    "id": "tx-683",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Deuda",
@@ -6798,67 +6878,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-676",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-05",
-    "Categoria": "Servicio",
-    "Concepto": "Pago de Tarjeta Interbank Amex",
-    "Monto": 751.89,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-677",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-05",
-    "Categoria": "Servicio",
-    "Concepto": "Pago de Tarjeta BBVA Bfree",
-    "Monto": 455.09,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-678",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-05",
-    "Categoria": "Servicio",
-    "Concepto": "Agua + Mantenimiento",
-    "Monto": 160,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-679",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-15",
-    "Categoria": "Deuda",
-    "Concepto": "Prestamo BCP",
-    "Monto": 143.16,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-680",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-15",
-    "Categoria": "Otro Egre",
-    "Concepto": "Titulación",
-    "Monto": 80,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-681",
-    "Tipo": "Egreso",
-    "Fecha": "2026-09-23",
-    "Categoria": "Servicio",
-    "Concepto": "iCloud",
-    "Monto": 15,
-    "Entidad": "Interbank",
-    "Mes": "Setiembre"
-  },
-  {
-    "id": "tx-682",
+    "id": "tx-684",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
@@ -6868,7 +6888,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-683",
+    "id": "tx-685",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Servicio",
@@ -6878,7 +6898,7 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-684",
+    "id": "tx-686",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
@@ -6888,12 +6908,182 @@ export const masterTransactions: Transaction[] = [
     "Mes": "Setiembre"
   },
   {
-    "id": "tx-685",
+    "id": "tx-687",
     "Tipo": "Egreso",
     "Fecha": "2026-09-01",
     "Categoria": "Gasto",
     "Concepto": "Tortes",
     "Monto": 2,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-688",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Futbol",
+    "Monto": 10,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-689",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Broaster",
+    "Monto": 15,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-690",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Alcohol",
+    "Monto": 12.9,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-691",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Ceviche",
+    "Monto": 145,
+    "Entidad": "Interbank Amex",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-692",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Café",
+    "Monto": 16,
+    "Entidad": "Interbank Amex",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-693",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 2,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-694",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Agua Mineral",
+    "Monto": 2,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-695",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Gaseosa",
+    "Monto": 3.5,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-696",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 4,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-697",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Bus",
+    "Monto": 9,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-698",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Gasto",
+    "Concepto": "Gaseosa",
+    "Monto": 8,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-699",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Servicio",
+    "Concepto": "Pago de Tarjeta Interbank Amex",
+    "Monto": 751.89,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-700",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Servicio",
+    "Concepto": "Pago de Tarjeta BBVA Bfree",
+    "Monto": 455.09,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-701",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-01",
+    "Categoria": "Servicio",
+    "Concepto": "Agua + Mantenimiento",
+    "Monto": 160,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-702",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-15",
+    "Categoria": "Deuda",
+    "Concepto": "Prestamo BCP",
+    "Monto": 143.16,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-703",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-15",
+    "Categoria": "Otro Egre",
+    "Concepto": "Titulación",
+    "Monto": 80,
+    "Entidad": "Interbank",
+    "Mes": "Setiembre"
+  },
+  {
+    "id": "tx-704",
+    "Tipo": "Egreso",
+    "Fecha": "2026-09-23",
+    "Categoria": "Servicio",
+    "Concepto": "iCloud",
+    "Monto": 15,
     "Entidad": "Interbank",
     "Mes": "Setiembre"
   }

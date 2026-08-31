@@ -29,9 +29,12 @@ function normalizeCategory(rawCat: string): string {
 
 function parseExcelDate(rawDate: any): string {
   if (typeof rawDate === 'number') {
-    const d = XLSX.SSF.parse_date_code(rawDate);
-    const y = d.y < 100 ? (d.y >= 50 ? 1900 + d.y : 2000 + d.y) : d.y;
-    return `${y}-${String(d.m).padStart(2, '0')}-${String(d.d).padStart(2, '0')}`;
+    // Convert Excel serial date to YYYY-MM-DD (Excel epoch starts 1899-12-30)
+    const date = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
   if (typeof rawDate === 'string') {
     const s = rawDate.trim();
@@ -178,6 +181,7 @@ async function main() {
   Monto: number;
   Entidad: string;
   Mes: string;
+  estado?: 'confirmado' | 'pendiente' | 'provisional';
 }
 
 export const CATEGORIAS = [
