@@ -13,6 +13,8 @@ import { SavingsGoalsWidget } from '../components/SavingsGoalsWidget';
 import { generateFinancialInsights } from '../utils/financialInsights';
 import { openExecutiveReportPrintWindow } from '../utils/executiveReportPdf';
 import { useBudgetStore } from '../store/budgetStore';
+import { useCreditLineStore } from '../store/creditLineStore';
+import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
 import {
   ChevronDown,
   Download,
@@ -32,6 +34,7 @@ import {
   X,
   Edit3,
   FileText,
+  Sliders,
 } from 'lucide-react';
 import {
   BarChart,
@@ -147,31 +150,16 @@ export const Dashboard: React.FC = () => {
 
   const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
-  const [localLineOverrides] = useState<Record<string, number> | null>(() => {
-    try {
-      const lo = localStorage.getItem('finper_line_overrides');
-      return lo ? JSON.parse(lo) : null;
-    } catch {
-      return null;
-    }
-  });
-
-  const [localAccountLabels] = useState<Record<string, string> | null>(() => {
-    try {
-      const al = localStorage.getItem('finper_account_labels');
-      return al ? JSON.parse(al) : null;
-    } catch {
-      return null;
-    }
-  });
+  const { lines: creditLines, labels: accountLabels } = useCreditLineStore();
+  const [isCreditLineModalOpen, setIsCreditLineModalOpen] = useState(false);
+  const [selectedCardForConfig, setSelectedCardForConfig] = useState<string | undefined>(undefined);
 
   const { agregarNotificacion } = useAppStore();
 
-  const activeLineOverrides = localLineOverrides ?? LINE_OVERRIDES;
-  const activeAccountLabels = localAccountLabels ?? ACCOUNT_LABELS;
+  const activeAccountLabels = accountLabels;
 
   Object.keys(entityLineaTotals).forEach(ent => {
-    if (activeLineOverrides.hasOwnProperty(ent)) entityLineaTotals[ent] = activeLineOverrides[ent];
+    if (creditLines.hasOwnProperty(ent)) entityLineaTotals[ent] = creditLines[ent];
   });
 
   const handleExport = () => {
@@ -506,6 +494,20 @@ export const Dashboard: React.FC = () => {
               Saldos disponibles, flujo de ingresos/egresos y límites de crédito asignados.
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSelectedCardForConfig(undefined);
+              setIsCreditLineModalOpen(true);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
+            title="Configurar líneas de crédito de las tarjetas"
+          >
+            <Sliders size={13} className="text-emerald-500" />
+            <span className="hidden sm:inline">Ajustar Líneas</span>
+            <span className="sm:hidden">Líneas</span>
+          </button>
         </div>
 
         {(() => {
@@ -582,10 +584,21 @@ export const Dashboard: React.FC = () => {
                         <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
                       </div>
                       {totalLine > 0 && (
-                        <div className="flex items-center justify-between pt-1 border-t border-slate-100/60 dark:border-slate-800 font-semibold text-blue-900 dark:text-blue-300 text-[11px]">
-                          <span>Línea:</span>
-                          <span>{formatterPEN.format(totalLine)}</span>
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCardForConfig(ent);
+                            setIsCreditLineModalOpen(true);
+                          }}
+                          className="w-full flex items-center justify-between pt-1 border-t border-slate-100/60 dark:border-slate-800 font-semibold text-blue-900 dark:text-blue-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] transition group cursor-pointer"
+                          title="Clic para modificar la línea de crédito de esta tarjeta"
+                        >
+                          <span className="flex items-center gap-1">
+                            <span>Línea:</span>
+                            <Edit3 size={11} className="opacity-60 group-hover:opacity-100 transition-opacity text-emerald-600 dark:text-emerald-400" />
+                          </span>
+                          <span className="group-hover:underline underline-offset-2">{formatterPEN.format(totalLine)}</span>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -1236,6 +1249,13 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ── ⚙️ MODAL DE CONFIGURACIÓN DE LÍNEAS DE CRÉDITO ── */}
+      <CreditLineConfigModal
+        isOpen={isCreditLineModalOpen}
+        onClose={() => setIsCreditLineModalOpen(false)}
+        initialEntity={selectedCardForConfig}
+      />
 
     </div>
   );
