@@ -5,6 +5,7 @@ import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
 import { calcularCuota as calcUtil, addMonthsKeepingDay } from '../utils/debtUtils';
+import { DebtPayoffSimulatorWidget } from '../components/DebtPayoffSimulatorWidget';
 import {
   Landmark,
   PlusCircle,
@@ -270,11 +271,14 @@ export const HojaDeudas: React.FC = () => {
         </div>
       )}
 
+      {/* ── 🏔️ SIMULADOR DE LIQUIDACIÓN DE DEUDAS (BOLA DE NIEVE & AVALANCHA) ── */}
+      <DebtPayoffSimulatorWidget />
+
       {/* ── DEUDAS ACTIVAS ── */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black text-slate-900 tracking-tight">Obligaciones Activas</h2>
+            <h2 className="text-lg font-black text-slate-900 dark:text-white tracking-tight">Obligaciones Activas</h2>
             <Badge variant="warning">{deudasActivas.length} activas</Badge>
           </div>
           <div className="flex items-center gap-4 text-xs text-slate-500 font-medium">

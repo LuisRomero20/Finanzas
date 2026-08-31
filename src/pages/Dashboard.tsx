@@ -7,6 +7,12 @@ import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
 import { BudgetOverviewWidget } from '../components/BudgetOverviewWidget';
+import { SmartInsightsWidget } from '../components/SmartInsightsWidget';
+import { FinancialCalendarWidget } from '../components/FinancialCalendarWidget';
+import { SavingsGoalsWidget } from '../components/SavingsGoalsWidget';
+import { generateFinancialInsights } from '../utils/financialInsights';
+import { openExecutiveReportPrintWindow } from '../utils/executiveReportPdf';
+import { useBudgetStore } from '../store/budgetStore';
 import {
   ChevronDown,
   Download,
@@ -25,6 +31,7 @@ import {
   Sparkles,
   X,
   Edit3,
+  FileText,
 } from 'lucide-react';
 import {
   BarChart,
@@ -75,6 +82,30 @@ export const Dashboard: React.FC = () => {
   const totalIngresos = filtered.filter(t => t.Tipo === 'Ingreso').reduce((acc, t) => acc + t.Monto, 0);
   const totalEgresos = filtered.filter(t => t.Tipo === 'Egreso' && t.Categoria !== 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
   const totalDeudas = filtered.filter(t => t.Categoria === 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
+
+  const rawTransactions = useFinanceStore((s) => s.transactions) || [];
+  const { limits: budgetLimits } = useBudgetStore();
+
+  const diagnostic = useMemo(() => {
+    return generateFinancialInsights(
+      rawTransactions,
+      selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth,
+      sortedMeses,
+      budgetLimits
+    );
+  }, [rawTransactions, selectedMonth, budgetLimits]);
+
+  const handleExportPDF = () => {
+    openExecutiveReportPrintWindow({
+      selectedMonth: selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth,
+      transactions: rawTransactions,
+      totalIncome: totalIngresos,
+      totalExpense: totalEgresos,
+      netSavings: totalIngresos - totalEgresos,
+      savingsRate: totalIngresos > 0 ? ((totalIngresos - totalEgresos) / totalIngresos) * 100 : 0,
+      accountBalances: entityBalances,
+    });
+  };
 
   const entityList = ENTIDADES && ENTIDADES.length ? ENTIDADES : Array.from(new Set(filtered.map(t => t.Entidad).filter(Boolean)));
   const entityBalances: Record<string, number> = {};
@@ -381,15 +412,25 @@ export const Dashboard: React.FC = () => {
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
           </div>
 
-          {/* Export Button */}
-          <button
-            onClick={handleExport}
-            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 bg-slate-900 dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
-            title="Exportar datos a CSV"
-          >
-            <Download size={13} />
-            <span>Exportar CSV</span>
-          </button>
+          {/* Export Buttons */}
+          <div className="flex items-center gap-1.5 col-span-2 sm:col-span-1">
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center justify-center gap-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
+              title="Generar e imprimir informe ejecutivo en PDF"
+            >
+              <FileText size={13} />
+              <span>Informe PDF</span>
+            </button>
+            <button
+              onClick={handleExport}
+              className="flex items-center justify-center gap-1 bg-slate-900 dark:bg-slate-800 hover:bg-black dark:hover:bg-slate-700 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
+              title="Exportar datos a CSV"
+            >
+              <Download size={13} />
+              <span>CSV</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -555,8 +596,23 @@ export const Dashboard: React.FC = () => {
         })()}
       </div>
 
-      {/* ── CONTROL DE PRESUPUESTOS SEMAFÓRICOS (FASE 3) ── */}
+      {/* ── 🤖 MOTOR DE INSIGHTS INTELIGENTES ── */}
+      <SmartInsightsWidget
+        diagnostic={diagnostic}
+        selectedMonth={selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth}
+      />
+
+      {/* ── 🚦 CONTROL DE PRESUPUESTOS SEMAFÓRICOS ── */}
       <BudgetOverviewWidget />
+
+      {/* ── 📅 CALENDARIO FINANCIERO INTERACTIVO ── */}
+      <FinancialCalendarWidget
+        transactions={rawTransactions}
+        selectedMonth={selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth}
+      />
+
+      {/* ── 🎯 METAS DE AHORRO & FONDOS DE RESERVA ── */}
+      <SavingsGoalsWidget monthlySavingsCapacity={diagnostic.netSavings > 0 ? diagnostic.netSavings : 600} />
 
       {/* ── BANDEJA DE PAGOS & MOVIMIENTOS PENDIENTES ── */}
       <div className="bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-4">

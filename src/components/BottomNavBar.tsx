@@ -9,6 +9,7 @@ import {
   Layers,
   LineChart,
   Database,
+  Search,
   X,
   ChevronRight,
   ShieldCheck,
@@ -18,9 +19,10 @@ interface Props {
   currentTab: string;
   setTab: (tab: string) => void;
   onOpenBackup: () => void;
+  onOpenSearch: () => void;
 }
 
-export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup }) => {
+export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup, onOpenSearch }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const PRIMARY_TABS = [
@@ -162,6 +164,26 @@ export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup
             </div>
 
             <div className="space-y-2">
+              {/* ⚡ Buscador Universal */}
+              <button
+                onClick={() => {
+                  setIsMenuOpen(false);
+                  onOpenSearch();
+                }}
+                className="w-full p-3.5 rounded-2xl bg-emerald-50/70 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 border border-emerald-200/70 dark:border-emerald-800/70 flex items-center justify-between transition text-left cursor-pointer"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl text-emerald-600 bg-emerald-500/10">
+                    <Search size={20} />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-emerald-950 dark:text-emerald-200">Buscador Universal</p>
+                    <p className="text-[11px] text-emerald-600/70 dark:text-emerald-300/70">Buscar en +700 movimientos (Ctrl + K)</p>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-emerald-400 shrink-0" />
+              </button>
+
               {SECONDARY_TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = currentTab === tab.id;

@@ -32,15 +32,8 @@ const HojaDeudas = lazy(() => import("./pages/HojaDeudas").then(m => ({ default:
 const CronogramaPagos = lazy(() => import("./pages/CronogramaPagos").then(m => ({ default: m.CronogramaPagos })));
 const DashboardsPage = lazy(() => import("./pages/DashboardsPage").then(m => ({ default: m.DashboardsPage })));
 
-// ============ CONFIGURACIÓN DE TABS ============
-interface TabConfig {
-  id: string;
-  name: string;
-  shortName: string;
-  icon: React.ComponentType<{ size?: number; className?: string }>;
-}
-
-const TABS: TabConfig[] = [
+// 🧭 LISTADO MAESTRO DE MÓDULOS DE NAVEGACIÓN
+const TABS = [
   { id: "Finanzas General", name: "General", shortName: "General", icon: LayoutDashboard },
   { id: "Registro Rápido", name: "Registrar", shortName: "Registrar", icon: Smartphone },
   { id: "Proyecciones", name: "Proyecciones", shortName: "Proyección", icon: CalendarRange },
@@ -53,6 +46,7 @@ const TABS: TabConfig[] = [
 export default function App() {
   const [tab, setTab] = useState<string>("Finanzas General");
   const [isBackupOpen, setIsBackupOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { theme } = useThemeStore();
   const { syncFromSupabase } = useFinanceStore();
 
@@ -60,6 +54,18 @@ export default function App() {
   useEffect(() => {
     syncFromSupabase().catch(err => console.warn('Background Supabase sync error:', err));
   }, [syncFromSupabase]);
+
+  // Atajo global de teclado Ctrl + K para abrir buscador universal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(prev => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Asegurar sincronización exacta de la clase 'dark' en el documento
   useEffect(() => {
@@ -69,7 +75,12 @@ export default function App() {
   return (
     <div className="min-h-screen w-full bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       <div>
-        <Navbar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
+        <Navbar 
+          currentTab={tab} 
+          setTab={setTab} 
+          onOpenBackup={() => setIsBackupOpen(true)} 
+          onOpenSearch={() => setIsSearchOpen(true)}
+        />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
           <Suspense fallback={<PageLoader />}>
@@ -86,9 +97,15 @@ export default function App() {
       <Footer onOpenBackup={() => setIsBackupOpen(true)} />
       
       {/* 📱 Dock de Navegación Fijo Inferior para Celular */}
-      <BottomNavBar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
+      <BottomNavBar 
+        currentTab={tab} 
+        setTab={setTab} 
+        onOpenBackup={() => setIsBackupOpen(true)} 
+        onOpenSearch={() => setIsSearchOpen(true)}
+      />
 
       <BackupRestoreModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
+      <UniversalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSelectTab={setTab} />
     </div>
   );
 }
@@ -139,7 +156,17 @@ function Notifications() {
 }
 
 // 🧭 NAVBAR PROFESIONAL (HEADER FIJO CON SAFE AREA INSET)
-function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setTab: (t: string) => void; onOpenBackup: () => void }) {
+function Navbar({ 
+  currentTab, 
+  setTab, 
+  onOpenBackup,
+  onOpenSearch,
+}: { 
+  currentTab: string; 
+  setTab: (t: string) => void; 
+  onOpenBackup: () => void;
+  onOpenSearch: () => void;
+}) {
   const { theme, setTheme } = useThemeStore();
 
   return (
@@ -147,7 +174,7 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
       className="fixed top-0 left-0 right-0 z-40 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 sm:py-3 flex items-center justify-between gap-6">
+      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 sm:py-3 flex items-center justify-between gap-4">
         
         {/* Brand & Logo */}
         <div className="flex items-center gap-3 shrink-0">
@@ -170,7 +197,22 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
         </div>
 
         {/* 💻 Navegación Superior Desktop */}
-        <div className="hidden md:flex items-center gap-2.5 min-w-0">
+        <div className="hidden md:flex items-center gap-2 min-w-0">
+          
+          {/* ⚡ Buscador Rápido */}
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-black/25 dark:bg-black/40 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer shrink-0"
+            title="Búsqueda Universal (Ctrl + K)"
+          >
+            <Search size={14} className="text-emerald-400" />
+            <span className="hidden xl:inline">Buscar</span>
+            <kbd className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-white/10 text-emerald-300 border border-white/10">
+              Ctrl K
+            </kbd>
+          </button>
+
           <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar shrink">
             {TABS.map((t) => {
               const Icon = t.icon;
@@ -233,7 +275,15 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
         </div>
 
         {/* 📱 Controles Rápidos Móvil (Compactos) */}
-        <div className="flex md:hidden items-center gap-2 shrink-0">
+        <div className="flex md:hidden items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenSearch}
+            className="p-2 rounded-xl bg-black/30 dark:bg-black/50 text-emerald-200 hover:text-white border border-white/10 transition cursor-pointer"
+            title="Buscador Universal"
+          >
+            <Search size={16} />
+          </button>
           <button
             type="button"
             onClick={onOpenBackup}
