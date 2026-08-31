@@ -67,11 +67,11 @@ export default function App() {
   }, [theme]);
 
   return (
-    <div className="min-h-screen w-screen overflow-x-hidden bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
+    <div className="min-h-screen w-full bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       <div>
         <Navbar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
         <Notifications />
-        <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-5 sm:py-8 pb-28 md:pb-8 animate-in fade-in duration-200">
+        <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -138,13 +138,13 @@ function Notifications() {
   );
 }
 
-// 🧭 NAVBAR PROFESIONAL (DESKTOP TABS ARRIBA + MÓVIL CABECERA COMPACTA)
+// 🧭 NAVBAR PROFESIONAL (HEADER FIJO CON SAFE AREA INSET)
 function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setTab: (t: string) => void; onOpenBackup: () => void }) {
   const { theme, setTheme } = useThemeStore();
 
   return (
     <header 
-      className="sticky top-0 z-30 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200"
+      className="fixed top-0 left-0 right-0 z-40 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
       <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 sm:py-3 flex items-center justify-between gap-6">
