@@ -10,6 +10,8 @@ export interface Transaction {
   estado?: 'confirmado' | 'pendiente' | 'provisional';
 }
 
+export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';
+
 export const CATEGORIAS = [
   'Sueldo',
   'Servicio',
