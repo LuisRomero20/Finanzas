@@ -272,7 +272,7 @@ export const HojaDeudas: React.FC = () => {
       )}
 
       {/* ── 🏔️ SIMULADOR DE LIQUIDACIÓN DE DEUDAS (BOLA DE NIEVE & AVALANCHA) ── */}
-      <DebtPayoffSimulatorWidget />
+      <DebtPayoffSimulatorWidget deudas={deudasActivas} />
 
       {/* ── DEUDAS ACTIVAS ── */}
       <div>

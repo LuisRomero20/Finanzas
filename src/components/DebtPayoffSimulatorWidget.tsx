@@ -1,25 +1,65 @@
 import React, { useState } from 'react';
-import { Flame, Snowflake, Zap, ArrowRight, ShieldCheck, CheckCircle2, TrendingDown } from 'lucide-react';
+import { Flame, Snowflake, Zap, CheckCircle2, TrendingDown, Info, ShieldCheck } from 'lucide-react';
 import { calculateDebtPayoff, type DebtItem } from '../utils/debtPayoffSimulator';
 
-interface Props {
-  initialDebts?: DebtItem[];
+interface DeudaItemStore {
+  id: string;
+  acreedor: string;
+  monto: number;
+  tasa_anual: number;
+  plazo_meses: number;
+  meses_pagados: number;
+  tipo_tasa: string;
+  moneda: string;
+  estado: string;
 }
 
-const DEFAULT_DEBTS: DebtItem[] = [
-  { id: '1', name: 'Préstamo BCP', balance: 4200, minPayment: 260, interestRate: 18.5 },
-  { id: '2', name: 'Tarjeta BBVA Bfree', balance: 1450, minPayment: 120, interestRate: 48.0 },
-  { id: '3', name: 'Tarjeta Ripley', balance: 680, minPayment: 70, interestRate: 54.0 },
-  { id: '4', name: 'Interbank Amex', balance: 2100, minPayment: 180, interestRate: 42.0 },
-];
+interface Props {
+  deudas?: DeudaItemStore[];
+}
 
-export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ initialDebts = DEFAULT_DEBTS }) => {
+export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ deudas = [] }) => {
   const [strategy, setStrategy] = useState<'snowball' | 'avalanche'>('snowball');
   const [extraPayment, setExtraPayment] = useState<number>(200);
 
-  const payoff = calculateDebtPayoff(initialDebts, extraPayment, strategy);
+  // Mapear estrictamente las deudas reales registradas (excluyendo tarjetas corrientes)
+  const activeDebts: DebtItem[] = deudas
+    .filter((d) => d.estado === 'activa')
+    .map((d) => {
+      const i_m = d.tipo_tasa === 'efectiva' ? Math.pow(1 + d.tasa_anual, 1 / 12) - 1 : d.tasa_anual / 12;
+      const n = Math.max(1, d.plazo_meses - d.meses_pagados);
+      const cuota = i_m > 0 ? (d.monto * i_m) / (1 - Math.pow(1 + i_m, -n)) : d.monto / n;
 
-  const totalBalance = initialDebts.reduce((acc, d) => acc + d.balance, 0);
+      return {
+        id: d.id,
+        name: d.acreedor,
+        balance: d.monto,
+        minPayment: Math.max(10, Math.round(cuota)),
+        interestRate: Number((d.tasa_anual * 100).toFixed(1)),
+      };
+    });
+
+  const totalBalance = activeDebts.reduce((acc, d) => acc + d.balance, 0);
+  const payoff = calculateDebtPayoff(activeDebts, extraPayment, strategy);
+
+  if (activeDebts.length === 0) {
+    return (
+      <div className="bg-white dark:bg-[#0D1518] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm flex items-start gap-4">
+        <div className="h-10 w-10 rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-400 flex items-center justify-center shrink-0">
+          <ShieldCheck size={22} />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white">
+            Sin Pasivos Estructurados ni Préstamos Bancarios Activos
+          </h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+            Tus tarjetas de crédito se gestionan como <strong>consumos operativos mensuales</strong> y no como pasivos a largo plazo. 
+            Si registras un préstamo personal, vehicular o bancario mediante el botón <em>"Registrar Nueva Deuda"</em>, podrás simular aquí su liquidación acelerada mediante Bola de Nieve o Avalancha.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white dark:bg-[#0D1518] rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
@@ -38,7 +78,7 @@ export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ initialDebts = DEFA
               </span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Estrategias matemáticas para salir de deudas más rápido y ahorrar en intereses
+              Estrategias para amortizar préstamos y créditos bancarios (excluye consumos mensuales de tarjetas)
             </p>
           </div>
         </div>
@@ -97,7 +137,7 @@ export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ initialDebts = DEFA
         />
 
         <div className="flex justify-between text-[10px] text-slate-400 font-semibold">
-          <span>S/ 0 (Solo mínimos)</span>
+          <span>S/ 0 (Solo cuotas programadas)</span>
           <span>S/ 500</span>
           <span>S/ 1,000 / mes</span>
         </div>
@@ -106,7 +146,7 @@ export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ initialDebts = DEFA
       {/* Métricas de Resultado */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <div className="p-4 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-900/40 text-center">
-          <p className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400">Tiempo de Libertad</p>
+          <p className="text-[10px] uppercase font-bold text-emerald-700 dark:text-emerald-400">Tiempo de Liquidación</p>
           <p className="text-xl font-black text-emerald-800 dark:text-emerald-200 mt-0.5">
             {payoff.totalMonths} Meses
           </p>
@@ -120,7 +160,7 @@ export const DebtPayoffSimulatorWidget: React.FC<Props> = ({ initialDebts = DEFA
           <p className="text-xl font-black text-blue-800 dark:text-blue-200 mt-0.5">
             S/ {payoff.totalInterestPaid.toLocaleString('es-PE', { maximumFractionDigits: 0 })}
           </p>
-          <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">Costo del dinero</p>
+          <p className="text-[10px] text-blue-600 dark:text-blue-400 mt-0.5">Costo financiero estimado</p>
         </div>
 
         <div className="p-4 rounded-2xl bg-amber-50/60 dark:bg-amber-950/20 border border-amber-200/60 dark:border-amber-900/40 text-center">
