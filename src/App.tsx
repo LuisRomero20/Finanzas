@@ -41,13 +41,13 @@ interface TabConfig {
 }
 
 const TABS: TabConfig[] = [
-  { id: "Finanzas General", name: "Resumen Ejecutivo", shortName: "General", icon: LayoutDashboard },
-  { id: "Registro Rápido", name: "📱 Registro Rápido", shortName: "Registrar", icon: Smartphone },
-  { id: "Proyecciones", name: "Proyecciones & Cashflow", shortName: "Proyección", icon: CalendarRange },
-  { id: "Tarjetas", name: "Cronograma de Tarjetas", shortName: "Tarjetas", icon: CreditCard },
-  { id: "Mis Deudas", name: "Gestión de Pasivos", shortName: "Deudas", icon: Landmark },
-  { id: "Clasificación", name: "21 Categorías", shortName: "Categorías", icon: Layers },
-  { id: "Dashboards", name: "Dashboards & Gráficos", shortName: "Métricas", icon: LineChart },
+  { id: "Finanzas General", name: "General", shortName: "General", icon: LayoutDashboard },
+  { id: "Registro Rápido", name: "Registrar", shortName: "Registrar", icon: Smartphone },
+  { id: "Proyecciones", name: "Proyecciones", shortName: "Proyección", icon: CalendarRange },
+  { id: "Tarjetas", name: "Tarjetas", shortName: "Tarjetas", icon: CreditCard },
+  { id: "Mis Deudas", name: "Deudas", shortName: "Deudas", icon: Landmark },
+  { id: "Clasificación", name: "Categorías", shortName: "Categorías", icon: Layers },
+  { id: "Dashboards", name: "Dashboards", shortName: "Métricas", icon: LineChart },
 ];
 
 export default function App() {
@@ -71,7 +71,7 @@ export default function App() {
       <div>
         <Navbar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
         <Notifications />
-        <main className="w-full max-w-[1750px] mx-auto px-3 sm:px-8 lg:px-12 py-4 sm:py-8 pb-28 md:pb-8 animate-in fade-in duration-200">
+        <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-5 sm:py-8 pb-28 md:pb-8 animate-in fade-in duration-200">
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -138,37 +138,37 @@ function Notifications() {
   );
 }
 
-// 🧭 NAVBAR PROFESIONAL CON SELECTOR DE TEMA DÍA / NOCHE & RESPALDO (RESPONSIVE)
+// 🧭 NAVBAR PROFESIONAL (RESPONSIVE & ANTI-COLLISION)
 function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setTab: (t: string) => void; onOpenBackup: () => void }) {
   const { theme, setTheme } = useThemeStore();
 
   return (
     <header className="sticky top-0 z-30 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200">
-      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 sm:py-3 flex items-center justify-between gap-4">
+      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-3 flex items-center justify-between gap-6">
         
-        {/* Brand & Logo */}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-0.5 shadow-md flex items-center justify-center text-white">
-            <TrendingUp size={20} className="stroke-[2.5]" />
+        {/* Brand & Logo (shrink-0 ensures it NEVER collapses or overlaps) */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="h-10 w-10 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-0.5 shadow-md flex items-center justify-center text-white">
+            <TrendingUp size={22} className="stroke-[2.5]" />
           </div>
-          <div>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <span className="font-heading font-black text-base sm:text-xl tracking-tight text-white">
+          <div className="shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="font-heading font-black text-lg sm:text-xl tracking-tight text-white">
                 FINPER
               </span>
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
+              <span className="text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
                 Cost Analysis
               </span>
             </div>
-            <p className="text-[10px] sm:text-[11px] text-emerald-300/80 hidden sm:block">
+            <p className="text-[11px] text-emerald-300/80 hidden sm:block">
               Suite de Inteligencia & Gestión Financiera
             </p>
           </div>
         </div>
 
         {/* 💻 Navegación Desktop */}
-        <div className="hidden md:flex items-center gap-2.5">
-          <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 overflow-x-auto">
+        <div className="hidden md:flex items-center gap-2.5 min-w-0">
+          <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar shrink">
             {TABS.map((t) => {
               const Icon = t.icon;
               const isActive = currentTab === t.id;
@@ -176,15 +176,14 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                     isActive
                       ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
                       : "text-emerald-200/80 hover:text-white hover:bg-white/10"
                   }`}
                 >
-                  <Icon size={15} />
-                  <span className="hidden lg:inline">{t.name}</span>
-                  <span className="lg:hidden">{t.shortName}</span>
+                  <Icon size={14} />
+                  <span>{t.name}</span>
                 </button>
               );
             })}
@@ -194,7 +193,7 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
           <button
             type="button"
             onClick={onOpenBackup}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer shrink-0"
             title="Abrir Centro de Respaldos & Exportación a Excel/JSON"
           >
             <Database size={14} className="text-emerald-400" />
@@ -202,7 +201,7 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
           </button>
 
           {/* ☀️ / 🌙 SELECTOR SEGMENTADO CLARO / OSCURO */}
-          <div className="flex items-center bg-black/30 dark:bg-black/50 p-1 rounded-2xl border border-white/10 shadow-inner">
+          <div className="flex items-center bg-black/30 dark:bg-black/50 p-1 rounded-2xl border border-white/10 shadow-inner shrink-0">
             <button
               type="button"
               onClick={() => setTheme('light')}
@@ -213,7 +212,7 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
               }`}
             >
               <Sun size={14} className={theme === 'light' ? 'text-slate-950' : 'text-amber-300'} />
-              <span>Día</span>
+              <span className="hidden xl:inline">Día</span>
             </button>
             <button
               type="button"
@@ -225,13 +224,13 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
               }`}
             >
               <Moon size={14} className={theme === 'dark' ? 'text-amber-300' : 'text-slate-300'} />
-              <span>Noche</span>
+              <span className="hidden xl:inline">Noche</span>
             </button>
           </div>
         </div>
 
         {/* 📱 Controles Rápidos Móvil (Compactos) */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="flex md:hidden items-center gap-2 shrink-0">
           <button
             type="button"
             onClick={onOpenBackup}
