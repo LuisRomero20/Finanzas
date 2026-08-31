@@ -22,17 +22,23 @@ import {
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
+import { autoClassify, getCategoryByIdOrLabel } from '../utils/categoryClassification';
 
 const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 
 // Paletas con alto contraste y distinción visual
-const INGRESOS_COLORS = ['#047857', '#0284C7', '#6366F1', '#D97706', '#0D9488', '#8B5CF6'];
-const EGRESOS_COLORS = ['#E11D48', '#D97706', '#059669', '#4F46E5', '#0284C7', '#9333EA', '#475569', '#0D9488'];
+const INGRESOS_COLORS = ['#047857', '#0284C7', '#6366F1', '#D97706', '#0D9488', '#8B5CF6', '#10B981', '#3B82F6'];
+const EGRESOS_COLORS = [
+  '#E11D48', '#D97706', '#059669', '#4F46E5', '#0284C7', '#9333EA', '#475569', '#0D9488',
+  '#F43F5E', '#EA580C', '#16A34A', '#2563EB', '#7C3AED', '#DB2777', '#ca8a04', '#0891b2',
+  '#4338ca', '#be123c', '#b45309', '#15803d', '#1d4ed8', '#6d28d9', '#a21caf', '#854d0e'
+];
 
 export const DashboardsPage: React.FC = () => {
   const { transactions } = useFinanceStore();
   const [view, setView] = useState<'Mensual' | 'Anual'>('Mensual');
+  const [granularity, setGranularity] = useState<'micro' | 'macro'>('micro');
   const [selectedMonth, setSelectedMonth] = useState<string>(MESES[new Date().getMonth()]);
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
   
@@ -57,6 +63,13 @@ export const DashboardsPage: React.FC = () => {
     });
   }, [transactions, selectedYear, selectedMonth, view]);
 
+  const getResolvedCategory = (t: Transaction): string => {
+    if (granularity === 'macro') return t.Categoria;
+    const catId = autoClassify(t);
+    const catInfo = catId ? getCategoryByIdOrLabel(catId) : null;
+    return catInfo ? catInfo.fullLabel : t.Categoria;
+  };
+
   const ingresosTxs = filteredTxs.filter(t => t.Tipo === 'Ingreso');
   const egresosTxs = filteredTxs.filter(t => t.Tipo === 'Egreso');
   
@@ -64,18 +77,24 @@ export const DashboardsPage: React.FC = () => {
   const totalEgresos = egresosTxs.reduce((s, t) => s + t.Monto, 0);
   const balance = totalIngresos - totalEgresos;
 
-  // Resumen por Categoría
+  // Resumen por Categoría (Macro o Micro según granularidad seleccionada)
   const catIngresos = useMemo(() => {
     const map = new Map<string, number>();
-    ingresosTxs.forEach(t => map.set(t.Categoria, (map.get(t.Categoria) || 0) + t.Monto));
+    ingresosTxs.forEach(t => {
+      const cat = getResolvedCategory(t);
+      map.set(cat, (map.get(cat) || 0) + t.Monto);
+    });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [ingresosTxs]);
+  }, [ingresosTxs, granularity]);
 
   const catEgresos = useMemo(() => {
     const map = new Map<string, number>();
-    egresosTxs.forEach(t => map.set(t.Categoria, (map.get(t.Categoria) || 0) + t.Monto));
+    egresosTxs.forEach(t => {
+      const cat = getResolvedCategory(t);
+      map.set(cat, (map.get(cat) || 0) + t.Monto);
+    });
     return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
-  }, [egresosTxs]);
+  }, [egresosTxs, granularity]);
 
   // Evolución anual
   const annualData = useMemo(() => {
@@ -92,7 +111,6 @@ export const DashboardsPage: React.FC = () => {
   const top5Gastos = useMemo(() => {
     const map = new Map<string, number>();
     egresosTxs
-      .filter(t => t.Categoria === 'Gasto')
       .forEach(t => map.set(t.Concepto, (map.get(t.Concepto) || 0) + t.Monto));
     return Array.from(map.entries())
       .map(([name, Monto]) => ({ name, Monto, value: Monto }))
@@ -131,7 +149,7 @@ export const DashboardsPage: React.FC = () => {
       maxMonthName: maxMonth?.mesCompleto || '-',
       maxMonthAmount: maxMonth?.Monto || 0,
     };
-  }, [selectedConcept, selectedYear]);
+  }, [selectedConcept, selectedYear, transactions]);
 
   return (
     <div className="space-y-8">
@@ -151,27 +169,55 @@ export const DashboardsPage: React.FC = () => {
 
         {/* Controles de Vista */}
         <div className="flex items-center gap-2.5 flex-wrap">
+          
+          {/* Toggle Granularidad Macro (8) vs Micro (21) */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <button
+              onClick={() => setGranularity('macro')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                granularity === 'macro'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Agrupar por los 8 rubros generales del sistema"
+            >
+              Macro (8)
+            </button>
+            <button
+              onClick={() => setGranularity('micro')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1 cursor-pointer ${
+                granularity === 'micro'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+              }`}
+              title="Agrupar por las 21 categorías granulares con emojis"
+            >
+              <Sparkles size={12} />
+              <span>Detallado (21)</span>
+            </button>
+          </div>
+
           {/* Toggle Mensual / Anual */}
           <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700">
             <button
               onClick={() => setView('Mensual')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 view === 'Mensual'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Vista Mensual
+              Mensual
             </button>
             <button
               onClick={() => setView('Anual')}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 view === 'Anual'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm'
+                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
                   : 'text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
-              Consolidado Anual
+              Anual
             </button>
           </div>
 
@@ -266,18 +312,23 @@ export const DashboardsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Distribución de Egresos */}
-        <Card className="h-80 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Distribución de Egresos por Categoría</h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Participación porcentual en el gasto</p>
+        <Card className="h-96 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Distribución de Egresos {granularity === 'micro' ? '(21 Categorías)' : '(8 Rubros)'}
+              </h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Participación porcentual en el gasto</p>
+            </div>
+            <Badge variant="default">{catEgresos.length} rubros</Badge>
           </div>
           <div className="flex-1 relative mt-2">
             {catEgresos.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={catEgresos} cx="45%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="none">
+                  <Pie data={catEgresos} cx="40%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={3} dataKey="value" stroke="none">
                     {catEgresos.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
+                      <Cell key={`cell-egr-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip 
@@ -289,8 +340,8 @@ export const DashboardsPage: React.FC = () => {
                     align="right" 
                     layout="vertical" 
                     iconType="circle" 
-                    wrapperStyle={{ fontSize: '12px', paddingLeft: '10px' }}
-                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{value}</span>}
+                    wrapperStyle={{ fontSize: '11px', paddingLeft: '8px', maxHeight: '240px', overflowY: 'auto' }}
+                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-[11px] truncate max-w-[140px] inline-block">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -301,18 +352,23 @@ export const DashboardsPage: React.FC = () => {
         </Card>
 
         {/* Distribución de Ingresos */}
-        <Card className="h-80 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Fuentes de Ingreso</h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Origen de los flujos del periodo</p>
+        <Card className="h-96 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+                Fuentes de Ingreso {granularity === 'micro' ? '(21 Categorías)' : '(8 Rubros)'}
+              </h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Origen de los flujos del periodo</p>
+            </div>
+            <Badge variant="default">{catIngresos.length} fuentes</Badge>
           </div>
           <div className="flex-1 relative mt-2">
             {catIngresos.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={catIngresos} cx="45%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value" stroke="none">
+                  <Pie data={catIngresos} cx="40%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={3} dataKey="value" stroke="none">
                     {catIngresos.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={INGRESOS_COLORS[index % INGRESOS_COLORS.length]} />
+                      <Cell key={`cell-ing-${index}`} fill={INGRESOS_COLORS[index % INGRESOS_COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip 
@@ -324,8 +380,8 @@ export const DashboardsPage: React.FC = () => {
                     align="right" 
                     layout="vertical" 
                     iconType="circle" 
-                    wrapperStyle={{ fontSize: '12px', paddingLeft: '10px' }}
-                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">{value}</span>}
+                    wrapperStyle={{ fontSize: '11px', paddingLeft: '8px', maxHeight: '240px', overflowY: 'auto' }}
+                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-[11px] truncate max-w-[140px] inline-block">{value}</span>}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -357,7 +413,7 @@ export const DashboardsPage: React.FC = () => {
                 />
                 <Bar dataKey="value" radius={[0, 6, 6, 0]}>
                   {top5Gastos.map((_, index) => (
-                    <Cell key={`cell-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
+                    <Cell key={`cell-bar-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
                   ))}
                 </Bar>
               </BarChart>
@@ -445,13 +501,13 @@ export const DashboardsPage: React.FC = () => {
               <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white px-4 py-2.5 flex items-center justify-between text-xs font-bold">
                 <span>Resumen de Ingresos por Rubro</span>
                 <span className="text-[10px] bg-emerald-800 dark:bg-emerald-950 text-emerald-200 px-2 py-0.5 rounded-full font-semibold">
-                  Consolidado
+                  {catIngresos.length} {catIngresos.length === 1 ? 'rubro' : 'rubros'}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {catIngresos.map(cat => (
                   <div key={cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{cat.name}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">{cat.name}</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatterPEN.format(cat.value)}</span>
                   </div>
                 ))}
@@ -463,7 +519,7 @@ export const DashboardsPage: React.FC = () => {
             </div>
 
             {catIngresos.map(cat => {
-              const txsCat = ingresosTxs.filter(t => t.Categoria === cat.name);
+              const txsCat = ingresosTxs.filter(t => getResolvedCategory(t) === cat.name);
               return <CategoryBox key={cat.name} title={cat.name} type="Ingreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
             })}
           </div>
@@ -487,13 +543,13 @@ export const DashboardsPage: React.FC = () => {
               <div className="bg-[#1B4332] dark:bg-[#07130D] text-white px-4 py-2.5 flex items-center justify-between text-xs font-bold">
                 <span>Resumen de Egresos por Rubro</span>
                 <span className="text-[10px] bg-emerald-900 dark:bg-emerald-950 text-emerald-200 px-2 py-0.5 rounded-full font-semibold">
-                  Consolidado
+                  {catEgresos.length} {catEgresos.length === 1 ? 'rubro' : 'rubros'}
                 </span>
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {catEgresos.map(cat => (
                   <div key={cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">{cat.name}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">{cat.name}</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatterPEN.format(cat.value)}</span>
                   </div>
                 ))}
@@ -505,7 +561,7 @@ export const DashboardsPage: React.FC = () => {
             </div>
 
             {catEgresos.map(cat => {
-              const txsCat = egresosTxs.filter(t => t.Categoria === cat.name);
+              const txsCat = egresosTxs.filter(t => getResolvedCategory(t) === cat.name);
               return <CategoryBox key={cat.name} title={cat.name} type="Egreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
             })}
           </div>
@@ -513,7 +569,7 @@ export const DashboardsPage: React.FC = () => {
       </div>
 
       {/* ── MODAL DE COMPORTAMIENTO & TENDENCIA HISTÓRICA ── */}
-      {selectedConcept && (
+      {selectedConcept && conceptTrendStats && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedConcept(null)}>
           <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
             
@@ -534,7 +590,7 @@ export const DashboardsPage: React.FC = () => {
               </div>
               <button
                 onClick={() => setSelectedConcept(null)}
-                className="p-1.5 text-emerald-300 hover:text-white hover:bg-white/10 rounded-xl transition"
+                className="p-1.5 text-emerald-300 hover:text-white hover:bg-white/10 rounded-xl transition cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -542,19 +598,19 @@ export const DashboardsPage: React.FC = () => {
 
             {/* KPIs del Concepto */}
             <div className="grid grid-cols-3 gap-3 p-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs">
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
                 <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Total Anual</p>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5">
+                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
                   {formatterPEN.format(conceptTrendStats.totalAnual)}
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
                 <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Promedio Mensual</p>
-                <p className="text-lg font-black text-emerald-800 dark:text-emerald-400 mt-0.5">
+                <p className="text-lg font-black text-emerald-800 dark:text-emerald-400 mt-0.5 tabular-nums">
                   {formatterPEN.format(conceptTrendStats.avgMonthly)}
                 </p>
               </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-sm">
+              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
                 <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Mes Pico</p>
                 <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
                   {conceptTrendStats.maxMonthName} ({formatterPEN.format(conceptTrendStats.maxMonthAmount)})
@@ -594,7 +650,7 @@ export const DashboardsPage: React.FC = () => {
               </span>
               <button
                 onClick={() => setSelectedConcept(null)}
-                className="bg-slate-800 dark:bg-slate-700 hover:bg-black dark:hover:bg-slate-600 text-white font-bold px-4 py-1.5 rounded-xl transition text-xs shadow-sm"
+                className="bg-slate-800 dark:bg-slate-700 hover:bg-black dark:hover:bg-slate-600 text-white font-bold px-4 py-1.5 rounded-xl transition text-xs shadow-xs cursor-pointer"
               >
                 Cerrar
               </button>
@@ -673,7 +729,7 @@ const CategoryBox: React.FC<{
       {/* Total Footer */}
       <div className="px-4 py-2 bg-slate-100/90 dark:bg-slate-800/90 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs font-bold text-slate-800 dark:text-slate-200">
         <span>Total {title}</span>
-        <span className="text-slate-950 dark:text-white font-black">{formatterPEN.format(total)}</span>
+        <span className="text-slate-950 dark:text-white font-black tabular-nums">{formatterPEN.format(total)}</span>
       </div>
 
     </div>

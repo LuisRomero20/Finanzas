@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense, lazy } from "react";
 import { useAppStore } from "./store";
 import { useThemeStore, applyThemeClass } from "./store/themeStore";
 import {
@@ -16,15 +16,20 @@ import {
   Sun,
   Moon,
   Smartphone,
+  RefreshCw,
+  Database,
 } from "lucide-react";
-import { Dashboard } from "./pages/Dashboard";
-import { RegistroMovimientoPage } from "./pages/RegistroMovimientoPage";
-import { ProyeccionPage } from "./pages/ProyeccionPage";
-import { ClasificacionPage } from "./pages/ClasificacionPage";
-import { HojaDeudas } from "./pages/HojaDeudas";
-import { CronogramaPagos } from "./pages/CronogramaPagos";
-import { DashboardsPage } from "./pages/DashboardsPage";
 import { useFinanceStore } from "./store/financeStore";
+import { BackupRestoreModal } from "./components/BackupRestoreModal";
+
+// Lazy-loaded routes for high-performance code-splitting
+const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
+const RegistroMovimientoPage = lazy(() => import("./pages/RegistroMovimientoPage").then(m => ({ default: m.RegistroMovimientoPage })));
+const ProyeccionPage = lazy(() => import("./pages/ProyeccionPage").then(m => ({ default: m.ProyeccionPage })));
+const ClasificacionPage = lazy(() => import("./pages/ClasificacionPage").then(m => ({ default: m.ClasificacionPage })));
+const HojaDeudas = lazy(() => import("./pages/HojaDeudas").then(m => ({ default: m.HojaDeudas })));
+const CronogramaPagos = lazy(() => import("./pages/CronogramaPagos").then(m => ({ default: m.CronogramaPagos })));
+const DashboardsPage = lazy(() => import("./pages/DashboardsPage").then(m => ({ default: m.DashboardsPage })));
 
 // ============ CONFIGURACIÓN DE TABS ============
 interface TabConfig {
@@ -46,6 +51,7 @@ const TABS: TabConfig[] = [
 
 export default function App() {
   const [tab, setTab] = useState<string>("Finanzas General");
+  const [isBackupOpen, setIsBackupOpen] = useState(false);
   const { theme } = useThemeStore();
   const { syncFromSupabase } = useFinanceStore();
 
@@ -62,19 +68,37 @@ export default function App() {
   return (
     <div className="min-h-screen w-screen overflow-x-hidden bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       <div>
-        <Navbar currentTab={tab} setTab={setTab} />
+        <Navbar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-8 animate-in fade-in duration-200">
-          {tab === "Finanzas General" && <Dashboard />}
-          {tab === "Registro Rápido" && <RegistroMovimientoPage />}
-          {tab === "Proyecciones" && <ProyeccionPage />}
-          {tab === "Tarjetas" && <CronogramaPagos />}
-          {tab === "Mis Deudas" && <HojaDeudas />}
-          {tab === "Clasificación" && <ClasificacionPage />}
-          {tab === "Dashboards" && <DashboardsPage />}
+          <Suspense fallback={<PageLoader />}>
+            {tab === "Finanzas General" && <Dashboard />}
+            {tab === "Registro Rápido" && <RegistroMovimientoPage />}
+            {tab === "Proyecciones" && <ProyeccionPage />}
+            {tab === "Tarjetas" && <CronogramaPagos />}
+            {tab === "Mis Deudas" && <HojaDeudas />}
+            {tab === "Clasificación" && <ClasificacionPage />}
+            {tab === "Dashboards" && <DashboardsPage />}
+          </Suspense>
         </main>
       </div>
-      <Footer />
+      <Footer onOpenBackup={() => setIsBackupOpen(true)} />
+      <BackupRestoreModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
+    </div>
+  );
+}
+
+// ⏳ SKELETON LOADER SUAVE
+function PageLoader() {
+  return (
+    <div className="min-h-[400px] flex flex-col items-center justify-center space-y-4 py-20 animate-in fade-in duration-150">
+      <div className="p-3 bg-emerald-100/50 dark:bg-emerald-950/60 rounded-2xl border border-emerald-300 dark:border-emerald-800">
+        <RefreshCw size={28} className="animate-spin text-emerald-700 dark:text-emerald-400" />
+      </div>
+      <div className="text-center">
+        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">Cargando módulo financiero...</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">Optimizando datos y visualizaciones</p>
+      </div>
     </div>
   );
 }
@@ -109,8 +133,8 @@ function Notifications() {
   );
 }
 
-// 🧭 NAVBAR PROFESIONAL CON SELECTOR DE TEMA DÍA / NOCHE
-function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string) => void }) {
+// 🧭 NAVBAR PROFESIONAL CON SELECTOR DE TEMA DÍA / NOCHE & RESPALDO
+function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setTab: (t: string) => void; onOpenBackup: () => void }) {
   const { theme, setTheme } = useThemeStore();
 
   return (
@@ -137,8 +161,8 @@ function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string
           </div>
         </div>
 
-        {/* Navigation Tabs & Theme Toggle */}
-        <div className="flex items-center gap-3">
+        {/* Navigation Tabs, Backup & Theme Toggle */}
+        <div className="flex items-center gap-2.5 flex-wrap">
           
           <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 overflow-x-auto">
             {TABS.map((t) => {
@@ -148,7 +172,7 @@ function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all whitespace-nowrap ${
+                  className={`flex items-center gap-2 rounded-xl px-3.5 py-2 text-xs font-bold transition-all whitespace-nowrap cursor-pointer ${
                     isActive
                       ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30"
                       : "text-emerald-200/80 hover:text-white hover:bg-white/10"
@@ -162,12 +186,23 @@ function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string
             })}
           </nav>
 
+          {/* 💾 BOTÓN RESPALDO & EXCEL */}
+          <button
+            type="button"
+            onClick={onOpenBackup}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer"
+            title="Abrir Centro de Respaldos & Exportación a Excel/JSON"
+          >
+            <Database size={14} className="text-emerald-400" />
+            <span className="hidden xl:inline">Respaldos</span>
+          </button>
+
           {/* ☀️ / 🌙 SELECTOR SEGMENTADO CLARO / OSCURO */}
           <div className="flex items-center bg-black/30 dark:bg-black/50 p-1 rounded-2xl border border-white/10 shadow-inner">
             <button
               type="button"
               onClick={() => setTheme('light')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 theme === 'light'
                   ? 'bg-amber-400 text-slate-950 shadow-md ring-1 ring-amber-300'
                   : 'text-emerald-200/70 hover:text-white hover:bg-white/10'
@@ -180,7 +215,7 @@ function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string
             <button
               type="button"
               onClick={() => setTheme('dark')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 theme === 'dark'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40 ring-1 ring-emerald-400/40'
                   : 'text-emerald-200/70 hover:text-white hover:bg-white/10'
@@ -200,7 +235,7 @@ function Navbar({ currentTab, setTab }: { currentTab: string; setTab: (t: string
 }
 
 // 🔗 FOOTER
-function Footer() {
+function Footer({ onOpenBackup }: { onOpenBackup: () => void }) {
   return (
     <footer className="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-[#0D1518] mt-12 transition-colors duration-200">
       <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-6 text-xs text-slate-500 dark:text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -211,6 +246,14 @@ function Footer() {
           </span>
         </div>
         <div className="flex items-center gap-4 text-slate-600 dark:text-slate-400 font-medium">
+          <button
+            onClick={onOpenBackup}
+            className="flex items-center gap-1 text-emerald-700 dark:text-emerald-400 hover:underline cursor-pointer font-bold"
+          >
+            <Database size={13} />
+            <span>Descargar Respaldo / Excel</span>
+          </button>
+          <span>·</span>
           <span>Moneda Base: <strong>PEN (S/)</strong></span>
           <span>·</span>
           <span>Versión 2.0 Pro</span>

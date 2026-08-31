@@ -6,6 +6,7 @@ import { LINE_OVERRIDES, ACCOUNT_LABELS, type Transaction } from '../utils/maste
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
+import { BudgetOverviewWidget } from '../components/BudgetOverviewWidget';
 import {
   ChevronDown,
   Download,
@@ -553,6 +554,9 @@ export const Dashboard: React.FC = () => {
           );
         })()}
       </div>
+
+      {/* ── CONTROL DE PRESUPUESTOS SEMAFÓRICOS (FASE 3) ── */}
+      <BudgetOverviewWidget />
 
       {/* ── BANDEJA DE PAGOS & MOVIMIENTOS PENDIENTES ── */}
       <div className="bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-4">

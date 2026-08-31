@@ -28,6 +28,9 @@ import {
 } from '../utils/statementParser';
 import { masterTransactions } from '../utils/masterData';
 import { useCardStatementStore } from '../store/cardStatementStore';
+import { useFinanceStore } from '../store/financeStore';
+import { useAppStore } from '../store';
+import { Plus } from 'lucide-react';
 
 interface Props {
   isOpen: boolean;
@@ -51,6 +54,8 @@ export const StatementImportModal: React.FC<Props> = ({
   onDebtUpdated,
 }) => {
   const { saveVerifiedStatement } = useCardStatementStore();
+  const { addTransaction } = useFinanceStore();
+  const { agregarNotificacion } = useAppStore();
 
   // Estados del wizard
   const [step, setStep] = useState<'upload' | 'analyzing' | 'review'>('upload');
@@ -67,6 +72,7 @@ export const StatementImportModal: React.FC<Props> = ({
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [adjustedDebt, setAdjustedDebt] = useState<number | null>(null);
   const [isUpdating, setIsUpdating] = useState<boolean>(false);
+  const [selectedMissingIndexes, setSelectedMissingIndexes] = useState<Set<number>>(new Set());
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -192,6 +198,62 @@ export const StatementImportModal: React.FC<Props> = ({
     }
     return true;
   }) || [];
+
+  const handleToggleSelectMissing = (index: number) => {
+    setSelectedMissingIndexes(prev => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const handleSelectAllMissing = () => {
+    if (!report) return;
+    const stmtOnlyIndices = report.matches
+      .map((m, idx) => m.status === 'statement_only' ? idx : -1)
+      .filter(idx => idx !== -1);
+    
+    if (selectedMissingIndexes.size === stmtOnlyIndices.length) {
+      setSelectedMissingIndexes(new Set());
+    } else {
+      setSelectedMissingIndexes(new Set(stmtOnlyIndices));
+    }
+  };
+
+  const handleImportMissingTransactions = () => {
+    if (!report || selectedMissingIndexes.size === 0) return;
+
+    let importedCount = 0;
+    const updatedMatches = [...report.matches];
+
+    selectedMissingIndexes.forEach(idx => {
+      const matchItem = updatedMatches[idx];
+      if (matchItem && matchItem.status === 'statement_only') {
+        const stmt = matchItem.statementMovement;
+        const newTx = addTransaction({
+          Tipo: 'Egreso',
+          Fecha: stmt.fecha || new Date().toISOString().slice(0, 10),
+          Categoria: 'Gasto',
+          Concepto: stmt.concepto,
+          Monto: stmt.monto,
+          Entidad: report.cardEntity,
+        });
+
+        matchItem.status = 'matched';
+        matchItem.appTransaction = newTx;
+        importedCount++;
+      }
+    });
+
+    setReport({
+      ...report,
+      matches: updatedMatches,
+    });
+
+    setSelectedMissingIndexes(new Set());
+    agregarNotificacion(`✅ Se importaron ${importedCount} gastos a FinPer y se reconciliaron con éxito.`, 'success');
+  };
 
   const matchedCount = report?.matches.filter(m => m.status === 'matched').length || 0;
   const stmtOnlyCount = report?.matches.filter(m => m.status === 'statement_only').length || 0;
@@ -495,16 +557,39 @@ export const StatementImportModal: React.FC<Props> = ({
                     </button>
                   </div>
 
-                  {/* Buscador */}
-                  <div className="relative shrink-0">
-                    <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      type="text"
-                      placeholder="Buscar movimiento..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-8 pr-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-48"
-                    />
+                  {/* Buscador y Botón de Importación */}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {selectedMissingIndexes.size > 0 && (
+                      <button
+                        type="button"
+                        onClick={handleImportMissingTransactions}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-1 rounded-lg flex items-center gap-1 shadow-xs transition animate-in fade-in"
+                      >
+                        <Plus size={13} />
+                        <span>Importar ({selectedMissingIndexes.size}) a FinPer</span>
+                      </button>
+                    )}
+
+                    {stmtOnlyCount > 0 && activeTab === 'stmt_only' && (
+                      <button
+                        type="button"
+                        onClick={handleSelectAllMissing}
+                        className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:text-emerald-600 px-2 py-1 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-lg transition"
+                      >
+                        {selectedMissingIndexes.size === stmtOnlyCount ? 'Deseleccionar todos' : 'Seleccionar todos'}
+                      </button>
+                    )}
+
+                    <div className="relative shrink-0">
+                      <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar movimiento..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-8 pr-3 py-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-full sm:w-44"
+                      />
+                    </div>
                   </div>
                 </div>
 
@@ -515,42 +600,59 @@ export const StatementImportModal: React.FC<Props> = ({
                       No hay movimientos que coincidan con los filtros aplicados.
                     </div>
                   ) : (
-                    filteredMatches.map((m, idx) => (
-                      <div key={idx} className="p-3 hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition flex items-center justify-between gap-4 text-xs">
-                        <div className="flex items-center gap-3 min-w-0">
-                          {/* Badge de Estado */}
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${
-                            m.status === 'matched'
-                              ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
-                              : m.status === 'statement_only'
-                              ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                              : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
-                          }`}>
-                            {m.status === 'matched' ? 'Coincide' : m.status === 'statement_only' ? 'Banco' : 'FinPer'}
-                          </span>
+                    filteredMatches.map((m, idx) => {
+                      const realIndex = report.matches.indexOf(m);
+                      const isStmtOnly = m.status === 'statement_only';
+                      const isChecked = selectedMissingIndexes.has(realIndex);
 
-                          <div className="min-w-0">
-                            <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
-                              {m.status === 'app_only' ? m.appTransaction?.Concepto : m.statementMovement.concepto}
-                            </p>
-                            <p className="text-slate-400 text-[11px]">
-                              {m.status === 'app_only' ? m.appTransaction?.Fecha : m.statementMovement.fecha}
-                              {m.status === 'matched' && m.appTransaction && (
-                                <span className="text-slate-500 dark:text-slate-400 ml-2">
-                                  ↔ Registrado como: <strong className="text-slate-700 dark:text-slate-300">{m.appTransaction.Concepto}</strong> ({m.appTransaction.Fecha})
-                                </span>
-                              )}
-                            </p>
+                      return (
+                        <div key={idx} className="p-3 hover:bg-slate-50/70 dark:hover:bg-slate-700/40 transition flex items-center justify-between gap-4 text-xs">
+                          <div className="flex items-center gap-3 min-w-0">
+                            {/* Checkbox para importar si es de statement_only */}
+                            {isStmtOnly && (
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => handleToggleSelectMissing(realIndex)}
+                                className="accent-emerald-600 w-4 h-4 rounded cursor-pointer shrink-0"
+                                title="Seleccionar para importar a FinPer"
+                              />
+                            )}
+
+                            {/* Badge de Estado */}
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 ${
+                              m.status === 'matched'
+                                ? 'bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800'
+                                : m.status === 'statement_only'
+                                ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                : 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800'
+                            }`}>
+                              {m.status === 'matched' ? 'Coincide' : m.status === 'statement_only' ? 'Banco' : 'FinPer'}
+                            </span>
+
+                            <div className="min-w-0">
+                              <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">
+                                {m.status === 'app_only' ? m.appTransaction?.Concepto : m.statementMovement.concepto}
+                              </p>
+                              <p className="text-slate-400 text-[11px]">
+                                {m.status === 'app_only' ? m.appTransaction?.Fecha : m.statementMovement.fecha}
+                                {m.status === 'matched' && m.appTransaction && (
+                                  <span className="text-slate-500 dark:text-slate-400 ml-2">
+                                    ↔ Registrado como: <strong className="text-slate-700 dark:text-slate-300">{m.appTransaction.Concepto}</strong> ({m.appTransaction.Fecha})
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <span className="font-bold text-slate-800 dark:text-white tabular-nums">
+                              {fmt.format(m.status === 'app_only' ? (m.appTransaction?.Monto || 0) : m.statementMovement.monto)}
+                            </span>
                           </div>
                         </div>
-
-                        <div className="text-right shrink-0">
-                          <span className="font-bold text-slate-800 dark:text-white tabular-nums">
-                            {fmt.format(m.status === 'app_only' ? (m.appTransaction?.Monto || 0) : m.statementMovement.monto)}
-                          </span>
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>
