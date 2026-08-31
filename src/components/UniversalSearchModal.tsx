@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ArrowUpRight, ArrowDownRight, Command } from 'lucide-react';
 import { useFinanceStore } from '../store/financeStore';
-import { Transaction } from '../utils/masterData';
+import type { Transaction } from '../utils/masterData';
 import { CONCEPTO_A_CATEGORIA } from '../utils/categoryClassification';
 
 interface Props {

@@ -18,10 +18,12 @@ import {
   Smartphone,
   RefreshCw,
   Database,
+  Search,
 } from "lucide-react";
 import { useFinanceStore } from "./store/financeStore";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
+import { UniversalSearchModal } from "./components/UniversalSearchModal";
 
 // Lazy-loaded routes for high-performance code-splitting
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
