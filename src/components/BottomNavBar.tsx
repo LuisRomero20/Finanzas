@@ -65,7 +65,10 @@ export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup
   return (
     <>
       {/* 📱 DOCK INFERIOR FIJO PARA SMARTPHONE */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0c1417]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 pt-1.5 pb-safe shadow-[0_-8px_20px_rgba(0,0,0,0.06)]">
+      <div 
+        className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/90 dark:bg-[#0c1417]/90 backdrop-blur-xl border-t border-slate-200/80 dark:border-slate-800/80 px-2 pt-1.5 pb-safe shadow-[0_-8px_20px_rgba(0,0,0,0.06)]"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
+      >
         <nav className="flex items-center justify-around max-w-md mx-auto">
           {PRIMARY_TABS.map((t) => {
             const Icon = t.icon;

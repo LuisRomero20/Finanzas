@@ -1,17 +1,6 @@
-const CACHE_NAME = 'finper-cache-v2';
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icon.svg',
-];
+const CACHE_NAME = 'finper-cache-v3';
 
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS);
-    })
-  );
   self.skipWaiting();
 });
 
@@ -19,43 +8,38 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
+        keys.map((k) => caches.delete(k)) // Limpiar cachés anteriores para recibir la última versión
       );
     })
   );
   self.clients.claim();
 });
 
+// Network-First para asegurar que siempre se cargue la versión más reciente de GitHub/Netlify
 self.addEventListener('fetch', (event) => {
-  // Network first, fallback to cache for HTML navigation
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request).catch(() => {
-        return caches.match('/index.html') || caches.match('/');
-      })
-    );
+  // Ignorar peticiones que no sean GET o que vayan a Supabase
+  if (event.request.method !== 'GET' || event.request.url.includes('/rest/v1/')) {
     return;
   }
 
-  // Cache first for static assets
   event.respondWith(
-    caches.match(event.request).then((cached) => {
-      return (
-        cached ||
-        fetch(event.request).then((response) => {
-          if (
-            response.status === 200 &&
-            event.request.method === 'GET' &&
-            !event.request.url.includes('/rest/v1/') // No cachear peticiones de API Supabase
-          ) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, clone);
-            });
+    fetch(event.request)
+      .then((networkResponse) => {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      })
+      .catch(() => {
+        return caches.match(event.request).then((cachedResponse) => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/') || caches.match('/index.html');
           }
-          return response;
-        })
-      );
-    })
+        });
+      })
   );
 });

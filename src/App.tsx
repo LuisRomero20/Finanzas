@@ -143,8 +143,11 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
   const { theme, setTheme } = useThemeStore();
 
   return (
-    <header className="sticky top-0 z-30 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200">
-      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-3 flex items-center justify-between gap-6">
+    <header 
+      className="sticky top-0 z-30 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200"
+      style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
+    >
+      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2 sm:py-3 flex items-center justify-between gap-6">
         
         {/* Brand & Logo (shrink-0 ensures it NEVER collapses or overlaps) */}
         <div className="flex items-center gap-3 shrink-0">
