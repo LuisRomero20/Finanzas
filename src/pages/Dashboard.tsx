@@ -336,34 +336,34 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-8">
       
       {/* ── HEADER EJECUTIVO ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 dark:text-white">
               Resumen Financiero Ejecutivo
             </h1>
             <Badge variant="primary">Periodo Activo</Badge>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             Balance general, liquidez disponible en cuentas y métricas operativas.
           </p>
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="grid grid-cols-2 sm:flex sm:items-center gap-2">
           {/* Selector de Mes */}
           <div className="relative">
             <select 
               value={selectedMonth}
               onChange={(e) => setMonth(e.target.value)}
-              className="appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 pl-3.5 pr-8 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold py-2 pl-3 pr-7 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="Todos">📅 Todos los meses</option>
+              <option value="Todos">📅 Todos</option>
               {sortedMeses.map(m => (
                 <option key={m} value={m}>📅 {m}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
           </div>
 
           {/* Selector de Entidad */}
@@ -371,23 +371,23 @@ export const Dashboard: React.FC = () => {
             <select 
               value={selectedEntity}
               onChange={(e) => setEntity(e.target.value)}
-              className="appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold py-2.5 pl-3.5 pr-8 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+              className="w-full appearance-none bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 text-xs font-bold py-2 pl-3 pr-7 rounded-xl shadow-inner focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
             >
-              <option value="Todas">🏦 Todas las entidades</option>
+              <option value="Todas">🏦 Todas</option>
               {ENTIDADES.map(e => (
                 <option key={e} value={e}>🏦 {e}</option>
               ))}
             </select>
-            <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={14} />
+            <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
           </div>
 
           {/* Export Button */}
           <button
             onClick={handleExport}
-            className="flex items-center gap-1.5 bg-slate-900 dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm transition"
+            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 bg-slate-900 dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
             title="Exportar datos a CSV"
           >
-            <Download size={14} />
+            <Download size={13} />
             <span>Exportar CSV</span>
           </button>
         </div>

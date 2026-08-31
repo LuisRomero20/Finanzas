@@ -85,7 +85,7 @@ interface FinanceState {
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   transactions: loadInitialTransactions(),
-  selectedMonth: 'Octubre', // Default to current operational month
+  selectedMonth: 'Setiembre', // Default to active operational month with records
   selectedEntity: 'Todas',
   isSyncingCloud: false,
 

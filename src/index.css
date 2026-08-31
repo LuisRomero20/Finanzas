@@ -80,4 +80,12 @@
   .print\:bg-white { background-color: #fff !important; }
 }
 
+/* Safe areas para iPhone Notch / Dynamic Island / Barra inferior */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
 html, body, #root { height: 100%; width: 100%; display: block; }
