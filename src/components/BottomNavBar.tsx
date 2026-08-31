@@ -26,28 +26,28 @@ export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup
   const PRIMARY_TABS = [
     { id: 'Finanzas General', name: 'General', icon: LayoutDashboard },
     { id: 'Registro Rápido', name: 'Registrar', icon: Smartphone, highlight: true },
-    { id: 'Proyecciones', name: 'Proyección', icon: CalendarRange },
+    { id: 'Proyecciones', name: 'Proyecciones', icon: CalendarRange },
     { id: 'Tarjetas', name: 'Tarjetas', icon: CreditCard },
   ];
 
   const SECONDARY_TABS = [
     {
       id: 'Mis Deudas',
-      name: 'Gestión de Deudas & Pasivos',
+      name: 'Deudas',
       desc: 'Cronograma, saldos y pagos programados',
       icon: Landmark,
       color: 'text-amber-500 bg-amber-500/10',
     },
     {
       id: 'Clasificación',
-      name: '21 Categorías de Gastos',
-      desc: 'Desglose detallado con emojis y filtros',
+      name: 'Categorías',
+      desc: '21 categorías de gastos con emojis y filtros',
       icon: Layers,
       color: 'text-emerald-500 bg-emerald-500/10',
     },
     {
       id: 'Dashboards',
-      name: 'Dashboards & Métricas',
+      name: 'Dashboards',
       desc: 'Gráficos de barras, donas y tendencias',
       icon: LineChart,
       color: 'text-blue-500 bg-blue-500/10',

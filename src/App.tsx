@@ -71,7 +71,7 @@ export default function App() {
       <div>
         <Navbar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
         <Notifications />
-        <main className="w-full max-w-[1750px] mx-auto px-3 sm:px-8 lg:px-12 py-4 sm:py-8 pb-12 animate-in fade-in duration-200">
+        <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-5 sm:py-8 pb-28 md:pb-8 animate-in fade-in duration-200">
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -84,6 +84,9 @@ export default function App() {
         </main>
       </div>
       <Footer onOpenBackup={() => setIsBackupOpen(true)} />
+      
+      {/* 📱 Dock de Navegación Fijo Inferior para Celular */}
+      <BottomNavBar currentTab={tab} setTab={setTab} onOpenBackup={() => setIsBackupOpen(true)} />
 
       <BackupRestoreModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
     </div>
@@ -135,7 +138,7 @@ function Notifications() {
   );
 }
 
-// 🧭 NAVBAR PROFESIONAL (UNIFICADO MOBILE & DESKTOP CON BARRA DE PÍLDORAS)
+// 🧭 NAVBAR PROFESIONAL (DESKTOP TABS ARRIBA + MÓVIL CABECERA COMPACTA)
 function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setTab: (t: string) => void; onOpenBackup: () => void }) {
   const { theme, setTheme } = useThemeStore();
 
@@ -144,34 +147,31 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
       className="sticky top-0 z-30 bg-[#0F2A1D] dark:bg-[#07130D] text-white border-b border-emerald-950/60 dark:border-emerald-950 shadow-md transition-colors duration-200"
       style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}
     >
-      <div className="w-full max-w-[1750px] mx-auto px-3 sm:px-8 lg:px-12 py-2 sm:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2.5 sm:gap-6">
+      <div className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 py-2.5 sm:py-3 flex items-center justify-between gap-6">
         
-        {/* Fila 1: Logo & Brand */}
-        <div className="flex items-center justify-between min-w-0">
-          <div className="flex items-center gap-2.5 shrink-0">
-            <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-0.5 shadow-md flex items-center justify-center text-white">
-              <TrendingUp size={20} className="stroke-[2.5]" />
+        {/* Brand & Logo */}
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-700 p-0.5 shadow-md flex items-center justify-center text-white">
+            <TrendingUp size={22} className="stroke-[2.5]" />
+          </div>
+          <div className="shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-heading font-black text-base sm:text-xl tracking-tight text-white">
+                FINPER
+              </span>
+              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
+                Cost Analysis
+              </span>
             </div>
-            <div>
-              <div className="flex items-center gap-1.5 sm:gap-2">
-                <span className="font-heading font-black text-base sm:text-xl tracking-tight text-white">
-                  FINPER
-                </span>
-                <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
-                  Cost Analysis
-                </span>
-              </div>
-              <p className="text-[10px] sm:text-[11px] text-emerald-300/80 hidden sm:block">
-                Suite de Inteligencia & Gestión Financiera
-              </p>
-            </div>
+            <p className="text-[10px] sm:text-[11px] text-emerald-300/80 hidden sm:block">
+              Suite de Inteligencia & Gestión Financiera
+            </p>
           </div>
         </div>
 
-        {/* Fila 2 (Móvil) / Lado Derecho (Desktop): Barra de Píldoras Deslizable Completa */}
-        <div className="w-full md:w-auto flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0 scroll-smooth">
-          
-          <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 shrink-0">
+        {/* 💻 Navegación Superior Desktop */}
+        <div className="hidden md:flex items-center gap-2.5 min-w-0">
+          <nav className="flex items-center gap-1 bg-black/25 dark:bg-black/40 p-1 rounded-2xl border border-white/10 overflow-x-auto no-scrollbar shrink">
             {TABS.map((t) => {
               const Icon = t.icon;
               const isActive = currentTab === t.id;
@@ -179,7 +179,7 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
                 <button
                   key={t.id}
                   onClick={() => setTab(t.id)}
-                  className={`flex items-center gap-1.5 rounded-xl px-3 py-1.5 sm:py-2 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
+                  className={`flex items-center gap-1.5 rounded-xl px-3 py-2 text-xs font-bold transition-all whitespace-nowrap cursor-pointer shrink-0 ${
                     isActive
                       ? "bg-emerald-600 text-white shadow-md shadow-emerald-900/30 ring-1 ring-emerald-400/40"
                       : "text-emerald-200/80 hover:text-white hover:bg-white/10"
@@ -190,49 +190,70 @@ function Navbar({ currentTab, setTab, onOpenBackup }: { currentTab: string; setT
                 </button>
               );
             })}
-
-            {/* 💾 BOTÓN RESPALDO & EXCEL */}
-            <button
-              type="button"
-              onClick={onOpenBackup}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl text-emerald-200/80 hover:text-white hover:bg-white/10 text-xs font-bold transition cursor-pointer shrink-0"
-              title="Abrir Centro de Respaldos & Exportación a Excel/JSON"
-            >
-              <Database size={14} className="text-emerald-400" />
-              <span>Respaldos</span>
-            </button>
           </nav>
+
+          {/* 💾 BOTÓN RESPALDO & EXCEL */}
+          <button
+            type="button"
+            onClick={onOpenBackup}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer shrink-0"
+            title="Abrir Centro de Respaldos & Exportación a Excel/JSON"
+          >
+            <Database size={14} className="text-emerald-400" />
+            <span className="hidden xl:inline">Respaldos</span>
+          </button>
 
           {/* ☀️ / 🌙 SELECTOR SEGMENTADO CLARO / OSCURO */}
           <div className="flex items-center bg-black/30 dark:bg-black/50 p-1 rounded-2xl border border-white/10 shadow-inner shrink-0">
             <button
               type="button"
               onClick={() => setTheme('light')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 theme === 'light'
                   ? 'bg-amber-400 text-slate-950 shadow-md ring-1 ring-amber-300'
                   : 'text-emerald-200/70 hover:text-white hover:bg-white/10'
               }`}
-              title="Modo Claro"
             >
-              <Sun size={13} className={theme === 'light' ? 'text-slate-950' : 'text-amber-300'} />
-              <span className="text-xs">Día</span>
+              <Sun size={14} className={theme === 'light' ? 'text-slate-950' : 'text-amber-300'} />
+              <span className="hidden xl:inline">Día</span>
             </button>
             <button
               type="button"
               onClick={() => setTheme('dark')}
-              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 theme === 'dark'
                   ? 'bg-emerald-600 text-white shadow-md shadow-emerald-950/40 ring-1 ring-emerald-400/40'
                   : 'text-emerald-200/70 hover:text-white hover:bg-white/10'
               }`}
-              title="Modo Oscuro"
             >
-              <Moon size={13} className={theme === 'dark' ? 'text-amber-300' : 'text-slate-300'} />
-              <span className="text-xs">Noche</span>
+              <Moon size={14} className={theme === 'dark' ? 'text-amber-300' : 'text-slate-300'} />
+              <span className="hidden xl:inline">Noche</span>
             </button>
           </div>
+        </div>
 
+        {/* 📱 Controles Rápidos Móvil (Compactos) */}
+        <div className="flex md:hidden items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={onOpenBackup}
+            className="p-2 rounded-xl bg-black/30 dark:bg-black/50 text-emerald-200 hover:text-white border border-white/10 transition cursor-pointer"
+            title="Respaldos y Excel"
+          >
+            <Database size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className={`p-2 rounded-xl border border-white/10 transition cursor-pointer ${
+              theme === 'light'
+                ? 'bg-amber-400 text-slate-950 shadow-sm'
+                : 'bg-black/40 text-amber-300'
+            }`}
+            title="Cambiar Modo Día / Noche"
+          >
+            {theme === 'dark' ? <Moon size={16} /> : <Sun size={16} />}
+          </button>
         </div>
 
       </div>
