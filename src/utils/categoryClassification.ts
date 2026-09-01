@@ -606,3 +606,24 @@ export function isDebtTransaction(
   return /prestamo|préstamo|linea\s*tarjeta|pago\s*de\s*tarjeta|yape\s*cr[eé]dito|amortizaci[oó]n|desgravamen|desvagramen/i.test(concepto);
 }
 
+/**
+ * Obtiene la categoría estándar macro (Servicio, Gasto, Deuda, Sueldo, Otro Egre, etc.)
+ */
+export function getStandardCategory(t: Transaction): string {
+  if (!t) return 'Gasto';
+  const rawCat = t.Categoria || (t as any).categoria;
+  if (rawCat && ['Sueldo', 'Servicio', 'Gasto', 'Ahorro', 'Deuda', 'Negocio', 'Otro Ing', 'Otro Egre'].includes(rawCat)) {
+    return rawCat;
+  }
+  const tipo = t.Tipo || (t as any).tipo;
+  if (tipo === 'Ingreso') {
+    if (/sueldo|quincena|afp|cts|gratificaci/i.test(t.Concepto || '')) return 'Sueldo';
+    return 'Otro Ing';
+  }
+  if (isDebtTransaction(t)) return 'Deuda';
+  if (/luz|agua|gas|internet|telefonia|telefonía/i.test(t.Concepto || '')) return 'Servicio';
+  if (/titulacion|titulación|dni|pasaporte/i.test(t.Concepto || '')) return 'Otro Egre';
+  return 'Gasto';
+}
+
+

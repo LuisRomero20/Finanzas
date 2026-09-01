@@ -100,41 +100,26 @@ export const ClasificacionPage: React.FC = () => {
       saveStoredClasificaciones(next);
       return next;
     });
-    const catInfo = getCategoryByIdOrLabel(catId);
-    const catLabel = catInfo ? catInfo.nombre : catId;
-    updateTransaction(id, { Categoria: catLabel });
   };
 
   const autoClasificarTodo = () => {
     const next = { ...clasificaciones };
-    const updatedTransactions = transactions.map(t => {
+    movimientosBase.forEach(t => {
       const auto = autoClassify(t);
-      if (auto) {
-        next[t.id] = auto;
-        const catInfo = getCategoryByIdOrLabel(auto);
-        return { ...t, Categoria: catInfo ? catInfo.nombre : auto };
-      }
-      return t;
+      if (auto) next[t.id] = auto;
     });
     setClasificaciones(next);
     saveStoredClasificaciones(next);
-    setAllTransactions(updatedTransactions);
   };
 
   const restablecerClasificaciones = () => {
     const fresh: Record<string, string> = {};
-    const updatedTransactions = transactions.map(t => {
+    transactions.forEach(t => {
       const auto = autoClassify(t);
-      if (auto) {
-        fresh[t.id] = auto;
-        const catInfo = getCategoryByIdOrLabel(auto);
-        return { ...t, Categoria: catInfo ? catInfo.nombre : auto };
-      }
-      return t;
+      if (auto) fresh[t.id] = auto;
     });
     setClasificaciones(fresh);
     saveStoredClasificaciones(fresh);
-    setAllTransactions(updatedTransactions);
   };
 
   const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
