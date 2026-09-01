@@ -446,9 +446,11 @@ export const ClasificacionPage: React.FC = () => {
                                     : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500'
                                 }`}
                               >
-                                <option value="">— Sin clasificar —</option>
+                                <option value="" className="bg-white dark:bg-[#11191D] text-slate-800 dark:text-slate-100 font-semibold">
+                                  — Sin clasificar —
+                                </option>
                                 {CATEGORIAS_PERSONALES.map(c => (
-                                  <option key={c.id} value={c.id}>
+                                  <option key={c.id} value={c.id} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
                                     {c.emoji} {c.nombre}
                                   </option>
                                 ))}

@@ -13,6 +13,18 @@
   h1, h2, h3, h4, .font-heading {
     font-family: 'Outfit', 'Plus Jakarta Sans', sans-serif;
   }
+
+  select option,
+  select optgroup {
+    background-color: #ffffff;
+    color: #0f172a;
+  }
+
+  .dark select option,
+  .dark select optgroup {
+    background-color: #11191D;
+    color: #f8fafc;
+  }
 }
 
 /* Scrollbar moderno y fino */

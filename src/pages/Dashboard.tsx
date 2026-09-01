@@ -865,9 +865,11 @@ export const Dashboard: React.FC = () => {
                                     }`}
                                     title="Haz clic para reclasificar esta transacción en todo el sistema"
                                   >
-                                    <option value="">— Sin clasificar —</option>
+                                    <option value="" className="bg-white dark:bg-[#11191D] text-slate-800 dark:text-slate-100 font-semibold">
+                                      — Sin clasificar —
+                                    </option>
                                     {CATEGORIAS_PERSONALES.map((c) => (
-                                      <option key={c.id} value={c.id}>
+                                      <option key={c.id} value={c.id} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
                                         {c.emoji} {c.nombre}
                                       </option>
                                     ))}
