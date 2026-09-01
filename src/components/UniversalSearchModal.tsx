@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, ArrowUpRight, ArrowDownRight, Command } from 'lucide-react';
 import { useFinanceStore } from '../store/financeStore';
 import type { Transaction } from '../utils/masterData';
-import { CONCEPTO_A_CATEGORIA } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
 
 interface Props {
   isOpen: boolean;
@@ -52,7 +52,7 @@ export const UniversalSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelec
           const categoria = (t.Categoria || (t as any).categoria || '').toLowerCase();
           const mes = (t.Mes || (t as any).mes || '').toLowerCase();
           const montoStr = (t.Monto || (t as any).monto || '').toString();
-          const mappedCat = (CONCEPTO_A_CATEGORIA[t.Concepto || (t as any).concepto] || '').toLowerCase();
+          const effectiveCat = getEffectiveCategoryLabel(t).toLowerCase();
 
           return (
             concepto.includes(normalizedQuery) ||
@@ -60,7 +60,7 @@ export const UniversalSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelec
             categoria.includes(normalizedQuery) ||
             mes.includes(normalizedQuery) ||
             montoStr.includes(normalizedQuery) ||
-            mappedCat.includes(normalizedQuery)
+            effectiveCat.includes(normalizedQuery)
           );
         })
         .slice(0, 15) // Top 15 resultados rápidos
@@ -126,7 +126,7 @@ export const UniversalSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelec
           ) : (
             filteredTransactions.map((t) => {
               const concepto = t.Concepto || (t as any).concepto;
-              const cat = CONCEPTO_A_CATEGORIA[concepto] || t.Categoria || (t as any).categoria || 'Gastos';
+              const cat = getEffectiveCategoryLabel(t);
               const tipo = t.Tipo || (t as any).tipo;
               const isIncome = tipo === 'Ingreso';
               const entidad = t.Entidad || (t as any).entidad || (t as any).medio || '';

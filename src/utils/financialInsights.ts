@@ -1,5 +1,5 @@
 import type { Transaction } from '../utils/masterData';
-import { CONCEPTO_A_CATEGORIA } from './categoryClassification';
+import { CONCEPTO_A_CATEGORIA, getEffectiveCategory, isDebtTransaction } from './categoryClassification';
 
 export interface FinancialInsight {
   id: string;
@@ -44,42 +44,41 @@ export function generateFinancialInsights(
   const totalExpense = currentMonthTx
     .filter((t) => {
       const tipo = t.Tipo || (t as any).tipo;
-      const cat = t.Categoria || (t as any).categoria;
-      return (tipo === 'Egreso' || tipo === 'Gasto') && cat !== 'Deuda';
+      return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t);
     })
     .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
 
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
 
-  // Agrupar gastos por categoría de 21
+  // Agrupar gastos por categoría efectiva de 21
   const categoryTotals: Record<string, number> = {};
   let discretionarySum = 0;
 
-  const DISCRETIONARY_CATEGORIES = new Set([
-    '🍔 Comida & Restaurantes',
-    '🛍️ Ropa, Calzado & Moda',
-    '🎉 Salidas, Eventos & Ocio',
-    '☕ Antojos, Snacks & Café',
-    '📺 Suscripciones & Streaming',
-    '🎮 Gaming & Tecnología',
-    '✈️ Viajes & Vacaciones',
+  const DISCRETIONARY_CATEGORY_IDS = new Set([
+    'comida',
+    'ropa',
+    'salidas',
+    'entretenimiento',
+    'ocio',
+    'conciertos',
+    'viajes',
+    'bazar',
+    'regalos',
   ]);
 
   currentMonthTx
     .filter((t) => {
       const tipo = t.Tipo || (t as any).tipo;
-      const cat = t.Categoria || (t as any).categoria;
-      return (tipo === 'Egreso' || tipo === 'Gasto') && cat !== 'Deuda';
+      return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t);
     })
     .forEach((t) => {
-      const concepto = t.Concepto || (t as any).concepto || '';
-      const categoria = t.Categoria || (t as any).categoria || '';
-      const cat = CONCEPTO_A_CATEGORIA[concepto] || categoria || '📦 Otros Gastos';
+      const cat = getEffectiveCategory(t);
+      const catLabel = cat ? cat.fullLabel : (t.Categoria || (t as any).categoria || '📦 Otros Gastos');
       const amount = Number(t.Monto || (t as any).monto) || 0;
-      categoryTotals[cat] = (categoryTotals[cat] || 0) + amount;
+      categoryTotals[catLabel] = (categoryTotals[catLabel] || 0) + amount;
 
-      if (DISCRETIONARY_CATEGORIES.has(cat)) {
+      if (cat && DISCRETIONARY_CATEGORY_IDS.has(cat.id)) {
         discretionarySum += amount;
       }
     });

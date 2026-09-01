@@ -22,7 +22,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
-import { autoClassify, getCategoryByIdOrLabel } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
 
 const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -65,9 +65,7 @@ export const DashboardsPage: React.FC = () => {
 
   const getResolvedCategory = (t: Transaction): string => {
     if (granularity === 'macro') return t.Categoria;
-    const catId = autoClassify(t);
-    const catInfo = catId ? getCategoryByIdOrLabel(catId) : null;
-    return catInfo ? catInfo.fullLabel : t.Categoria;
+    return getEffectiveCategoryLabel(t);
   };
 
   const ingresosTxs = filteredTxs.filter(t => t.Tipo === 'Ingreso');

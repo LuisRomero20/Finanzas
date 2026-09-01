@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, X, ArrowUpRight, ArrowDownRight, CreditCard } from 'lucide-react';
 import type { Transaction } from '../utils/masterData';
-import { CONCEPTO_A_CATEGORIA } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
 
 interface Props {
   transactions: Transaction[];
@@ -261,7 +261,7 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
 
                   {selectedDayDetail.expenses.map((exp) => {
                     const concepto = exp.Concepto || (exp as any).concepto;
-                    const cat = CONCEPTO_A_CATEGORIA[concepto] || exp.Categoria || (exp as any).categoria;
+                    const cat = getEffectiveCategoryLabel(exp);
                     const entidad = exp.Entidad || (exp as any).entidad || (exp as any).medio;
                     const monto = Number(exp.Monto || (exp as any).monto) || 0;
                     return (

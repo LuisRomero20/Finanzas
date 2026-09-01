@@ -427,12 +427,15 @@ Object.entries(CONCEPTO_A_CATEGORIA).forEach(([concepto, categoriaFull]) => {
   CONCEPTO_NORMALIZADO_MAP.set(norm, categoriaFull);
 });
 
-// Mapa de FullLabel o ID a CategoriaInfo
+// Mapa de FullLabel, ID y Nombre a CategoriaInfo
 const CATEGORIA_BY_FULL_LABEL = new Map<string, CategoriaInfo>();
 const CATEGORIA_BY_ID = new Map<string, CategoriaInfo>();
+const CATEGORIA_BY_NOMBRE = new Map<string, CategoriaInfo>();
+
 CATEGORIAS_PERSONALES.forEach(cat => {
   CATEGORIA_BY_FULL_LABEL.set(cat.fullLabel, cat);
   CATEGORIA_BY_ID.set(cat.id, cat);
+  CATEGORIA_BY_NOMBRE.set(cat.nombre, cat);
 });
 
 export function normalizeText(str: string): string {
@@ -444,11 +447,30 @@ export function normalizeText(str: string): string {
     .trim();
 }
 
+export const CLASIFICACIONES_STORAGE_KEY = 'finper_clasificaciones_v2';
+
+export function getStoredClasificaciones(): Record<string, string> {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      return JSON.parse(localStorage.getItem(CLASIFICACIONES_STORAGE_KEY) || '{}');
+    }
+  } catch {}
+  return {};
+}
+
+export function saveStoredClasificaciones(data: Record<string, string>): void {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      localStorage.setItem(CLASIFICACIONES_STORAGE_KEY, JSON.stringify(data));
+    }
+  } catch {}
+}
+
 /**
  * Encuentra la categoría exacta o inteligente para un movimiento dado
  */
 export function autoClassify(t: Transaction): string | null {
-  const rawConcept = (t.Concepto || '').trim();
+  const rawConcept = (t.Concepto || (t as any).concepto || '').trim();
   if (!rawConcept) return null;
 
   // 1. Coincidencia directa por diccionario exacto
@@ -476,7 +498,8 @@ export function autoClassify(t: Transaction): string | null {
   }
 
   // 4. Fallback: búsqueda por palabras clave de cada categoría
-  const fullTexto = normalizeText(`${t.Concepto} ${t.Categoria || ''}`);
+  const rawCat = t.Categoria || (t as any).categoria || '';
+  const fullTexto = normalizeText(`${rawConcept} ${rawCat}`);
   for (const cat of CATEGORIAS_PERSONALES) {
     for (const kw of cat.keywords) {
       const kwNorm = normalizeText(kw);
@@ -495,5 +518,91 @@ export function autoClassify(t: Transaction): string | null {
 
 export function getCategoryByIdOrLabel(idOrLabel: string): CategoriaInfo | null {
   if (!idOrLabel) return null;
-  return CATEGORIA_BY_ID.get(idOrLabel) || CATEGORIA_BY_FULL_LABEL.get(idOrLabel) || null;
+  const direct = CATEGORIA_BY_ID.get(idOrLabel) 
+    || CATEGORIA_BY_FULL_LABEL.get(idOrLabel) 
+    || CATEGORIA_BY_NOMBRE.get(idOrLabel);
+  if (direct) return direct;
+
+  const norm = normalizeText(idOrLabel);
+  for (const cat of CATEGORIAS_PERSONALES) {
+    if (
+      normalizeText(cat.id) === norm ||
+      normalizeText(cat.nombre) === norm ||
+      normalizeText(cat.fullLabel) === norm
+    ) {
+      return cat;
+    }
+  }
+  return null;
 }
+
+/**
+ * Obtiene la categoría enriquecida efectiva para una transacción,
+ * respetando clasificaciones manuales guardadas en el store / storage,
+ * o la categoría asignada directamente en el registro, o el autoClassify inteligente.
+ */
+export function getEffectiveCategory(
+  t: Transaction,
+  customClasificaciones?: Record<string, string>
+): CategoriaInfo | null {
+  if (!t) return null;
+
+  // 1. Clasificación manual explícita pasada o guardada en storage
+  const map = customClasificaciones || getStoredClasificaciones();
+  if (t.id && map[t.id]) {
+    const cat = getCategoryByIdOrLabel(map[t.id]);
+    if (cat) return cat;
+  }
+
+  // 2. Si t.Categoria ya corresponde a una categoría personal de 21
+  const rawCat = t.Categoria || (t as any).categoria;
+  if (rawCat && rawCat !== 'Gasto' && rawCat !== 'Servicio' && rawCat !== 'Otro Egre' && rawCat !== 'Otro Ing' && rawCat !== 'Deuda') {
+    const directCat = getCategoryByIdOrLabel(rawCat);
+    if (directCat) return directCat;
+  }
+
+  // 3. Fallback a autoClassify por concepto
+  const autoCatId = autoClassify(t);
+  if (autoCatId) {
+    return getCategoryByIdOrLabel(autoCatId);
+  }
+
+  // 4. Mapeo genérico para categorías legacy si no hubo match
+  if (rawCat === 'Deuda') return getCategoryByIdOrLabel('deudas');
+  if (rawCat === 'Sueldo') return getCategoryByIdOrLabel('sueldos');
+  if (rawCat === 'Servicio') return getCategoryByIdOrLabel('servicios_facturas');
+
+  return null;
+}
+
+export function getEffectiveCategoryId(
+  t: Transaction,
+  customClasificaciones?: Record<string, string>
+): string | null {
+  return getEffectiveCategory(t, customClasificaciones)?.id || null;
+}
+
+export function getEffectiveCategoryLabel(
+  t: Transaction,
+  customClasificaciones?: Record<string, string>
+): string {
+  const cat = getEffectiveCategory(t, customClasificaciones);
+  return cat ? cat.fullLabel : (t.Categoria || (t as any).categoria || 'Sin clasificar');
+}
+
+/**
+ * Determina de manera consistente si una transacción es un pago de deuda / pasivo / amortización
+ */
+export function isDebtTransaction(
+  t: Transaction,
+  customClasificaciones?: Record<string, string>
+): boolean {
+  if (!t) return false;
+  const rawCat = t.Categoria || (t as any).categoria;
+  if (rawCat === 'Deuda') return true;
+  const cat = getEffectiveCategory(t, customClasificaciones);
+  if (cat?.id === 'deudas') return true;
+  const concepto = (t.Concepto || (t as any).concepto || '').toLowerCase();
+  return /prestamo|préstamo|linea\s*tarjeta|pago\s*de\s*tarjeta|yape\s*cr[eé]dito|amortizaci[oó]n|desgravamen|desvagramen/i.test(concepto);
+}
+

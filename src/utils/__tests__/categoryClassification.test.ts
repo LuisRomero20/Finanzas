@@ -4,6 +4,10 @@ import {
   CATEGORIAS_PERSONALES,
   autoClassify,
   getCategoryByIdOrLabel,
+  getEffectiveCategory,
+  getEffectiveCategoryLabel,
+  getEffectiveCategoryId,
+  isDebtTransaction,
 } from '../categoryClassification';
 import { masterTransactions } from '../masterData';
 
@@ -33,12 +37,76 @@ describe('Category Classification Engine', () => {
     expect(matched).toBe(masterTransactions.length);
   });
 
-  it('resolves category by ID and by full label', () => {
+  it('resolves category by ID, by full label and by plain name', () => {
     const byId = getCategoryByIdOrLabel('comida');
     expect(byId?.nombre).toBe('Comida & Restaurantes');
     expect(byId?.emoji).toBe('🍔');
 
     const byLabel = getCategoryByIdOrLabel('🍔 Comida & Restaurantes');
     expect(byLabel?.id).toBe('comida');
+
+    const byNombre = getCategoryByIdOrLabel('Comida & Restaurantes');
+    expect(byNombre?.id).toBe('comida');
+  });
+
+  it('correctly resolves getEffectiveCategory and getEffectiveCategoryLabel', () => {
+    const tx = {
+      id: 'tx-icloud-test',
+      Tipo: 'Egreso' as const,
+      Fecha: '2026-09-23',
+      Categoria: 'Servicio',
+      Concepto: 'iCloud',
+      Monto: 15.00,
+      Entidad: 'Interbank',
+      Mes: 'Setiembre',
+    };
+
+    const effective = getEffectiveCategory(tx);
+    expect(effective?.id).toBe('entretenimiento');
+    expect(getEffectiveCategoryLabel(tx)).toBe('🎮 Entretenimiento & Streaming');
+
+    // With manual override
+    const manualOverrides = { 'tx-icloud-test': 'tecnologia' };
+    const overridden = getEffectiveCategory(tx, manualOverrides);
+    expect(overridden?.id).toBe('tecnologia');
+    expect(getEffectiveCategoryLabel(tx, manualOverrides)).toBe('💻 Tecnología & Gadgets');
+  });
+
+  it('identifies debt and non-debt transactions accurately with isDebtTransaction', () => {
+    const debtTx1 = {
+      id: 'tx-prestamo',
+      Tipo: 'Egreso' as const,
+      Fecha: '2026-09-01',
+      Categoria: 'Deuda',
+      Concepto: 'Prestamo Yape',
+      Monto: 116.85,
+      Entidad: 'Interbank',
+      Mes: 'Setiembre',
+    };
+    expect(isDebtTransaction(debtTx1)).toBe(true);
+
+    const debtTx2 = {
+      id: 'tx-pago-tarjeta',
+      Tipo: 'Egreso' as const,
+      Fecha: '2026-09-01',
+      Categoria: 'Pagos de Tarjetas & Deudas',
+      Concepto: 'Pago de Tarjeta BBVA Bfree',
+      Monto: 500,
+      Entidad: 'BBVA Bfree',
+      Mes: 'Setiembre',
+    };
+    expect(isDebtTransaction(debtTx2)).toBe(true);
+
+    const expenseTx = {
+      id: 'tx-broaster',
+      Tipo: 'Egreso' as const,
+      Fecha: '2026-09-01',
+      Categoria: 'Gasto',
+      Concepto: 'Broaster',
+      Monto: 15.00,
+      Entidad: 'Interbank',
+      Mes: 'Setiembre',
+    };
+    expect(isDebtTransaction(expenseTx)).toBe(false);
   });
 });

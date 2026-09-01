@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useBudgetStore } from '../store/budgetStore';
 import { useFinanceStore, type Transaction } from '../store/financeStore';
-import { CATEGORIAS_PERSONALES, autoClassify, getCategoryByIdOrLabel } from '../utils/categoryClassification';
+import { CATEGORIAS_PERSONALES, getEffectiveCategory } from '../utils/categoryClassification';
 import { Card } from './ui/Card';
 import { Badge } from './ui/Badge';
 import {
@@ -25,15 +25,15 @@ export const BudgetOverviewWidget: React.FC = () => {
   const [tempAmount, setTempAmount] = useState<string>('');
   const [soloAlertas, setSoloAlertas] = useState(false);
 
-  // Calcular gasto real del mes seleccionado por categoría
+  // Calcular gasto real del mes seleccionado por categoría usando categoría efectiva
   const categorySpent = useMemo(() => {
     const map: Record<string, number> = {};
     const monthTxs = transactions.filter(t => t.Mes === selectedMonth && t.Tipo === 'Egreso');
     
     monthTxs.forEach(t => {
-      const catId = autoClassify(t);
-      if (catId) {
-        map[catId] = (map[catId] || 0) + t.Monto;
+      const cat = getEffectiveCategory(t);
+      if (cat) {
+        map[cat.id] = (map[cat.id] || 0) + t.Monto;
       }
     });
     return map;

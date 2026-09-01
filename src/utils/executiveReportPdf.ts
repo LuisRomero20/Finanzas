@@ -1,5 +1,5 @@
 import type { Transaction } from '../utils/masterData';
-import { CONCEPTO_A_CATEGORIA } from './categoryClassification';
+import { getEffectiveCategoryLabel, isDebtTransaction } from './categoryClassification';
 
 export interface ReportData {
   selectedMonth: string;
@@ -14,15 +14,18 @@ export interface ReportData {
 export function generateExecutiveReportHTML(data: ReportData): string {
   const { selectedMonth, transactions, totalIncome, totalExpense, netSavings, savingsRate } = data;
 
-  const currentMonthTx = transactions.filter((t) => t.mes === selectedMonth);
+  const currentMonthTx = transactions.filter((t) => (t.Mes || (t as any).mes) === selectedMonth);
 
   // Agrupar gastos por las 21 categorías
   const categoryTotals: Record<string, { total: number; count: number }> = {};
   currentMonthTx
-    .filter((t) => t.tipo === 'Gasto')
+    .filter((t) => {
+      const tipo = t.Tipo || (t as any).tipo;
+      return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t);
+    })
     .forEach((t) => {
-      const cat = CONCEPTO_A_CATEGORIA[t.concepto] || t.categoria || '📦 Otros Gastos';
-      const amount = Number(t.monto) || 0;
+      const cat = getEffectiveCategoryLabel(t);
+      const amount = Number(t.Monto || (t as any).monto) || 0;
       if (!categoryTotals[cat]) {
         categoryTotals[cat] = { total: 0, count: 0 };
       }

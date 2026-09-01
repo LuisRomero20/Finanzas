@@ -3,6 +3,15 @@ import { useFinanceStore, MESES, ENTIDADES, CATEGORIAS, getMonthNameFromDate } f
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
 import { LINE_OVERRIDES, ACCOUNT_LABELS, type Transaction } from '../utils/masterData';
+import {
+  CATEGORIAS_PERSONALES,
+  getEffectiveCategory,
+  getEffectiveCategoryLabel,
+  getCategoryByIdOrLabel,
+  isDebtTransaction,
+  getStoredClasificaciones,
+  saveStoredClasificaciones,
+} from '../utils/categoryClassification';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
@@ -76,6 +85,7 @@ export const Dashboard: React.FC = () => {
     getFilteredTransactions,
     deleteTransaction,
     addTransaction,
+    updateTransaction,
     confirmTransaction,
   } = useFinanceStore();
   const filtered = getFilteredTransactions();
@@ -83,8 +93,8 @@ export const Dashboard: React.FC = () => {
   const isLineaTarjeta = (t: any) => typeof t.Concepto === 'string' && /linea\s*tarjeta/i.test(t.Concepto);
 
   const totalIngresos = filtered.filter(t => t.Tipo === 'Ingreso').reduce((acc, t) => acc + t.Monto, 0);
-  const totalEgresos = filtered.filter(t => t.Tipo === 'Egreso' && t.Categoria !== 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
-  const totalDeudas = filtered.filter(t => t.Categoria === 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
+  const totalEgresos = filtered.filter(t => t.Tipo === 'Egreso' && !isDebtTransaction(t)).reduce((acc, t) => acc + t.Monto, 0);
+  const totalDeudas = filtered.filter(t => isDebtTransaction(t)).reduce((acc, t) => acc + t.Monto, 0);
 
   const rawTransactions = useFinanceStore((s) => s.transactions) || [];
   const { limits: budgetLimits } = useBudgetStore();
@@ -114,8 +124,8 @@ export const Dashboard: React.FC = () => {
   const entityBalances: Record<string, number> = {};
   entityList.forEach(ent => {
     const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isLineaTarjeta(t)).reduce((a, t) => a + t.Monto, 0);
-    const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && t.Categoria !== 'Deuda' && !isLineaTarjeta(t)).reduce((a, t) => a + t.Monto, 0);
-    const deudasEnt = filtered.filter(t => t.Entidad === ent && t.Categoria === 'Deuda').reduce((a, t) => a + t.Monto, 0);
+    const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isDebtTransaction(t) && !isLineaTarjeta(t)).reduce((a, t) => a + t.Monto, 0);
+    const deudasEnt = filtered.filter(t => t.Entidad === ent && isDebtTransaction(t)).reduce((a, t) => a + t.Monto, 0);
     entityBalances[ent] = ingresosEnt - egresosEnt - deudasEnt;
   });
 
@@ -141,7 +151,9 @@ export const Dashboard: React.FC = () => {
 
   const categoryMap: Record<string, number> = {};
   filtered.filter(t => t.Tipo === 'Egreso').forEach(t => {
-    categoryMap[t.Categoria] = (categoryMap[t.Categoria] || 0) + t.Monto;
+    const cat = getEffectiveCategory(t);
+    const label = cat ? `${cat.emoji} ${cat.nombre}` : (t.Categoria || 'Otros');
+    categoryMap[label] = (categoryMap[label] || 0) + t.Monto;
   });
   
   const chartData = Object.keys(categoryMap)
@@ -829,7 +841,45 @@ export const Dashboard: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-2.5 italic text-slate-500 dark:text-slate-400">{t.Categoria}</td>
+                          <td className="px-4 py-2">
+                            {(() => {
+                              const cat = getEffectiveCategory(t);
+                              return (
+                                <div className="relative group/cat inline-block">
+                                  <select
+                                    value={cat?.id || ''}
+                                    onChange={(e) => {
+                                      const newCatId = e.target.value;
+                                      const catInfo = getCategoryByIdOrLabel(newCatId);
+                                      const catName = catInfo ? catInfo.nombre : newCatId;
+                                      const stored = getStoredClasificaciones();
+                                      stored[t.id] = newCatId;
+                                      saveStoredClasificaciones(stored);
+                                      updateTransaction(t.id, { Categoria: catName });
+                                      agregarNotificacion(`Categoría asignada: ${catInfo?.nombre || newCatId}`, 'success');
+                                    }}
+                                    className={`appearance-none text-xs font-bold px-2.5 py-1 rounded-xl border transition cursor-pointer pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                      cat
+                                        ? `${cat.bg} ${cat.color} ${cat.border}`
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                    title="Haz clic para reclasificar esta transacción en todo el sistema"
+                                  >
+                                    <option value="">— Sin clasificar —</option>
+                                    {CATEGORIAS_PERSONALES.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.emoji} {c.nombre}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown
+                                    size={11}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-400"
+                                  />
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{t.Entidad}</td>
                           <td className="px-4 py-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
                             {formatterPEN.format(t.Monto)}
@@ -1042,9 +1092,16 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setPendFormCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {CATEGORIAS.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    <optgroup label="Categorías Principales">
+                      {CATEGORIAS_PERSONALES.map(c => (
+                        <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Categorías Estándar">
+                      {CATEGORIAS.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
                 <div>
@@ -1183,9 +1240,16 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setNewRowCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {CATEGORIAS.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
+                    <optgroup label="Categorías Principales">
+                      {CATEGORIAS_PERSONALES.map(c => (
+                        <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="Categorías Estándar">
+                      {CATEGORIAS.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </optgroup>
                   </select>
                 </div>
                 <div>

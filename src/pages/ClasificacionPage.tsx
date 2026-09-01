@@ -20,26 +20,13 @@ import {
   CONCEPTO_A_CATEGORIA,
   autoClassify,
   getCategoryByIdOrLabel,
+  getEffectiveCategory,
+  getStoredClasificaciones,
+  saveStoredClasificaciones,
   type CategoriaInfo,
 } from '../utils/categoryClassification';
 
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES };
-
-const LS_KEY = 'finper_clasificaciones_v2';
-
-function loadClasificaciones(): Record<string, string> {
-  try {
-    return JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-
-function saveClasificaciones(data: Record<string, string>) {
-  try {
-    localStorage.setItem(LS_KEY, JSON.stringify(data));
-  } catch {}
-}
 
 const MESES_ORDER = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -47,8 +34,8 @@ const MESES_ORDER = [
 ];
 
 export const ClasificacionPage: React.FC = () => {
-  const { transactions } = useFinanceStore();
-  const [clasificaciones, setClasificaciones] = useState<Record<string, string>>(loadClasificaciones);
+  const { transactions, updateTransaction, setAllTransactions } = useFinanceStore();
+  const [clasificaciones, setClasificaciones] = useState<Record<string, string>>(getStoredClasificaciones);
   const [filtroTipo, setFiltroTipo] = useState<'Todos' | 'Egreso' | 'Ingreso'>('Todos');
   const [filtroMes, setFiltroMes] = useState('Todos');
   const [filtroCategoria, setFiltroCategoria] = useState('todas');
@@ -79,9 +66,10 @@ export const ClasificacionPage: React.FC = () => {
           const matchEntidad = t.Entidad.toLowerCase().includes(q);
           if (!matchConcepto && !matchEntidad) return false;
         }
-        const clsId = clasificaciones[t.id] ?? autoClassify(t);
+        const effective = getEffectiveCategory(t, clasificaciones);
+        const clsId = effective?.id;
         if (filtroCategoria !== 'todas' && clsId !== filtroCategoria) return false;
-        if (soloSinClasificar && (clasificaciones[t.id] || autoClassify(t))) return false;
+        if (soloSinClasificar && clsId) return false;
         return true;
       })
       .sort((a, b) => a.Fecha.localeCompare(b.Fecha));
@@ -91,7 +79,8 @@ export const ClasificacionPage: React.FC = () => {
     const map: Record<string, { total: number; count: number }> = {};
     movimientosBase.forEach(t => {
       if (filtroMes !== 'Todos' && t.Mes !== filtroMes) return;
-      const clsId = clasificaciones[t.id] ?? autoClassify(t) ?? 'sin_clasificar';
+      const effective = getEffectiveCategory(t, clasificaciones);
+      const clsId = effective?.id ?? 'sin_clasificar';
       if (!map[clsId]) {
         map[clsId] = { total: 0, count: 0 };
       }
@@ -102,42 +91,56 @@ export const ClasificacionPage: React.FC = () => {
   }, [movimientosBase, filtroMes, clasificaciones]);
 
   const totalClasificado = useMemo(() => {
-    return movimientosBase.filter(t => clasificaciones[t.id] || autoClassify(t)).length;
+    return movimientosBase.filter(t => !!getEffectiveCategory(t, clasificaciones)).length;
   }, [movimientosBase, clasificaciones]);
 
   const setClasificacion = (id: string, catId: string) => {
     setClasificaciones(prev => {
       const next = { ...prev, [id]: catId };
-      saveClasificaciones(next);
+      saveStoredClasificaciones(next);
       return next;
     });
+    const catInfo = getCategoryByIdOrLabel(catId);
+    const catLabel = catInfo ? catInfo.nombre : catId;
+    updateTransaction(id, { Categoria: catLabel });
   };
 
   const autoClasificarTodo = () => {
     const next = { ...clasificaciones };
-    movimientosBase.forEach(t => {
+    const updatedTransactions = transactions.map(t => {
       const auto = autoClassify(t);
-      if (auto) next[t.id] = auto;
+      if (auto) {
+        next[t.id] = auto;
+        const catInfo = getCategoryByIdOrLabel(auto);
+        return { ...t, Categoria: catInfo ? catInfo.nombre : auto };
+      }
+      return t;
     });
     setClasificaciones(next);
-    saveClasificaciones(next);
+    saveStoredClasificaciones(next);
+    setAllTransactions(updatedTransactions);
   };
 
   const restablecerClasificaciones = () => {
     const fresh: Record<string, string> = {};
-    transactions.forEach(t => {
+    const updatedTransactions = transactions.map(t => {
       const auto = autoClassify(t);
-      if (auto) fresh[t.id] = auto;
+      if (auto) {
+        fresh[t.id] = auto;
+        const catInfo = getCategoryByIdOrLabel(auto);
+        return { ...t, Categoria: catInfo ? catInfo.nombre : auto };
+      }
+      return t;
     });
     setClasificaciones(fresh);
-    saveClasificaciones(fresh);
+    saveStoredClasificaciones(fresh);
+    setAllTransactions(updatedTransactions);
   };
 
   const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
   const getCategoria = (t: Transaction): CategoriaInfo | null => {
-    const id = clasificaciones[t.id] ?? autoClassify(t);
-    return id ? getCategoryByIdOrLabel(id) : null;
+    return getEffectiveCategory(t, clasificaciones);
   };
 
   const pctProgreso = movimientosBase.length > 0 
