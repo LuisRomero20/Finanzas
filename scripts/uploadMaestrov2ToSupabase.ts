@@ -1,0 +1,236 @@
+import * as XLSX from 'xlsx';
+import * as path from 'path';
+import * as fs from 'fs';
+import { createClient } from '@supabase/supabase-js';
+
+const SUPABASE_URL = 'https://njgzhjwfcxdxiibkuuqg.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZ3poandmY3hkeGlpYmt1dXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjg5MjksImV4cCI6MjEwMzYwNDkyOX0.VQSGP9NSUAI1M_BaOtqhxC4hl8o8jAx7HC0rlrnzMNA';
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
+];
+
+function parseExcelDate(rawDate: any): string {
+  if (typeof rawDate === 'number') {
+    // Excel serial date to YYYY-MM-DD
+    const date = new Date(Math.round((rawDate - 25569) * 86400 * 1000));
+    const y = date.getUTCFullYear();
+    const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+    const d = String(date.getUTCDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  }
+  if (typeof rawDate === 'string') {
+    const s = rawDate.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+    const parts = s.split(/[\/\-]/);
+    if (parts.length === 3) {
+      let p1 = parseInt(parts[0], 10);
+      let p2 = parseInt(parts[1], 10);
+      let p3 = parseInt(parts[2], 10);
+      if (p3 < 100) p3 = 2000 + p3;
+      if (p1 > 12 && p2 <= 12) {
+        // DD/MM/YYYY
+        return `${p3}-${String(p2).padStart(2, '0')}-${String(p1).padStart(2, '0')}`;
+      } else {
+        // MM/DD/YYYY o YYYY/MM/DD
+        if (p1 >= 2000) {
+          return `${p1}-${String(p2).padStart(2, '0')}-${String(p3).padStart(2, '0')}`;
+        }
+        return `${p3}-${String(p1).padStart(2, '0')}-${String(p2).padStart(2, '0')}`;
+      }
+    }
+  }
+  return '2026-01-01';
+}
+
+function parseAmount(rawVal: any): number {
+  if (typeof rawVal === 'number') return Math.round(rawVal * 100) / 100;
+  if (typeof rawVal === 'string') {
+    const clean = rawVal.replace(/[^0-9.-]/g, '');
+    const n = parseFloat(clean);
+    return isNaN(n) ? 0 : Math.round(n * 100) / 100;
+  }
+  return 0;
+}
+
+function normalizeMonth(rawMonth: any, dateStr: string): string {
+  if (rawMonth && typeof rawMonth === 'string') {
+    const m = rawMonth.trim();
+    if (/septiembre|setiembre/i.test(m)) return 'Setiembre';
+    const found = MESES.find(x => x.toLowerCase() === m.toLowerCase());
+    if (found) return found;
+  }
+  const monthIdx = parseInt(dateStr.split('-')[1] || '1', 10) - 1;
+  return MESES[monthIdx] || 'Enero';
+}
+
+async function uploadMaestrov2() {
+  console.log('====================================================');
+  console.log('1. LEYENDO HOJA "maestrov2" DESDE FINANZAS PERSONALES.XLSX');
+  console.log('====================================================');
+
+  const excelPath = path.resolve('Finanzas Personales.xlsx');
+  const buf = fs.readFileSync(excelPath);
+  const workbook = XLSX.read(buf, { type: 'buffer' });
+  
+  if (!workbook.SheetNames.includes('maestrov2')) {
+    console.error('Error: No se encontró la hoja "maestrov2" en el archivo Excel.');
+    process.exit(1);
+  }
+
+  const sheet = workbook.Sheets['maestrov2'];
+  const rawRows: any[] = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+
+  console.log(`Filas leídas de "maestrov2": ${rawRows.length}`);
+
+  const cleanTransactions: any[] = [];
+  rawRows.forEach((r, idx) => {
+    const rawTipo = (r['Tipo'] || 'Egreso').toString().trim();
+    const tipo = /ingreso/i.test(rawTipo) ? 'Ingreso' : 'Egreso';
+    const fecha = parseExcelDate(r['Fecha']);
+    const categoria = (r['Categoría'] || r['Categoria'] || 'Gasto').toString().trim();
+    const concepto = (r['Concepto'] || '').toString().trim();
+    const rawMonto = r[' Monto '] !== undefined ? r[' Monto '] : r['Monto'];
+    const monto = parseAmount(rawMonto);
+    const entidad = (r['Entidad'] || 'Interbank').toString().trim();
+    const mes = normalizeMonth(r['Mes'], fecha);
+
+    if (concepto && monto > 0) {
+      cleanTransactions.push({
+        id: `tx-${idx + 1}`,
+        tipo,
+        fecha,
+        categoria,
+        concepto,
+        monto,
+        entidad,
+        mes,
+      });
+    }
+  });
+
+  console.log(`Transacciones válidas a subir: ${cleanTransactions.length}`);
+
+  if (cleanTransactions.length === 0) {
+    console.error('No se encontraron transacciones válidas. Operación cancelada.');
+    process.exit(1);
+  }
+
+  console.log('====================================================');
+  console.log('2. VACIANDO TABLA EN SUPABASE');
+  console.log('====================================================');
+
+  const { error: delError } = await supabase
+    .from('transacciones')
+    .delete()
+    .neq('id', '___safe_delete_all___');
+
+  if (delError) {
+    console.error('Error al vaciar la tabla transacciones en Supabase:', delError);
+    process.exit(1);
+  }
+  console.log('✓ Tabla en Supabase vaciada correctamente.');
+
+  console.log('====================================================');
+  console.log('3. CARGANDO REGISTROS LIMPIOS EN LOTES');
+  console.log('====================================================');
+
+  const batchSize = 100;
+  for (let i = 0; i < cleanTransactions.length; i += batchSize) {
+    const batch = cleanTransactions.slice(i, i + batchSize);
+    const { error: insErr } = await supabase.from('transacciones').insert(batch);
+    if (insErr) {
+      console.error(`Error al insertar lote ${i + 1} - ${i + batch.length}:`, insErr);
+      process.exit(1);
+    }
+    console.log(`✓ Lote ${i + 1} a ${i + batch.length} insertado (${batch.length} registros).`);
+  }
+
+  // Verificación final en Supabase
+  const { count, error: countErr } = await supabase
+    .from('transacciones')
+    .select('*', { count: 'exact', head: true });
+
+  if (countErr) {
+    console.warn('Advertencia al verificar conteo final:', countErr);
+  } else {
+    console.log(`\n🎉 Supabase sincronizado con éxito: ${count} registros limpios en total.`);
+  }
+
+  console.log('====================================================');
+  console.log('4. ACTUALIZANDO MASTERDATA.TS LOCAL');
+  console.log('====================================================');
+
+  const masterList = cleanTransactions.map(t => ({
+    id: t.id,
+    Tipo: t.tipo,
+    Fecha: t.fecha,
+    Categoria: t.categoria,
+    Concepto: t.concepto,
+    Monto: t.monto,
+    Entidad: t.entidad,
+    Mes: t.mes,
+  }));
+
+  const fileContent = `export interface Transaction {
+  id: string;
+  Tipo: 'Ingreso' | 'Egreso';
+  Fecha: string;
+  Categoria: string;
+  Concepto: string;
+  Monto: number;
+  Entidad: string;
+  Mes: string;
+  estado?: 'confirmado' | 'pendiente' | 'provisional';
+}
+
+export const CATEGORIAS = [
+  'Sueldo',
+  'Servicio',
+  'Gasto',
+  'Ahorro',
+  'Deuda',
+  'Negocio',
+  'Otro Ing',
+  'Otro Egre',
+] as const;
+
+export type CategoriaType = typeof CATEGORIAS[number];
+
+export const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
+] as const;
+
+export const ENTIDADES = [
+  'Interbank', 'BBVA Bfree', 'Interbank Amex', 'BCP', 'Ripley'
+] as const;
+
+export const LINE_OVERRIDES: Record<string, number> = {
+  'BBVA Bfree': 3000,
+  'Interbank Amex': 5000,
+  'Ripley': 2000,
+};
+
+export const ACCOUNT_LABELS: Record<string, string> = {
+  'Interbank': 'Cuenta Principal',
+  'BBVA Bfree': 'Tarjeta Crédito',
+  'Interbank Amex': 'Tarjeta Crédito',
+  'BCP': 'Cuenta Ahorro',
+  'Ripley': 'Tarjeta Crédito',
+};
+
+export const masterTransactions: Transaction[] = ${JSON.stringify(masterList, null, 2)};
+`;
+
+  fs.writeFileSync(path.resolve('src/utils/masterData.ts'), fileContent, 'utf-8');
+  console.log('✓ src/utils/masterData.ts actualizado con la data normalizada.');
+  console.log('¡Todo listo! No necesitas tocar Netlify: al abrir la web se reflejarán los cambios.');
+}
+
+uploadMaestrov2().catch(err => {
+  console.error('Error fatal al subir maestrov2:', err);
+  process.exit(1);
+});

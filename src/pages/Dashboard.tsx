@@ -152,8 +152,9 @@ export const Dashboard: React.FC = () => {
 
   const categoryMap: Record<string, number> = {};
   filtered.filter(t => t.Tipo === 'Egreso').forEach(t => {
-    const stdCat = getStandardCategory(t);
-    categoryMap[stdCat] = (categoryMap[stdCat] || 0) + t.Monto;
+    const cat = getEffectiveCategory(t);
+    const label = cat ? `${cat.emoji} ${cat.nombre}` : (t.Categoria || 'Otros');
+    categoryMap[label] = (categoryMap[label] || 0) + t.Monto;
   });
   
   const chartData = Object.keys(categoryMap)
@@ -841,8 +842,46 @@ export const Dashboard: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-2.5 italic text-slate-500 dark:text-slate-400">
-                            {getStandardCategory(t)}
+                          <td className="px-4 py-2">
+                            {(() => {
+                              const cat = getEffectiveCategory(t);
+                              return (
+                                <div className="relative group/cat inline-block">
+                                  <select
+                                    value={cat?.id || ''}
+                                    onChange={(e) => {
+                                      const newCatId = e.target.value;
+                                      const catInfo = getCategoryByIdOrLabel(newCatId);
+                                      const catName = catInfo ? catInfo.nombre : newCatId;
+                                      const stored = getStoredClasificaciones();
+                                      stored[t.id] = newCatId;
+                                      saveStoredClasificaciones(stored);
+                                      updateTransaction(t.id, { Categoria: catName });
+                                      agregarNotificacion(`Categoría asignada: ${catInfo?.nombre || newCatId}`, 'success');
+                                    }}
+                                    className={`appearance-none text-xs font-bold px-2.5 py-1 rounded-xl border transition cursor-pointer pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                      cat
+                                        ? `${cat.bg} ${cat.color} ${cat.border}`
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                    title="Haz clic para reclasificar esta transacción en todo el sistema"
+                                  >
+                                    <option value="" className="bg-white dark:bg-[#11191D] text-slate-800 dark:text-slate-100 font-semibold">
+                                      — Sin clasificar —
+                                    </option>
+                                    {CATEGORIAS_PERSONALES.map((c) => (
+                                      <option key={c.id} value={c.id} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
+                                        {c.emoji} {c.nombre}
+                                      </option>
+                                    ))}
+                                  </select>
+                                  <ChevronDown
+                                    size={11}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-400"
+                                  />
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{t.Entidad}</td>
                           <td className="px-4 py-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">

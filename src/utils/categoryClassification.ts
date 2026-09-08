@@ -120,6 +120,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   // 🧴 Cuidado Personal & Aseo
   "Corte de Cabello": "🧴 Cuidado Personal & Aseo",
   "Crema de Manos": "🧴 Cuidado Personal & Aseo",
+  "Pasta Dental": "🧴 Cuidado Personal & Aseo",
   "Perfume Invictus": "🧴 Cuidado Personal & Aseo",
   "Tatuaje": "🧴 Cuidado Personal & Aseo",
   "Utencilios de Aseo Personal": "🧴 Cuidado Personal & Aseo",
@@ -129,6 +130,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Taxi": "🚍 Transporte & Movilidad",
 
   // 🛍️ Compras Generales & Gadgets
+  "Case": "💻 Tecnología & Gadgets",
   "Dollarcity": "🛍️ Compras Generales & Bazar",
   "Figuritas": "🛍️ Compras Generales & Bazar",
   "iPhone 16": "💻 Tecnología & Gadgets",

@@ -2,6 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useFinanceStore, type Transaction } from '../store/financeStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useAppStore } from '../store';
+import { getEffectiveCategory } from '../utils/categoryClassification';
 import * as XLSX from 'xlsx';
 import {
   X,
@@ -40,11 +41,20 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 1. Exportar a JSON
   const handleExportJSON = () => {
     try {
+      const enrichedTransactions = transactions.map(t => {
+        const cat = getEffectiveCategory(t);
+        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
+        return {
+          ...t,
+          Categoria: catNombre,
+        };
+      });
+
       const backupData = {
         version: '2.0',
         exportedAt: new Date().toISOString(),
-        totalTransactions: transactions.length,
-        transactions,
+        totalTransactions: enrichedTransactions.length,
+        transactions: enrichedTransactions,
         budgets,
       };
 
@@ -56,7 +66,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
       a.click();
       URL.revokeObjectURL(url);
 
-      agregarNotificacion('💾 Respaldo JSON descargado con éxito.', 'success');
+      agregarNotificacion('💾 Respaldo JSON descargado con éxito con categorías detalladas.', 'success');
     } catch (e: any) {
       setErrorMsg(`Error al exportar JSON: ${e.message}`);
     }
@@ -65,17 +75,21 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 2. Exportar a Excel
   const handleExportExcel = () => {
     try {
-      const exportRows = transactions.map(t => ({
-        ID: t.id,
-        Tipo: t.Tipo,
-        Fecha: t.Fecha,
-        Mes: t.Mes,
-        Categoria: t.Categoria,
-        Concepto: t.Concepto,
-        Monto: t.Monto,
-        Entidad: t.Entidad,
-        Estado: t.estado || 'confirmado',
-      }));
+      const exportRows = transactions.map(t => {
+        const cat = getEffectiveCategory(t);
+        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
+        return {
+          ID: t.id,
+          Tipo: t.Tipo,
+          Fecha: t.Fecha,
+          Mes: t.Mes,
+          Categoria: catNombre,
+          Concepto: t.Concepto,
+          Monto: t.Monto,
+          Entidad: t.Entidad,
+          Estado: t.estado || 'confirmado',
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(exportRows);
       const workbook = XLSX.utils.book_new();
@@ -83,12 +97,12 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
       // Auto-fit column widths
       const colWidths = [
-        { wch: 12 }, // ID
+        { wch: 16 }, // ID
         { wch: 10 }, // Tipo
         { wch: 12 }, // Fecha
         { wch: 12 }, // Mes
-        { wch: 16 }, // Categoria
-        { wch: 28 }, // Concepto
+        { wch: 28 }, // Categoria
+        { wch: 32 }, // Concepto
         { wch: 12 }, // Monto
         { wch: 18 }, // Entidad
         { wch: 14 }, // Estado
@@ -96,7 +110,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
       worksheet['!cols'] = colWidths;
 
       XLSX.writeFile(workbook, `finper_maestro_${todayStr}.xlsx`);
-      agregarNotificacion('📊 Excel generado y descargado con éxito.', 'success');
+      agregarNotificacion('📊 Excel generado y descargado con éxito con categorías detalladas.', 'success');
     } catch (e: any) {
       setErrorMsg(`Error al exportar Excel: ${e.message}`);
     }
