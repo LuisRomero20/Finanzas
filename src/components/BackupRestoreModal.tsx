@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useFinanceStore, type Transaction } from '../store/financeStore';
 import { useBudgetStore } from '../store/budgetStore';
 import { useAppStore } from '../store';
-import { getEffectiveCategory } from '../utils/categoryClassification';
+import { getStandardCategory } from '../utils/categoryClassification';
 import * as XLSX from 'xlsx';
 import {
   X,
@@ -41,14 +41,10 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 1. Exportar a JSON
   const handleExportJSON = () => {
     try {
-      const enrichedTransactions = transactions.map(t => {
-        const cat = getEffectiveCategory(t);
-        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
-        return {
-          ...t,
-          Categoria: catNombre,
-        };
-      });
+      const enrichedTransactions = transactions.map(t => ({
+        ...t,
+        Categoria: getStandardCategory(t),
+      }));
 
       const backupData = {
         version: '2.0',
@@ -66,7 +62,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
       a.click();
       URL.revokeObjectURL(url);
 
-      agregarNotificacion('💾 Respaldo JSON descargado con éxito con categorías detalladas.', 'success');
+      agregarNotificacion('💾 Respaldo JSON descargado con éxito.', 'success');
     } catch (e: any) {
       setErrorMsg(`Error al exportar JSON: ${e.message}`);
     }
@@ -75,21 +71,17 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 2. Exportar a Excel
   const handleExportExcel = () => {
     try {
-      const exportRows = transactions.map(t => {
-        const cat = getEffectiveCategory(t);
-        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
-        return {
-          ID: t.id,
-          Tipo: t.Tipo,
-          Fecha: t.Fecha,
-          Mes: t.Mes,
-          Categoria: catNombre,
-          Concepto: t.Concepto,
-          Monto: t.Monto,
-          Entidad: t.Entidad,
-          Estado: t.estado || 'confirmado',
-        };
-      });
+      const exportRows = transactions.map(t => ({
+        ID: t.id,
+        Tipo: t.Tipo,
+        Fecha: t.Fecha,
+        Mes: t.Mes,
+        Categoria: getStandardCategory(t),
+        Concepto: t.Concepto,
+        Monto: t.Monto,
+        Entidad: t.Entidad,
+        Estado: t.estado || 'confirmado',
+      }));
 
       const worksheet = XLSX.utils.json_to_sheet(exportRows);
       const workbook = XLSX.utils.book_new();

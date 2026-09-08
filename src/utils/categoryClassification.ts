@@ -609,22 +609,28 @@ export function isDebtTransaction(
 }
 
 /**
- * Obtiene la categoría estándar macro (Servicio, Gasto, Deuda, Sueldo, Otro Egre, etc.)
+ * Obtiene la categoría estándar por defecto (Deuda, Gasto, Otro Egre, Otro Ing, Servicio, Sueldo, Tarjeta)
  */
-export function getStandardCategory(t: Transaction): string {
+export function getStandardCategory(t: Transaction | any): string {
   if (!t) return 'Gasto';
-  const rawCat = t.Categoria || (t as any).categoria;
-  if (rawCat && ['Sueldo', 'Servicio', 'Gasto', 'Ahorro', 'Deuda', 'Negocio', 'Otro Ing', 'Otro Egre'].includes(rawCat)) {
+  const rawCat = (t.Categoria || t.categoria || '').trim();
+  if (['Deuda', 'Gasto', 'Otro Egre', 'Otro Ing', 'Servicio', 'Sueldo', 'Tarjeta'].includes(rawCat)) {
     return rawCat;
   }
-  const tipo = t.Tipo || (t as any).tipo;
+  const concepto = (t.Concepto || t.concepto || '').toLowerCase();
+  const tipo = (t.Tipo || t.tipo || 'Egreso');
+
   if (tipo === 'Ingreso') {
-    if (/sueldo|quincena|afp|cts|gratificaci/i.test(t.Concepto || '')) return 'Sueldo';
+    if (/linea\s*tarjeta/i.test(concepto)) return 'Tarjeta';
+    if (/sueldo|quincena|afp|cts|gratificaci|haberes/i.test(concepto)) return 'Sueldo';
     return 'Otro Ing';
   }
-  if (isDebtTransaction(t)) return 'Deuda';
-  if (/luz|agua|gas|internet|telefonia|telefonía/i.test(t.Concepto || '')) return 'Servicio';
-  if (/titulacion|titulación|dni|pasaporte/i.test(t.Concepto || '')) return 'Otro Egre';
+
+  // Egresos
+  if (/linea\s*tarjeta/i.test(concepto)) return 'Tarjeta';
+  if (/prestamo|préstamo|yape\s*cr[eé]dito|amortizaci[oó]n|pago\s*de\s*tarjeta/i.test(concepto)) return 'Deuda';
+  if (/luz|agua|gas|internet|telefonia|telefonía|recibo|calidda|sedapal|enel|claro|movistar|entel|bitel|icloud|spotify|streaming/i.test(concepto)) return 'Servicio';
+  if (/titulacion|titulación|dni|pasaporte|tramite|trámite/i.test(concepto)) return 'Otro Egre';
   return 'Gasto';
 }
 

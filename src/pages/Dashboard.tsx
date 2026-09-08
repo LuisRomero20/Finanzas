@@ -152,9 +152,8 @@ export const Dashboard: React.FC = () => {
 
   const categoryMap: Record<string, number> = {};
   filtered.filter(t => t.Tipo === 'Egreso').forEach(t => {
-    const cat = getEffectiveCategory(t);
-    const label = cat ? `${cat.emoji} ${cat.nombre}` : (t.Categoria || 'Otros');
-    categoryMap[label] = (categoryMap[label] || 0) + t.Monto;
+    const stdCat = getStandardCategory(t);
+    categoryMap[stdCat] = (categoryMap[stdCat] || 0) + t.Monto;
   });
   
   const chartData = Object.keys(categoryMap)
@@ -844,34 +843,22 @@ export const Dashboard: React.FC = () => {
                           </td>
                           <td className="px-4 py-2">
                             {(() => {
-                              const cat = getEffectiveCategory(t);
+                              const stdCat = getStandardCategory(t);
                               return (
                                 <div className="relative group/cat inline-block">
                                   <select
-                                    value={cat?.id || ''}
+                                    value={stdCat}
                                     onChange={(e) => {
-                                      const newCatId = e.target.value;
-                                      const catInfo = getCategoryByIdOrLabel(newCatId);
-                                      const catName = catInfo ? catInfo.nombre : newCatId;
-                                      const stored = getStoredClasificaciones();
-                                      stored[t.id] = newCatId;
-                                      saveStoredClasificaciones(stored);
-                                      updateTransaction(t.id, { Categoria: catName });
-                                      agregarNotificacion(`Categoría asignada: ${catInfo?.nombre || newCatId}`, 'success');
+                                      const newCat = e.target.value;
+                                      updateTransaction(t.id, { Categoria: newCat });
+                                      agregarNotificacion(`Categoría asignada: ${newCat}`, 'success');
                                     }}
-                                    className={`appearance-none text-xs font-bold px-2.5 py-1 rounded-xl border transition cursor-pointer pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
-                                      cat
-                                        ? `${cat.bg} ${cat.color} ${cat.border}`
-                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
-                                    }`}
-                                    title="Haz clic para reclasificar esta transacción en todo el sistema"
+                                    className="appearance-none text-xs font-bold px-2.5 py-1.5 rounded-xl border transition cursor-pointer pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700"
+                                    title="Categoría por defecto"
                                   >
-                                    <option value="" className="bg-white dark:bg-[#11191D] text-slate-800 dark:text-slate-100 font-semibold">
-                                      — Sin clasificar —
-                                    </option>
-                                    {CATEGORIAS_PERSONALES.map((c) => (
-                                      <option key={c.id} value={c.id} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
-                                        {c.emoji} {c.nombre}
+                                    {CATEGORIAS.map((c) => (
+                                      <option key={c} value={c} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
+                                        {c}
                                       </option>
                                     ))}
                                   </select>
@@ -1095,16 +1082,9 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setPendFormCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    <optgroup label="Categorías Principales">
-                      {CATEGORIAS_PERSONALES.map(c => (
-                        <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Categorías Estándar">
-                      {CATEGORIAS.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </optgroup>
+                    {CATEGORIAS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -1243,16 +1223,9 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setNewRowCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    <optgroup label="Categorías Principales">
-                      {CATEGORIAS_PERSONALES.map(c => (
-                        <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Categorías Estándar">
-                      {CATEGORIAS.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </optgroup>
+                    {CATEGORIAS.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

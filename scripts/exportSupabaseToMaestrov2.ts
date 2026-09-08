@@ -2,7 +2,7 @@ import * as XLSX from 'xlsx';
 import * as path from 'path';
 import * as fs from 'fs';
 import { createClient } from '@supabase/supabase-js';
-import { getEffectiveCategory } from '../src/utils/categoryClassification';
+import { getStandardCategory } from '../src/utils/categoryClassification';
 
 const SUPABASE_URL = 'https://njgzhjwfcxdxiibkuuqg.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZ3poandmY3hkeGlpYmt1dXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjg5MjksImV4cCI6MjEwMzYwNDkyOX0.VQSGP9NSUAI1M_BaOtqhxC4hl8o8jAx7HC0rlrnzMNA';
@@ -90,8 +90,8 @@ async function exportToMaestrov2() {
       z: 'yyyy-mm-dd',
     };
 
-    // Col C: Categoría (categoría detallada enriquecida)
-    const effectiveCat = getEffectiveCategory({
+    // Col C: Categoría (por defecto: Deuda, Gasto, Otro Egre, Otro Ing, Servicio, Sueldo, Tarjeta)
+    const stdCat = getStandardCategory({
       id: row.id,
       Tipo: row.tipo,
       Fecha: row.fecha,
@@ -101,8 +101,7 @@ async function exportToMaestrov2() {
       Monto: monto,
       Mes: row.mes,
     });
-    const finalCat = effectiveCat ? effectiveCat.nombre : (row.categoria || 'Gasto');
-    ws[XLSX.utils.encode_cell({ r, c: 2 })] = { t: 's', v: finalCat };
+    ws[XLSX.utils.encode_cell({ r, c: 2 })] = { t: 's', v: stdCat };
 
     // Col D: Concepto
     ws[XLSX.utils.encode_cell({ r, c: 3 })] = { t: 's', v: row.concepto || '' };

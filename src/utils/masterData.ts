@@ -13,14 +13,13 @@ export interface Transaction {
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';
 
 export const CATEGORIAS = [
-  'Sueldo',
-  'Servicio',
-  'Gasto',
-  'Ahorro',
   'Deuda',
-  'Negocio',
-  'Otro Ing',
+  'Gasto',
   'Otro Egre',
+  'Otro Ing',
+  'Servicio',
+  'Sueldo',
+  'Tarjeta',
 ] as const;
 
 export type CategoriaType = typeof CATEGORIAS[number];
