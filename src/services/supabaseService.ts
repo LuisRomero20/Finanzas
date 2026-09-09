@@ -116,13 +116,15 @@ export async function deleteTransactionFromSupabase(id: string): Promise<boolean
 }
 
 /**
- * Obtiene todas las transacciones guardadas en Supabase.
+ * Obtiene todas las transacciones guardadas en Supabase (excluyendo registros de sistema/pendientes).
  */
 export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | null> {
   try {
     const { data, error } = await supabase
       .from('transacciones')
       .select('*')
+      .not('id', 'like', 'pending-%')
+      .not('id', 'like', 'config-%')
       .order('fecha', { ascending: false });
 
     if (error || !data) {
@@ -140,6 +142,135 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
       Mes: row.mes,
       estado: row.estado || 'confirmado',
     }));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Obtiene todos los pagos pendientes guardados en Supabase para sincronizar entre PC y móvil.
+ */
+export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .like('id', 'pending-%')
+      .order('fecha', { ascending: true });
+
+    if (error || !data) return null;
+
+    return data.map((row: any) => ({
+      id: String(row.id).replace(/^pending-/, ''),
+      tipo: row.tipo,
+      fecha: row.fecha,
+      concepto: row.concepto,
+      categoria: row.categoria,
+      entidad: row.entidad,
+      monto: Number(row.monto),
+      mes: row.mes,
+      mesStr: row.fecha ? row.fecha.slice(0, 7) : '2026-10',
+      estado: 'pendiente',
+      origen: 'Proyección',
+      fechaCreacion: row.created_at || new Date().toISOString(),
+    }));
+  } catch (e) {
+    console.warn('Error fetching pending payments from Supabase:', e);
+    return null;
+  }
+}
+
+/**
+ * Guarda o actualiza un pago pendiente en Supabase.
+ */
+export async function savePendingPaymentToSupabase(item: any): Promise<boolean> {
+  try {
+    const cleanId = String(item.id).replace(/^pending-/, '');
+    const payload = {
+      id: `pending-${cleanId}`,
+      tipo: item.tipo,
+      fecha: item.fecha,
+      concepto: item.concepto,
+      categoria: item.categoria,
+      entidad: item.entidad,
+      monto: Number(item.monto),
+      mes: item.mes,
+    };
+
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+
+    if (error) {
+      console.warn('Error saving pending payment to Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Catch saving pending payment to Supabase:', err);
+    return false;
+  }
+}
+
+/**
+ * Elimina un pago pendiente de Supabase.
+ */
+export async function deletePendingPaymentFromSupabase(id: string): Promise<boolean> {
+  try {
+    const cleanId = String(id).replace(/^pending-/, '');
+    const { error } = await supabase
+      .from('transacciones')
+      .delete()
+      .eq('id', `pending-${cleanId}`);
+
+    if (error) {
+      console.warn('Error deleting pending payment from Supabase:', error.message);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.warn('Catch deleting pending payment from Supabase:', err);
+    return false;
+  }
+}
+
+/**
+ * Guarda la configuración de días puente de mes anterior en Supabase.
+ */
+export async function saveBridgeConfigToSupabase(configs: Record<string, any>): Promise<boolean> {
+  try {
+    const payload = {
+      id: 'config-prev-month-bridge',
+      tipo: 'Egreso',
+      fecha: '2026-01-01',
+      concepto: JSON.stringify(configs),
+      categoria: 'Config',
+      entidad: 'Interbank',
+      monto: 0,
+      mes: 'Config',
+    };
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Obtiene la configuración de días puente de mes anterior de Supabase.
+ */
+export async function fetchBridgeConfigFromSupabase(): Promise<Record<string, any> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .eq('id', 'config-prev-month-bridge')
+      .single();
+
+    if (error || !data || !data.concepto) return null;
+    return JSON.parse(data.concepto);
   } catch {
     return null;
   }

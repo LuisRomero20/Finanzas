@@ -36,21 +36,13 @@ import {
   ArrowRight,
   FileSpreadsheet,
   Send,
+  Calculator,
 } from 'lucide-react';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
+import { LaborBenefitsCalculatorWidget, LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
+import { CATEGORIAS_PERSONALES } from '../utils/categoryClassification';
 
 const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
-
-const CATEGORIAS_DISPONIBLES = [
-  'Sueldo',
-  'Servicio',
-  'Gasto',
-  'Ahorro',
-  'Deuda',
-  'Negocio',
-  'Otro Ing',
-  'Otro Egre',
-];
 
 const ENTIDADES_DISPONIBLES = [
   'Interbank',
@@ -96,6 +88,9 @@ export const ProyeccionPage: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<ProjectedItem | null>(null);
 
+  // Control para widget / simulador de Beneficios Laborales (Gratificación & CTS)
+  const [showBenefitsWidget, setShowBenefitsWidget] = useState<boolean>(false);
+
   // Modal para modificar monto en un solo mes
   const [modifyModalData, setModifyModalData] = useState<{ id: string; concepto: string; currentAmount: number } | null>(null);
   const [tempAmount, setTempAmount] = useState<number>(0);
@@ -104,7 +99,7 @@ export const ProyeccionPage: React.FC = () => {
   const [formTipo, setFormTipo] = useState<'Ingreso' | 'Egreso'>('Egreso');
   const [formConcepto, setFormConcepto] = useState('');
   const [formMonto, setFormMonto] = useState<number>(0);
-  const [formCategoria, setFormCategoria] = useState('Servicio');
+  const [formCategoria, setFormCategoria] = useState(CATEGORIAS_PERSONALES[0].nombre);
   const [formEntidad, setFormEntidad] = useState('Interbank');
   const [formDia, setFormDia] = useState<number>(1);
   const [formRecurrencia, setFormRecurrencia] = useState<ProjectedRecurrence>('fijo');
@@ -352,6 +347,20 @@ export const ProyeccionPage: React.FC = () => {
             </button>
           </div>
 
+          {/* Botón Calculadora Gratificación & CTS */}
+          <button
+            onClick={() => setShowBenefitsWidget(prev => !prev)}
+            className={`flex items-center gap-1.5 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition border ${
+              showBenefitsWidget
+                ? 'bg-emerald-600 border-emerald-400/80 shadow-emerald-900/40'
+                : 'bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 border-emerald-600/50'
+            }`}
+            title="Calcular gratificación, CTS y simular cuánto tendrías según lo que ganas"
+          >
+            <Calculator size={15} />
+            <span>{showBenefitsWidget ? 'Ocultar Grati & CTS' : 'Calculadora Grati & CTS'}</span>
+          </button>
+
           {/* Botón Enviar a Pagos Pendientes */}
           <button
             onClick={() => {
@@ -394,6 +403,39 @@ export const ProyeccionPage: React.FC = () => {
 
         </div>
       </div>
+
+      {/* ── ESPACIO DEDICADO: CALCULADORA DE GRATIFICACIÓN, CTS & SUELDO NETO ── */}
+      {showBenefitsWidget && (
+        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+          <LaborBenefitsCalculatorWidget onClose={() => setShowBenefitsWidget(false)} />
+        </div>
+      )}
+
+      {/* Banner / Acceso rápido si el widget está contraído */}
+      {!showBenefitsWidget && (
+        <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-[#0F2A1D] border border-emerald-700/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-emerald-600 text-white rounded-xl shadow">
+              <Calculator size={18} />
+            </div>
+            <div>
+              <span className="text-xs font-black text-white tracking-wide block">
+                Calculadora de Beneficios Laborales (Gratificación & CTS)
+              </span>
+              <p className="text-[11px] text-slate-300">
+                Simula tu sueldo neto (S/ 2,073 vs S/ 2,259), proyecta cuánto tendrías según lo que ganas y sincroniza tu CTS y Grati.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => setShowBenefitsWidget(true)}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-bold text-xs rounded-xl shadow transition"
+          >
+            <span>Abrir Calculadora</span>
+            <ArrowRight size={13} />
+          </button>
+        </div>
+      )}
 
       {/* ── KPI METRICS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -964,8 +1006,10 @@ export const ProyeccionPage: React.FC = () => {
                     onChange={e => setFormCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {CATEGORIAS_DISPONIBLES.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                    {CATEGORIAS_PERSONALES.map(c => (
+                      <option key={c.id} value={c.nombre}>
+                        {c.emoji} {c.nombre}
+                      </option>
                     ))}
                   </select>
                 </div>

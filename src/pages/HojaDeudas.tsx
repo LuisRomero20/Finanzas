@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppStore } from '../store';
+import { useProjectionStore } from '../store/projectionStore';
 import DebtCard from '../components/ui/DebtCard';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
@@ -57,11 +58,55 @@ export const HojaDeudas: React.FC = () => {
         moneda: input.moneda,
         fecha_inicio: input.fecha_inicio,
       });
+
+      // Calcular cuota mensual exacta
+      const cuota = calcUtil({
+        monto: Number(input.monto),
+        tasa_anual: Number(input.tasa_anual),
+        plazo_meses: Number(input.plazo_meses),
+        meses_pagados: 0,
+        tipo_tasa: input.tipo_tasa as 'efectiva' | 'nominal',
+      });
+
+      // Extraer día de vencimiento y mes de inicio
+      const diaPago = parseInt(input.fecha_inicio.slice(8, 10), 10) || 15;
+      const mesInicioStr = input.fecha_inicio.slice(0, 7);
+
+      // Sincronizar automáticamente en la pestaña de Proyecciones
+      useProjectionStore.getState().addItem({
+        tipo: 'Egreso',
+        categoria: 'Deuda',
+        concepto: input.acreedor.trim(),
+        monto: Math.round(cuota * 100) / 100,
+        entidad: 'Interbank',
+        dia: diaPago,
+        mesInicio: mesInicioStr,
+        recurrencia: 'temporal',
+        mesesDuracion: Number(input.plazo_meses),
+      });
+
       setShowForm(false);
       setInput({ acreedor: '', moneda: 'PEN', monto: 0, tasa_anual: 0.085, plazo_meses: 12, tipo_tasa: 'efectiva', fecha_inicio: new Date().toISOString().slice(0, 10) });
     } catch (err) {
       // Error handled in store
     }
+  };
+
+  const handlePreFillFromSimulator = (data: {
+    acreedor: string;
+    monto: number;
+    tasa_anual: number;
+    plazo_meses: number;
+  }) => {
+    setInput((prev) => ({
+      ...prev,
+      acreedor: data.acreedor,
+      monto: data.monto,
+      tasa_anual: data.tasa_anual,
+      plazo_meses: data.plazo_meses,
+    }));
+    setShowForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const stats = useMemo(() => {
@@ -272,7 +317,10 @@ export const HojaDeudas: React.FC = () => {
       )}
 
       {/* ── 🏔️ SIMULADOR DE LIQUIDACIÓN DE DEUDAS (BOLA DE NIEVE & AVALANCHA) ── */}
-      <DebtPayoffSimulatorWidget deudas={deudasActivas} />
+      <DebtPayoffSimulatorWidget
+        deudas={deudasActivas}
+        onPreFillNewDebt={handlePreFillFromSimulator}
+      />
 
       {/* ── DEUDAS ACTIVAS ── */}
       <div>

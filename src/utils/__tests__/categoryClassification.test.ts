@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import {
   CONCEPTO_A_CATEGORIA,
-  CATEGORIAS_PERSONALES,
   autoClassify,
   getCategoryByIdOrLabel,
   getEffectiveCategory,
   getEffectiveCategoryLabel,
-  getEffectiveCategoryId,
+  getAdaptedCategoryLabel,
   isDebtTransaction,
+  isCreditCardPayment,
 } from '../categoryClassification';
 import { masterTransactions } from '../masterData';
 
@@ -85,7 +85,7 @@ describe('Category Classification Engine', () => {
     };
     expect(isDebtTransaction(debtTx1)).toBe(true);
 
-    const debtTx2 = {
+    const cardTx = {
       id: 'tx-pago-tarjeta',
       Tipo: 'Egreso' as const,
       Fecha: '2026-09-01',
@@ -95,7 +95,8 @@ describe('Category Classification Engine', () => {
       Entidad: 'BBVA Bfree',
       Mes: 'Setiembre',
     };
-    expect(isDebtTransaction(debtTx2)).toBe(true);
+    expect(isDebtTransaction(cardTx)).toBe(false);
+    expect(isCreditCardPayment(cardTx)).toBe(true);
 
     const expenseTx = {
       id: 'tx-broaster',
@@ -108,5 +109,33 @@ describe('Category Classification Engine', () => {
       Mes: 'Setiembre',
     };
     expect(isDebtTransaction(expenseTx)).toBe(false);
+  });
+
+  it('provides adapted concise names for dashboard visualizations', () => {
+    expect(getAdaptedCategoryLabel('🍔 Comida & Restaurantes')).toBe('🍔 Comida');
+    expect(getAdaptedCategoryLabel('🛒 Supermercado & Alimentos')).toBe('🛒 Supermercado');
+    expect(getAdaptedCategoryLabel('💡 Servicios Básicos & Facturas')).toBe('💡 Servicios');
+    expect(getAdaptedCategoryLabel('💳 Pagos de Tarjetas & Deudas')).toBe('💳 Tarjetas & Deudas');
+    expect(getAdaptedCategoryLabel('💵 Sueldos & Beneficios Laborales')).toBe('💵 Sueldos');
+    expect(getAdaptedCategoryLabel('📈 Otros Ingresos & Ventas')).toBe('📈 Otros Ingresos');
+    expect(getAdaptedCategoryLabel('👥 Familia & Transferencias')).toBe('👥 Familia');
+
+    // From Transaction directly
+    const tx = {
+      id: 'tx-test-comida',
+      Tipo: 'Egreso' as const,
+      Fecha: '2026-09-01',
+      Categoria: 'Gasto',
+      Concepto: 'Broaster',
+      Monto: 15.00,
+      Entidad: 'Efectivo',
+      Mes: 'Setiembre',
+    };
+    expect(getAdaptedCategoryLabel(tx)).toBe('🍔 Comida');
+
+    // Legacy macro
+    expect(getAdaptedCategoryLabel('Gasto')).toBe('🛍️ Gastos Diarios');
+    expect(getAdaptedCategoryLabel('Servicio')).toBe('💡 Servicios');
+    expect(getAdaptedCategoryLabel('Deuda')).toBe('💳 Deudas & Préstamos');
   });
 });

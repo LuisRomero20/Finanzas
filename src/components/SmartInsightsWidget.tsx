@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles, TrendingUp, AlertTriangle, Lightbulb, CheckCircle, PieChart } from 'lucide-react';
+import { Sparkles, AlertTriangle, Lightbulb, CheckCircle } from 'lucide-react';
 import type { FinancialInsight, MonthDiagnostic } from '../utils/financialInsights';
 
 interface Props {
@@ -8,7 +8,13 @@ interface Props {
 }
 
 export const SmartInsightsWidget: React.FC<Props> = ({ diagnostic, selectedMonth }) => {
-  const { insights, savingsRate, discretionaryRatio, netSavings } = diagnostic;
+  const {
+    insights,
+    savingsRate,
+    discretionaryRatio,
+    totalSavings,
+    debtToIncomeRatio,
+  } = diagnostic;
 
   const getInsightIcon = (type: FinancialInsight['type']) => {
     switch (type) {
@@ -36,6 +42,8 @@ export const SmartInsightsWidget: React.FC<Props> = ({ diagnostic, selectedMonth
     }
   };
 
+  const headerMonthLabel = selectedMonth === 'Todos' ? 'Anual' : selectedMonth;
+
   return (
     <div className="bg-white dark:bg-[#0D1518] rounded-3xl p-5 sm:p-7 border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-5">
       
@@ -49,21 +57,28 @@ export const SmartInsightsWidget: React.FC<Props> = ({ diagnostic, selectedMonth
             <h3 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
               FinPer AI Insights
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 uppercase tracking-wider">
-                Diagnóstico {selectedMonth}
+                Diagnóstico {headerMonthLabel}
               </span>
             </h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Análisis cuantitativo de salud financiera, ahorro y anomalías
+              Análisis cuantitativo de salud financiera, liquidez real y pasivos
             </p>
           </div>
         </div>
 
         {/* Mini Métricas Rápidas */}
-        <div className="flex items-center gap-2 sm:gap-4 overflow-x-auto no-scrollbar py-1">
+        <div className="flex items-center gap-2 sm:gap-3 overflow-x-auto no-scrollbar py-1">
           <div className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center shrink-0">
             <p className="text-[10px] uppercase font-bold text-slate-400">Tasa de Ahorro</p>
-            <p className={`text-sm font-black ${savingsRate >= 20 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-700 dark:text-slate-200'}`}>
+            <p className={`text-sm font-black ${savingsRate > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
               {savingsRate.toFixed(1)}%
+            </p>
+          </div>
+
+          <div className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center shrink-0">
+            <p className="text-[10px] uppercase font-bold text-slate-400">Ahorro / Líquido</p>
+            <p className={`text-sm font-black ${totalSavings > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-slate-400 dark:text-slate-500'}`}>
+              S/ {totalSavings.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
             </p>
           </div>
 
@@ -74,19 +89,21 @@ export const SmartInsightsWidget: React.FC<Props> = ({ diagnostic, selectedMonth
             </p>
           </div>
 
-          <div className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center shrink-0">
-            <p className="text-[10px] uppercase font-bold text-slate-400">Margen Libre</p>
-            <p className={`text-sm font-black ${netSavings >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-              S/ {netSavings.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </p>
-          </div>
+          {debtToIncomeRatio > 0 && (
+            <div className="px-3 py-1.5 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/60 dark:border-slate-800 text-center shrink-0">
+              <p className="text-[10px] uppercase font-bold text-slate-400">Deudas (DTI)</p>
+              <p className={`text-sm font-black ${debtToIncomeRatio <= 30 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600 dark:text-amber-400'}`}>
+                {debtToIncomeRatio.toFixed(1)}%
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Grid de Tarjetas de Insights */}
       {insights.length === 0 ? (
         <div className="py-6 text-center text-xs text-slate-400">
-          No hay suficientes transacciones registradas en este mes para generar diagnósticos.
+          No hay suficientes transacciones registradas en este periodo para generar diagnósticos.
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">

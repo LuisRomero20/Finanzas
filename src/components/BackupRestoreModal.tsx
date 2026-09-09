@@ -1,8 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { useFinanceStore, type Transaction } from '../store/financeStore';
 import { useBudgetStore } from '../store/budgetStore';
+import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
-import { getStandardCategory } from '../utils/categoryClassification';
+import { getEffectiveCategory } from '../utils/categoryClassification';
 import * as XLSX from 'xlsx';
 import {
   X,
@@ -14,7 +15,6 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  RefreshCw,
 } from 'lucide-react';
 
 interface Props {
@@ -30,7 +30,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [previewCount, setPreviewCount] = useState<number | null>(null);
-  const [pendingImportData, setPendingImportData] = useState<{ transactions: Transaction[]; budgets?: Record<string, number> } | null>(null);
+  const [pendingImportData, setPendingImportData] = useState<{ transactions: Transaction[]; budgets?: Record<string, number>; pendingPayments?: any[] } | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,10 +41,14 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 1. Exportar a JSON
   const handleExportJSON = () => {
     try {
-      const enrichedTransactions = transactions.map(t => ({
-        ...t,
-        Categoria: getStandardCategory(t),
-      }));
+      const enrichedTransactions = transactions.map(t => {
+        const cat = getEffectiveCategory(t);
+        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
+        return {
+          ...t,
+          Categoria: catNombre,
+        };
+      });
 
       const backupData = {
         version: '2.0',
@@ -52,6 +56,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
         totalTransactions: enrichedTransactions.length,
         transactions: enrichedTransactions,
         budgets,
+        pendingPayments: usePendingPaymentsStore.getState().items,
       };
 
       const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
@@ -62,7 +67,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
       a.click();
       URL.revokeObjectURL(url);
 
-      agregarNotificacion('💾 Respaldo JSON descargado con éxito.', 'success');
+      agregarNotificacion('💾 Respaldo JSON descargado con éxito con categorías detalladas.', 'success');
     } catch (e: any) {
       setErrorMsg(`Error al exportar JSON: ${e.message}`);
     }
@@ -71,17 +76,21 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   // 2. Exportar a Excel
   const handleExportExcel = () => {
     try {
-      const exportRows = transactions.map(t => ({
-        ID: t.id,
-        Tipo: t.Tipo,
-        Fecha: t.Fecha,
-        Mes: t.Mes,
-        Categoria: getStandardCategory(t),
-        Concepto: t.Concepto,
-        Monto: t.Monto,
-        Entidad: t.Entidad,
-        Estado: t.estado || 'confirmado',
-      }));
+      const exportRows = transactions.map(t => {
+        const cat = getEffectiveCategory(t);
+        const catNombre = cat ? cat.nombre : (t.Categoria || 'Sin clasificar');
+        return {
+          ID: t.id,
+          Tipo: t.Tipo,
+          Fecha: t.Fecha,
+          Mes: t.Mes,
+          Categoria: catNombre,
+          Concepto: t.Concepto,
+          Monto: t.Monto,
+          Entidad: t.Entidad,
+          Estado: t.estado || 'confirmado',
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(exportRows);
       const workbook = XLSX.utils.book_new();
@@ -139,8 +148,9 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
         setPendingImportData({
           transactions: list,
           budgets: data.budgets,
+          pendingPayments: data.pendingPayments,
         });
-        setImportStatus(`Archivo válido. Contiene ${list.length} registros listos para restaurar.`);
+        setImportStatus(`Archivo válido. Contiene ${list.length} registros ${data.pendingPayments?.length ? `y ${data.pendingPayments.length} pagos pendientes ` : ''}listos para restaurar.`);
       } catch (err: any) {
         setErrorMsg(`Formato de archivo inválido: ${err.message}`);
         setPendingImportData(null);
@@ -156,6 +166,14 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
     setAllTransactions(pendingImportData.transactions);
     if (pendingImportData.budgets) {
       setAllBudgets(pendingImportData.budgets);
+    }
+    if (pendingImportData.pendingPayments && Array.isArray(pendingImportData.pendingPayments)) {
+      try {
+        localStorage.setItem('finper_pending_payments_v1', JSON.stringify(pendingImportData.pendingPayments));
+        usePendingPaymentsStore.setState({ items: pendingImportData.pendingPayments });
+      } catch (e) {
+        console.error('Error al restaurar pagos pendientes', e);
+      }
     }
 
     agregarNotificacion(`✅ Se restauraron ${pendingImportData.transactions.length} transacciones correctamente.`, 'success');
@@ -259,8 +277,8 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
             ) : (
               <div className="p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 space-y-3 animate-in fade-in">
                 <div className="flex items-center gap-2 text-indigo-900 dark:text-indigo-200 text-xs font-bold">
-                  <CheckCircle2 size={16} className="text-indigo-600 dark:text-indigo-400" />
-                  <span>Respaldo listo para aplicar ({previewCount} registros)</span>
+                  <CheckCircle2 size={16} className="text-indigo-600 dark:text-indigo-400 shrink-0" />
+                  <span>{importStatus || `Respaldo listo para aplicar (${previewCount} registros)`}</span>
                 </div>
 
                 <div className="flex items-center gap-2">

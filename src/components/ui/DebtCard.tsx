@@ -1,20 +1,7 @@
 import React, { useMemo, useState } from 'react';
-import { useAppStore } from '../../store';
+import { useAppStore, type Deuda } from '../../store';
 import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { calcularCuota, addMonthsKeepingDay } from '../../utils/debtUtils';
-
-interface Deuda {
-  id: string;
-  acreedor: string;
-  monto: number;
-  tasa_anual: number;
-  plazo_meses: number;
-  meses_pagados: number;
-  fecha_inicio: string;
-  tipo_tasa: 'nominal' | 'efectiva';
-  moneda: string;
-  estado: 'activa' | 'pagada' | 'proximo_vencer';
-}
 
 const diaPorAcreedor: Record<string, number> = {
   'iPhone 16': 30,
@@ -26,10 +13,11 @@ const diaPorAcreedor: Record<string, number> = {
 export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
   const [open, setOpen] = useState(false);
   const eliminarDeuda = useAppStore(state => state.eliminarDeuda);
+  const marcarCuotaPagada = useAppStore(state => state.marcarCuotaPagada);
 
   const cuota = calcularCuota(deuda);
   const schedule = useMemo(() => {
-    const pagosSet = new Set<string>((deuda.pagos || []).map(p => {
+    const pagosSet = new Set<string>((deuda.pagos || []).map((p: string) => {
       try { const d = new Date(p); return `${d.getFullYear()}-${d.getMonth()+1}`; } catch { return p; }
     }));
 
@@ -45,7 +33,7 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
     // Special case: for Yape Crédito if there are payments from previous year, show only this year's recorded payments in the detail list
     if (deuda.acreedor && deuda.acreedor.toLowerCase().includes('yape') && (deuda as any).pagos_anio_anterior && (deuda as any).pagos_anio_anterior > 0) {
       // Return only the schedule entries that match explicit recorded pagos (deuda.pagos)
-      const pagosKeys = new Set((deuda.pagos || []).map(p => { try { const d = new Date(p); return `${d.getFullYear()}-${d.getMonth()+1}` } catch { return p } }));
+      const pagosKeys = new Set((deuda.pagos || []).map((p: string) => { try { const d = new Date(p); return `${d.getFullYear()}-${d.getMonth()+1}` } catch { return p } }));
       return items.filter(i => {
         try { const d = new Date(i.fecha); const key = `${d.getFullYear()}-${d.getMonth()+1}`; return pagosKeys.has(key); } catch { return false }
       });
@@ -66,12 +54,27 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
           </div>
         </div>
         <div className="flex flex-col items-end gap-2">
-          <button 
-            onClick={async () => { if (confirm(`¿Eliminar deuda ${deuda.acreedor}?`)) { await eliminarDeuda(deuda.id); } }} 
-            className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline"
-          >
-            Eliminar
-          </button>
+          <div className="flex items-center gap-2">
+            {deuda.estado !== 'pagada' && (
+              <button 
+                type="button"
+                onClick={async () => {
+                  if (confirm(`¿Abonar y marcar la cuota ${(deuda.meses_pagados || 0) + 1} de ${deuda.plazo_meses} como pagada para ${deuda.acreedor}?`)) {
+                    await marcarCuotaPagada(deuda.id);
+                  }
+                }}
+                className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 transition cursor-pointer"
+              >
+                + Abonar Cuota
+              </button>
+            )}
+            <button 
+              onClick={async () => { if (confirm(`¿Eliminar deuda ${deuda.acreedor}?`)) { await eliminarDeuda(deuda.id); } }} 
+              className="text-xs font-semibold text-rose-600 dark:text-rose-400 hover:underline cursor-pointer"
+            >
+              Eliminar
+            </button>
+          </div>
           <div className="w-40 h-24">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>

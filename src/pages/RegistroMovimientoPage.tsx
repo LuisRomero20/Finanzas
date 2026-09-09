@@ -62,17 +62,28 @@ const CATEGORIAS_LIST = [
   { id: 'Otro Egre', label: 'Otro Egre', icon: TrendingDown, color: 'text-slate-500 bg-slate-100 dark:bg-slate-800' },
 ];
 
-const QUICK_CONCEPTS = [
-  'Almuerzo',
-  'Uber / Taxi',
-  'Supermercado',
-  'Netflix',
-  'Farmacia',
-  'Gasolina',
-  'Café / Snack',
-  'Corte de Cabello',
+const DEFAULT_QUICK_EGRESOS = [
+  'Futbol',
+  'Bus',
+  'Taxi',
+  'Broaster',
+  'Gaseosa',
+  'Carol',
+  'Makis',
+  'Pollo a la Brasa',
+  'Café',
+  'Cine',
   'iCloud',
+  'Spotify',
+];
+
+const DEFAULT_QUICK_INGRESOS = [
   'Sueldo Quincena',
+  'Sueldo Fin de Mes',
+  'Yape / Plin',
+  'Freelance',
+  'Apuestas',
+  'Reembolso',
 ];
 
 const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -104,6 +115,43 @@ export const RegistroMovimientoPage: React.FC = () => {
   const addQuickAmount = (val: number) => {
     const current = parseFloat(monto || '0');
     setMonto((current + val).toFixed(2));
+  };
+
+  // Conceptos sugeridos combinando los favoritos fijados del usuario + los más recientes de su historial
+  const quickConcepts = useMemo(() => {
+    const baseList = tipo === 'Egreso' ? DEFAULT_QUICK_EGRESOS : DEFAULT_QUICK_INGRESOS;
+
+    // Obtener conceptos recientes únicos para este tipo de movimiento
+    const recentUnique = transactions
+      .filter((t) => t.Tipo === tipo && t.Concepto && !baseList.some(b => b.toLowerCase() === t.Concepto.trim().toLowerCase()))
+      .slice(-50)
+      .reverse()
+      .map((t) => t.Concepto.trim())
+      .filter((c, idx, arr) => c && arr.indexOf(c) === idx)
+      .slice(0, 4);
+
+    return [...baseList, ...recentUnique];
+  }, [tipo, transactions]);
+
+  // Lista para autocompletado en el input
+  const allDatalistConcepts = useMemo(() => {
+    const set = new Set<string>();
+    quickConcepts.forEach((c) => set.add(c));
+    transactions
+      .filter((t) => t.Tipo === tipo && t.Concepto)
+      .slice(-100)
+      .forEach((t) => set.add(t.Concepto.trim()));
+    return Array.from(set);
+  }, [quickConcepts, transactions, tipo]);
+
+  const handleSelectQuickConcept = (c: string) => {
+    setConcepto(c);
+    const lower = c.toLowerCase();
+    if (lower.includes('sueldo')) {
+      setCategoria('Sueldo');
+    } else if (lower.includes('luz') || lower.includes('agua') || lower.includes('gas') || lower.includes('internet')) {
+      setCategoria('Servicio');
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -297,7 +345,12 @@ export const RegistroMovimientoPage: React.FC = () => {
         <div className="grid grid-cols-2 gap-3">
           <button
             type="button"
-            onClick={() => setTipo('Egreso')}
+            onClick={() => {
+              setTipo('Egreso');
+              if (categoria === 'Sueldo' || categoria === 'Otro Ing') {
+                setCategoria('Gasto');
+              }
+            }}
             className={`py-3.5 px-4 rounded-2xl border flex items-center justify-center gap-2 font-black text-sm sm:text-base transition cursor-pointer ${
               tipo === 'Egreso'
                 ? 'bg-rose-600 border-rose-600 text-white shadow-md shadow-rose-600/20 ring-2 ring-rose-600/30'
@@ -310,7 +363,12 @@ export const RegistroMovimientoPage: React.FC = () => {
           
           <button
             type="button"
-            onClick={() => setTipo('Ingreso')}
+            onClick={() => {
+              setTipo('Ingreso');
+              if (categoria === 'Gasto' || categoria === 'Servicio' || categoria === 'Deuda' || categoria === 'Otro Egre') {
+                setCategoria('Sueldo');
+              }
+            }}
             className={`py-3.5 px-4 rounded-2xl border flex items-center justify-center gap-2 font-black text-sm sm:text-base transition cursor-pointer ${
               tipo === 'Ingreso'
                 ? 'bg-emerald-600 border-emerald-600 text-white shadow-md shadow-emerald-600/20 ring-2 ring-emerald-600/30'
@@ -430,32 +488,56 @@ export const RegistroMovimientoPage: React.FC = () => {
 
         {/* 5. Concepto y Sugerencias Rápidas */}
         <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-            <Sparkles size={15} className="text-amber-500" />
-            <span>Concepto / Detalle</span>
-          </label>
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Sparkles size={15} className="text-amber-500" />
+              <span>Concepto / Detalle</span>
+            </label>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+              Tus gastos comunes & recientes
+            </span>
+          </div>
+
           <input
             type="text"
             required
-            placeholder="Ej: Almuerzo ejecutivo, Uber, Netflix, etc."
+            list="conceptos-datalist"
+            placeholder={
+              tipo === 'Egreso'
+                ? 'Ej: Futbol, Bus, Taxi, Broaster, Gaseosa, etc.'
+                : 'Ej: Sueldo Quincena, Freelance, Yape, etc.'
+            }
             value={concepto}
             onChange={(e) => setConcepto(e.target.value)}
             className="w-full bg-white dark:bg-[#11191D] border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
           />
 
+          <datalist id="conceptos-datalist">
+            {allDatalistConcepts.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+
           {/* Sugerencias Rápidas de Conceptos */}
           <div className="flex items-center gap-1.5 flex-wrap pt-1">
             <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 mr-1">Rápidos:</span>
-            {QUICK_CONCEPTS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                onClick={() => setConcepto(c)}
-                className="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-2.5 py-1 rounded-lg transition"
-              >
-                {c}
-              </button>
-            ))}
+            {quickConcepts.map((c) => {
+              const isSelected = concepto.toLowerCase() === c.toLowerCase();
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handleSelectQuickConcept(c)}
+                  className={`text-[11px] font-bold px-2.5 py-1 rounded-lg transition cursor-pointer ${
+                    isSelected
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80'
+                  }`}
+                >
+                  {c}
+                </button>
+              );
+            })}
           </div>
         </div>
 

@@ -3,7 +3,7 @@ import { useFinanceStore, type Transaction } from '../store/financeStore';
 import { 
   PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend,
-  LineChart, Line
+  LineChart, Line, AreaChart, Area, LabelList
 } from 'recharts';
 import {
   Search,
@@ -22,17 +22,49 @@ import {
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
-import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel, getAdaptedCategoryLabel } from '../utils/categoryClassification';
 
 const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
 
-// Paletas con alto contraste y distinción visual
-const INGRESOS_COLORS = ['#047857', '#0284C7', '#6366F1', '#D97706', '#0D9488', '#8B5CF6', '#10B981', '#3B82F6'];
+// Paletas visuales premium con alto contraste y distinción estética
+const INGRESOS_COLORS = [
+  '#10B981', // Emerald Mint
+  '#06B6D4', // Cyan Azure
+  '#6366F1', // Indigo Electric
+  '#8B5CF6', // Purple Violet
+  '#14B8A6', // Teal
+  '#3B82F6', // Royal Blue
+  '#F59E0B', // Amber Gold
+  '#22C55E', // Vivid Green
+];
+
 const EGRESOS_COLORS = [
-  '#E11D48', '#D97706', '#059669', '#4F46E5', '#0284C7', '#9333EA', '#475569', '#0D9488',
-  '#F43F5E', '#EA580C', '#16A34A', '#2563EB', '#7C3AED', '#DB2777', '#ca8a04', '#0891b2',
-  '#4338ca', '#be123c', '#b45309', '#15803d', '#1d4ed8', '#6d28d9', '#a21caf', '#854d0e'
+  '#F43F5E', // Rose Coral
+  '#F59E0B', // Warm Amber
+  '#10B981', // Emerald Jade
+  '#6366F1', // Electric Indigo
+  '#0EA5E9', // Sky Cyan
+  '#8B5CF6', // Vivid Purple
+  '#EC4899', // Hot Pink
+  '#14B8A6', // Teal
+  '#F97316', // Orange
+  '#3B82F6', // Ocean Blue
+  '#A855F7', // Deep Violet
+  '#06B6D4', // Deep Cyan
+  '#E11D48', // Crimson
+  '#84CC16', // Lime
+  '#D946EF', // Fuchsia
+  '#64748B', // Slate
+];
+
+// Gradientes luminosos específicos para el ranking de Top 5 Gastos
+const TOP5_GRADIENTS = [
+  { id: 'top5-grad-0', from: '#FF4D6D', to: '#FF758F' }, // Coral-Rose Luminoso
+  { id: 'top5-grad-1', from: '#F59E0B', to: '#FBBF24' }, // Ámbar Dorado
+  { id: 'top5-grad-2', from: '#10B981', to: '#34D399' }, // Esmeralda Menta
+  { id: 'top5-grad-3', from: '#6366F1', to: '#818CF8' }, // Índigo Eléctrico
+  { id: 'top5-grad-4', from: '#0EA5E9', to: '#38BDF8' }, // Cian Celeste
 ];
 
 export const DashboardsPage: React.FC = () => {
@@ -77,21 +109,47 @@ export const DashboardsPage: React.FC = () => {
 
   // Resumen por Categoría (Macro o Micro según granularidad seleccionada)
   const catIngresos = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { total: number; fullName: string; shortName: string }>();
     ingresosTxs.forEach(t => {
-      const cat = getResolvedCategory(t);
-      map.set(cat, (map.get(cat) || 0) + t.Monto);
+      const resolved = getResolvedCategory(t);
+      const adapted = getAdaptedCategoryLabel(granularity === 'macro' ? t.Categoria : t);
+      const existing = map.get(resolved);
+      if (existing) {
+        existing.total += t.Monto;
+      } else {
+        map.set(resolved, { total: t.Monto, fullName: resolved, shortName: adapted });
+      }
     });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    return Array.from(map.entries())
+      .map(([resolvedKey, data]) => ({
+        resolvedKey,
+        name: data.shortName,
+        fullName: data.fullName,
+        value: Math.round(data.total * 100) / 100,
+      }))
+      .sort((a, b) => b.value - a.value);
   }, [ingresosTxs, granularity]);
 
   const catEgresos = useMemo(() => {
-    const map = new Map<string, number>();
+    const map = new Map<string, { total: number; fullName: string; shortName: string }>();
     egresosTxs.forEach(t => {
-      const cat = getResolvedCategory(t);
-      map.set(cat, (map.get(cat) || 0) + t.Monto);
+      const resolved = getResolvedCategory(t);
+      const adapted = getAdaptedCategoryLabel(granularity === 'macro' ? t.Categoria : t);
+      const existing = map.get(resolved);
+      if (existing) {
+        existing.total += t.Monto;
+      } else {
+        map.set(resolved, { total: t.Monto, fullName: resolved, shortName: adapted });
+      }
     });
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value);
+    return Array.from(map.entries())
+      .map(([resolvedKey, data]) => ({
+        resolvedKey,
+        name: data.shortName,
+        fullName: data.fullName,
+        value: Math.round(data.total * 100) / 100,
+      }))
+      .sort((a, b) => b.value - a.value);
   }, [egresosTxs, granularity]);
 
   // Evolución anual
@@ -293,13 +351,47 @@ export const DashboardsPage: React.FC = () => {
           <div className="h-72 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={annualData} margin={{ top: 10, right: 10, left: 0, bottom: 10 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `S/ ${v/1000}k`} />
-                <RechartsTooltip cursor={{ fill: '#f1f5f9' }} formatter={(value: any) => formatterPEN.format(Number(value) || 0)} />
+                <defs>
+                  <linearGradient id="ingresosAnnualGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" />
+                    <stop offset="100%" stopColor="#059669" />
+                  </linearGradient>
+                  <linearGradient id="egresosAnnualGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#F43F5E" />
+                    <stop offset="100%" stopColor="#E11D48" />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-slate-500 dark:text-slate-400 font-bold"
+                  dy={8}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-slate-500 dark:text-slate-400 font-bold"
+                  tickFormatter={(v) => `S/ ${v/1000}k`}
+                />
+                <RechartsTooltip
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
+                  formatter={(value: any) => formatterPEN.format(Number(value) || 0)}
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
+                />
                 <Legend wrapperStyle={{ paddingTop: '10px', fontSize: '12px' }} />
-                <Bar dataKey="Ingresos" fill="#1B4332" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="Egresos" fill="#E11D48" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Ingresos" fill="url(#ingresosAnnualGrad)" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="Egresos" fill="url(#egresosAnnualGrad)" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -324,22 +416,51 @@ export const DashboardsPage: React.FC = () => {
             {catEgresos.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={catEgresos} cx="40%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={3} dataKey="value" stroke="none">
+                  <Pie data={catEgresos} cx="34%" cy="50%" innerRadius={44} outerRadius={74} paddingAngle={3} dataKey="value" stroke="none">
                     {catEgresos.map((_, index) => (
                       <Cell key={`cell-egr-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip 
-                    formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Total']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
+                    formatter={(value: any, _name: any, item: any) => {
+                      const full = item?.payload?.fullName || item?.payload?.name || 'Total';
+                      const num = Number(value) || 0;
+                      const pct = totalEgresos > 0 ? ((num / totalEgresos) * 100).toFixed(1) : '0';
+                      return [`${formatterPEN.format(num)} (${pct}%)`, full];
+                    }}
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '12px', 
+                      color: '#fff', 
+                      fontSize: '12px', 
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)'
+                    }}
                   />
                   <Legend 
                     verticalAlign="middle" 
                     align="right" 
                     layout="vertical" 
                     iconType="circle" 
-                    wrapperStyle={{ fontSize: '11px', paddingLeft: '8px', maxHeight: '240px', overflowY: 'auto' }}
-                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-[11px] truncate max-w-[140px] inline-block">{value}</span>}
+                    wrapperStyle={{ 
+                      fontSize: '11px', 
+                      paddingLeft: '6px', 
+                      maxHeight: '260px', 
+                      overflowY: 'auto',
+                      maxWidth: '62%'
+                    }}
+                    formatter={(value, entry: any) => {
+                      const fullName = entry?.payload?.fullName || value;
+                      return (
+                        <span 
+                          className="text-slate-800 dark:text-white font-bold text-[11px] whitespace-nowrap inline-block hover:text-emerald-400 transition-colors" 
+                          title={fullName}
+                        >
+                          {value}
+                        </span>
+                      );
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -364,22 +485,51 @@ export const DashboardsPage: React.FC = () => {
             {catIngresos.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={catIngresos} cx="40%" cy="50%" innerRadius={48} outerRadius={78} paddingAngle={3} dataKey="value" stroke="none">
+                  <Pie data={catIngresos} cx="34%" cy="50%" innerRadius={44} outerRadius={74} paddingAngle={3} dataKey="value" stroke="none">
                     {catIngresos.map((_, index) => (
                       <Cell key={`cell-ing-${index}`} fill={INGRESOS_COLORS[index % INGRESOS_COLORS.length]} />
                     ))}
                   </Pie>
                   <RechartsTooltip 
-                    formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Total']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
+                    formatter={(value: any, _name: any, item: any) => {
+                      const full = item?.payload?.fullName || item?.payload?.name || 'Total';
+                      const num = Number(value) || 0;
+                      const pct = totalIngresos > 0 ? ((num / totalIngresos) * 100).toFixed(1) : '0';
+                      return [`${formatterPEN.format(num)} (${pct}%)`, full];
+                    }}
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '12px', 
+                      color: '#fff', 
+                      fontSize: '12px', 
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)'
+                    }}
                   />
                   <Legend 
                     verticalAlign="middle" 
                     align="right" 
                     layout="vertical" 
                     iconType="circle" 
-                    wrapperStyle={{ fontSize: '11px', paddingLeft: '8px', maxHeight: '240px', overflowY: 'auto' }}
-                    formatter={(value) => <span className="text-slate-800 dark:text-slate-200 font-bold text-[11px] truncate max-w-[140px] inline-block">{value}</span>}
+                    wrapperStyle={{ 
+                      fontSize: '11px', 
+                      paddingLeft: '6px', 
+                      maxHeight: '260px', 
+                      overflowY: 'auto',
+                      maxWidth: '62%'
+                    }}
+                    formatter={(value, entry: any) => {
+                      const fullName = entry?.payload?.fullName || value;
+                      return (
+                        <span 
+                          className="text-slate-800 dark:text-white font-bold text-[11px] whitespace-nowrap inline-block hover:text-emerald-400 transition-colors" 
+                          title={fullName}
+                        >
+                          {value}
+                        </span>
+                      );
+                    }}
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -394,25 +544,74 @@ export const DashboardsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Top 5 Gastos */}
-        <Card className="h-80 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top 5 Gastos Más Significativos</h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Conceptos con mayor volumen de desembolso</p>
+        <Card className="h-84 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top 5 Gastos Más Significativos</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Conceptos con mayor volumen de desembolso</p>
+            </div>
+            <Badge variant="warning">Top 5</Badge>
           </div>
           <div className="flex-1 mt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={top5Gastos} layout="vertical" margin={{ top: 5, right: 10, left: 10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
-                <XAxis type="number" hide />
-                <YAxis dataKey="name" type="category" width={110} tick={{ fontSize: 11, fill: '#475569' }} />
-                <RechartsTooltip 
-                  formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Total']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
-                />
-                <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                  {top5Gastos.map((_, index) => (
-                    <Cell key={`cell-bar-${index}`} fill={EGRESOS_COLORS[index % EGRESOS_COLORS.length]} />
+              <BarChart data={top5Gastos} layout="vertical" margin={{ top: 5, right: 90, left: 10, bottom: 0 }}>
+                <defs>
+                  {TOP5_GRADIENTS.map((g) => (
+                    <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="1" y2="0">
+                      <stop offset="0%" stopColor={g.from} />
+                      <stop offset="100%" stopColor={g.to} />
+                    </linearGradient>
                   ))}
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.15)" />
+                <XAxis type="number" hide />
+                <YAxis
+                  dataKey="name"
+                  type="category"
+                  width={145}
+                  tickLine={false}
+                  axisLine={false}
+                  tick={({ x, y, payload }) => {
+                    const label = payload.value || '';
+                    const shortLabel = label.length > 20 ? label.substring(0, 18) + '...' : label;
+                    return (
+                      <text
+                        x={x}
+                        y={y}
+                        dy={4}
+                        textAnchor="end"
+                        className="fill-slate-700 dark:fill-slate-200 text-[11px] font-bold"
+                      >
+                        {shortLabel}
+                      </text>
+                    );
+                  }}
+                />
+                <RechartsTooltip 
+                  formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Desembolso']}
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)',
+                  }}
+                />
+                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
+                  {top5Gastos.map((_, index) => (
+                    <Cell
+                      key={`cell-bar-${index}`}
+                      fill={`url(#top5-grad-${index % TOP5_GRADIENTS.length})`}
+                    />
+                  ))}
+                  <LabelList
+                    dataKey="value"
+                    position="right"
+                    formatter={(v: any) => formatterPEN.format(Number(v) || 0)}
+                    className="fill-slate-700 dark:fill-slate-200 text-[11px] font-black"
+                  />
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
@@ -420,23 +619,60 @@ export const DashboardsPage: React.FC = () => {
         </Card>
 
         {/* Evolución de Sueldo */}
-        <Card className="h-80 flex flex-col justify-between">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white">Evolución Histórica de Sueldo</h3>
-            <p className="text-xs text-slate-400 dark:text-slate-500">Percepción salarial registrada por mes</p>
+        <Card className="h-84 flex flex-col justify-between">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white">Evolución Histórica de Sueldo</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Percepción salarial registrada por mes</p>
+            </div>
+            <Badge variant="success">Ingreso Fijo</Badge>
           </div>
           <div className="flex-1 mt-2">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={sueldoTrendData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={8} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `S/ ${v/1000}k`} />
+              <AreaChart data={sueldoTrendData} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="sueldoAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#10B981" stopOpacity={0.02} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.15)" />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-slate-500 dark:text-slate-400 font-bold"
+                  dy={8}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fontSize: 11, fill: 'currentColor' }}
+                  className="text-slate-500 dark:text-slate-400 font-bold"
+                  tickFormatter={(v) => `S/ ${v/1000}k`}
+                />
                 <RechartsTooltip 
                   formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Sueldo']}
-                  contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
+                  contentStyle={{
+                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                    backdropFilter: 'blur(8px)',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '12px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                  }}
                 />
-                <Line type="monotone" dataKey="value" stroke="#047857" strokeWidth={3} dot={{ r: 4, fill: '#047857', strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 6 }} />
-              </LineChart>
+                <Area
+                  type="monotone"
+                  dataKey="value"
+                  stroke="#10B981"
+                  strokeWidth={3}
+                  fill="url(#sueldoAreaGrad)"
+                  dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 6, fill: '#059669', stroke: '#fff', strokeWidth: 2 }}
+                />
+              </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
@@ -504,8 +740,8 @@ export const DashboardsPage: React.FC = () => {
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {catIngresos.map(cat => (
-                  <div key={cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">{cat.name}</span>
+                  <div key={cat.resolvedKey || cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]" title={cat.fullName}>{cat.fullName || cat.name}</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatterPEN.format(cat.value)}</span>
                   </div>
                 ))}
@@ -517,8 +753,8 @@ export const DashboardsPage: React.FC = () => {
             </div>
 
             {catIngresos.map(cat => {
-              const txsCat = ingresosTxs.filter(t => getResolvedCategory(t) === cat.name);
-              return <CategoryBox key={cat.name} title={cat.name} type="Ingreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
+              const txsCat = ingresosTxs.filter(t => getResolvedCategory(t) === (cat.resolvedKey || cat.name));
+              return <CategoryBox key={cat.resolvedKey || cat.name} title={cat.fullName || cat.name} type="Ingreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
             })}
           </div>
 
@@ -546,8 +782,8 @@ export const DashboardsPage: React.FC = () => {
               </div>
               <div className="divide-y divide-slate-100 dark:divide-slate-800">
                 {catEgresos.map(cat => (
-                  <div key={cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]">{cat.name}</span>
+                  <div key={cat.resolvedKey || cat.name} className="px-4 py-2 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300 truncate max-w-[240px]" title={cat.fullName}>{cat.fullName || cat.name}</span>
                     <span className="font-bold text-slate-900 dark:text-white tabular-nums">{formatterPEN.format(cat.value)}</span>
                   </div>
                 ))}
@@ -559,8 +795,8 @@ export const DashboardsPage: React.FC = () => {
             </div>
 
             {catEgresos.map(cat => {
-              const txsCat = egresosTxs.filter(t => getResolvedCategory(t) === cat.name);
-              return <CategoryBox key={cat.name} title={cat.name} type="Egreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
+              const txsCat = egresosTxs.filter(t => getResolvedCategory(t) === (cat.resolvedKey || cat.name));
+              return <CategoryBox key={cat.resolvedKey || cat.name} title={cat.fullName || cat.name} type="Egreso" txs={txsCat} searchTerm={searchTerm} onSelectConcept={setSelectedConcept} />;
             })}
           </div>
         </div>

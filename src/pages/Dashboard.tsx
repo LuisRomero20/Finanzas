@@ -1,17 +1,18 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useFinanceStore, MESES, ENTIDADES, CATEGORIAS, getMonthNameFromDate } from '../store/financeStore';
+import { useFinanceStore, MESES, ENTIDADES, getMonthNameFromDate } from '../store/financeStore';
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
-import { LINE_OVERRIDES, ACCOUNT_LABELS, type Transaction } from '../utils/masterData';
+import type { Transaction } from '../utils/masterData';
 import {
   CATEGORIAS_PERSONALES,
   getEffectiveCategory,
-  getEffectiveCategoryLabel,
+  getAdaptedCategoryLabel,
   getCategoryByIdOrLabel,
-  getStandardCategory,
-  isDebtTransaction,
   getStoredClasificaciones,
   saveStoredClasificaciones,
+  isDebtTransaction,
+  isCreditCardPayment,
+  isCreditCardLine,
 } from '../utils/categoryClassification';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
@@ -24,7 +25,9 @@ import { generateFinancialInsights } from '../utils/financialInsights';
 import { openExecutiveReportPrintWindow } from '../utils/executiveReportPdf';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCreditLineStore } from '../store/creditLineStore';
+import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
 import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
+import { PrevMonthDaysConfigModal } from '../components/PrevMonthDaysConfigModal';
 import {
   ChevronDown,
   Download,
@@ -45,7 +48,12 @@ import {
   Edit3,
   FileText,
   Sliders,
+  Calculator,
+  CalendarDays,
 } from 'lucide-react';
+import { LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
+import { TodayProjectedExpensesWidget } from '../components/TodayProjectedExpensesWidget';
+import { CasualProjectionsModal } from '../components/CasualProjectionsModal';
 import {
   BarChart,
   Bar,
@@ -55,12 +63,23 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from 'recharts';
 
 const MONTH_ORDER = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 const sortedMeses = [...MESES].sort((a, b) => MONTH_ORDER.indexOf(a) - MONTH_ORDER.indexOf(b));
 
-const CHART_COLORS = ['#0F2A1D', '#047857', '#0284C7', '#6366F1', '#D97706', '#E11D48', '#0D9488'];
+// Paleta vibrante de alto contraste para modo oscuro y claro
+const CHART_COLORS = [
+  '#10B981', // Emerald Mint
+  '#06B6D4', // Cyan Azure
+  '#8B5CF6', // Purple Violet
+  '#F59E0B', // Amber Gold
+  '#F43F5E', // Rose Coral
+  '#3B82F6', // Royal Blue
+  '#EC4899', // Hot Pink
+  '#14B8A6', // Teal
+];
 
 const getDefaultDateForMonth = (monthName: string) => {
   const monthMap: Record<string, string> = {
@@ -89,44 +108,62 @@ export const Dashboard: React.FC = () => {
     updateTransaction,
     confirmTransaction,
   } = useFinanceStore();
-  const filtered = getFilteredTransactions();
-
-  const isLineaTarjeta = (t: any) => typeof t.Concepto === 'string' && /linea\s*tarjeta/i.test(t.Concepto);
-
-  const totalIngresos = filtered.filter(t => t.Tipo === 'Ingreso').reduce((acc, t) => acc + t.Monto, 0);
-  const totalEgresos = filtered.filter(t => t.Tipo === 'Egreso' && getStandardCategory(t) !== 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
-  const totalDeudas = filtered.filter(t => getStandardCategory(t) === 'Deuda').reduce((acc, t) => acc + t.Monto, 0);
 
   const rawTransactions = useFinanceStore((s) => s.transactions) || [];
-  const { limits: budgetLimits } = useBudgetStore();
+  const baseFiltered = getFilteredTransactions();
 
-  const diagnostic = useMemo(() => {
-    return generateFinancialInsights(
-      rawTransactions,
-      selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth,
-      sortedMeses,
-      budgetLimits
-    );
-  }, [rawTransactions, selectedMonth, budgetLimits]);
+  const { getConfig, getBridgedTransactions, getPreviousMonthName } = usePrevMonthBridgeStore();
+  const activeMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+  const bridgeConfig = getConfig(activeMonth);
+  const prevMonthName = getPreviousMonthName(activeMonth);
 
-  const handleExportPDF = () => {
-    openExecutiveReportPrintWindow({
-      selectedMonth: selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth,
-      transactions: rawTransactions,
-      totalIncome: totalIngresos,
-      totalExpense: totalEgresos,
-      netSavings: totalIngresos - totalEgresos,
-      savingsRate: totalIngresos > 0 ? ((totalIngresos - totalEgresos) / totalIngresos) * 100 : 0,
-      accountBalances: entityBalances,
-    });
-  };
+  const bridgedTxs = useMemo(() => {
+    if (!bridgeConfig.enabled || !bridgeConfig.includeInDashboardTotals) return [];
+    return getBridgedTransactions(activeMonth, rawTransactions);
+  }, [bridgeConfig, activeMonth, rawTransactions]);
+
+  const bridgedIngresos = useMemo(() => {
+    return bridgedTxs.filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, b) => a + b.Monto, 0);
+  }, [bridgedTxs]);
+
+  const bridgedEgresos = useMemo(() => {
+    return bridgedTxs.filter(t => t.Tipo === 'Egreso' && !isCreditCardLine(t)).reduce((a, b) => a + b.Monto, 0);
+  }, [bridgedTxs]);
+
+  const filtered = useMemo(() => {
+    if (bridgedTxs.length === 0) return baseFiltered;
+    const baseIds = new Set(baseFiltered.map(t => t.id));
+    const toAdd = bridgedTxs.filter(t => !baseIds.has(t.id));
+    return [...baseFiltered, ...toAdd];
+  }, [baseFiltered, bridgedTxs]);
+
+  // 1. Ingresos Totales: Entradas netas del periodo (sueldo, bonos, extras).
+  // Excluye líneas/cupos de crédito de tarjetas (que no representan dinero recibido).
+  const totalIngresos = filtered
+    .filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t))
+    .reduce((acc, t) => acc + t.Monto, 0);
+
+  // 2. Obligaciones & Deudas: Suma EXCLUSIVA de las deudas reales activas (BCP, Yape, iPhone 16 y nuevas).
+  // No incluye tarjetas de crédito como deuda ni pasivo.
+  const deudasDelPeriodo = filtered.filter(t => t.Tipo === 'Egreso' && isDebtTransaction(t));
+  const totalDeudas = deudasDelPeriodo.reduce((acc, t) => acc + t.Monto, 0);
+  const uniqueDebtConcepts = Array.from(new Set(deudasDelPeriodo.map(t => (t.Concepto || '').trim()))).filter(Boolean);
+  const deudasSubValue = uniqueDebtConcepts.length > 0
+    ? `${uniqueDebtConcepts.length} deuda${uniqueDebtConcepts.length > 1 ? 's' : ''}: ${uniqueDebtConcepts.join(', ')}`
+    : 'Sin deudas en este periodo';
+
+  // 3. Egresos Operativos: Gastos y consumos del día a día (alimentación, servicios, transporte, ocio, etc.).
+  // Excluye las deudas. En 'Todas' no duplica los abonos de pago de tarjeta sobre los consumos individuales ya registrados.
+  const totalEgresos = filtered
+    .filter(t => t.Tipo === 'Egreso' && !isDebtTransaction(t) && (selectedEntity !== 'Todas' || !isCreditCardPayment(t)))
+    .reduce((acc, t) => acc + t.Monto, 0);
 
   const entityList = ENTIDADES && ENTIDADES.length ? ENTIDADES : Array.from(new Set(filtered.map(t => t.Entidad).filter(Boolean)));
   const entityBalances: Record<string, number> = {};
   entityList.forEach(ent => {
-    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isLineaTarjeta(t)).reduce((a, t) => a + t.Monto, 0);
-    const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && getStandardCategory(t) !== 'Deuda' && !isLineaTarjeta(t)).reduce((a, t) => a + t.Monto, 0);
-    const deudasEnt = filtered.filter(t => t.Entidad === ent && getStandardCategory(t) === 'Deuda').reduce((a, t) => a + t.Monto, 0);
+    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
+    const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isDebtTransaction(t) && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
+    const deudasEnt = filtered.filter(t => t.Entidad === ent && isDebtTransaction(t)).reduce((a, t) => a + t.Monto, 0);
     entityBalances[ent] = ingresosEnt - egresosEnt - deudasEnt;
   });
 
@@ -150,14 +187,54 @@ export const Dashboard: React.FC = () => {
   const interbankKey = entityList.find(e => /^Interbank$/i.test(e)) || 'Interbank';
   const interbankBalance = entityBalances[interbankKey] ?? 0;
 
-  const categoryMap: Record<string, number> = {};
+  const budgetLimits = useBudgetStore((s) => s.budgets);
+
+  const diagnostic = useMemo(() => {
+    return generateFinancialInsights(
+      rawTransactions,
+      selectedMonth,
+      sortedMeses,
+      budgetLimits,
+      interbankBalance
+    );
+  }, [rawTransactions, selectedMonth, budgetLimits, interbankBalance]);
+
+  const handleExportPDF = () => {
+    const activeMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+    openExecutiveReportPrintWindow({
+      selectedMonth: activeMonth,
+      transactions: rawTransactions,
+      totalIncome: totalIngresos,
+      totalExpense: totalEgresos,
+      totalDebts: totalDeudas,
+      liquidBalance: interbankBalance,
+      accountingSurplus: totalIngresos - totalEgresos - totalDeudas,
+      accountBalances: entityBalances,
+      selectedEntity,
+    });
+  };
+
+  const categoryMap: Record<string, { value: number; emoji: string; nombre: string; shortName: string }> = {};
   filtered.filter(t => t.Tipo === 'Egreso').forEach(t => {
-    const stdCat = getStandardCategory(t);
-    categoryMap[stdCat] = (categoryMap[stdCat] || 0) + t.Monto;
+    const cat = getEffectiveCategory(t);
+    const emoji = cat?.emoji || '🏷️';
+    const nombre = cat?.nombre || (t.Categoria || 'Otros');
+    const shortName = getAdaptedCategoryLabel(t);
+
+    const key = `${emoji} ${nombre}`;
+    if (!categoryMap[key]) {
+      categoryMap[key] = { value: 0, emoji, nombre, shortName };
+    }
+    categoryMap[key].value += t.Monto;
   });
   
-  const chartData = Object.keys(categoryMap)
-    .map(key => ({ name: key, value: Math.round(categoryMap[key] * 100) / 100 }))
+  const chartData = Object.entries(categoryMap)
+    .map(([key, data]) => ({
+      name: key,
+      displayName: data.shortName,
+      fullName: key,
+      value: Math.round(data.value * 100) / 100,
+    }))
     .sort((a, b) => b.value - a.value);
 
   const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -165,6 +242,9 @@ export const Dashboard: React.FC = () => {
   const { lines: creditLines, labels: accountLabels } = useCreditLineStore();
   const [isCreditLineModalOpen, setIsCreditLineModalOpen] = useState(false);
   const [selectedCardForConfig, setSelectedCardForConfig] = useState<string | undefined>(undefined);
+  const [isLaborBenefitsModalOpen, setIsLaborBenefitsModalOpen] = useState(false);
+  const [isCasualModalOpen, setIsCasualModalOpen] = useState(false);
+  const [isPrevMonthConfigModalOpen, setIsPrevMonthConfigModalOpen] = useState(false);
 
   const { agregarNotificacion } = useAppStore();
 
@@ -211,7 +291,7 @@ export const Dashboard: React.FC = () => {
   const [pendFormTipo, setPendFormTipo] = useState<'Ingreso' | 'Egreso'>('Egreso');
   const [pendFormConcepto, setPendFormConcepto] = useState('');
   const [pendFormMonto, setPendFormMonto] = useState<number>(0);
-  const [pendFormCategoria, setPendFormCategoria] = useState('Servicio');
+  const [pendFormCategoria, setPendFormCategoria] = useState(CATEGORIAS_PERSONALES[0].nombre);
   const [pendFormEntidad, setPendFormEntidad] = useState('Interbank');
   const [pendFormFecha, setPendFormFecha] = useState(new Date().toISOString().slice(0, 10));
 
@@ -220,7 +300,7 @@ export const Dashboard: React.FC = () => {
   const [newRowTipo, setNewRowTipo] = useState<'Ingreso' | 'Egreso'>('Egreso');
   const [newRowConcepto, setNewRowConcepto] = useState('');
   const [newRowMonto, setNewRowMonto] = useState<number>(0);
-  const [newRowCategoria, setNewRowCategoria] = useState('Gasto');
+  const [newRowCategoria, setNewRowCategoria] = useState(CATEGORIAS_PERSONALES[0].nombre);
   const [newRowEntidad, setNewRowEntidad] = useState('Interbank');
   const [newRowFecha, setNewRowFecha] = useState(() => getDefaultDateForMonth(selectedMonth));
   const [newRowEsProyeccion, setNewRowEsProyeccion] = useState(true);
@@ -234,7 +314,7 @@ export const Dashboard: React.FC = () => {
     setNewRowTipo('Egreso');
     setNewRowConcepto('');
     setNewRowMonto(0);
-    setNewRowCategoria('Gasto');
+    setNewRowCategoria(CATEGORIAS_PERSONALES[0].nombre);
     setNewRowEntidad(selectedEntity !== 'Todas' ? selectedEntity : 'Interbank');
     setNewRowFecha(getDefaultDateForMonth(selectedMonth));
     setNewRowEsProyeccion(true);
@@ -280,6 +360,7 @@ export const Dashboard: React.FC = () => {
   };
 
   const handleSendToPending = (t: Transaction) => {
+    const isProy = t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy');
     addPendingItem({
       tipo: t.Tipo,
       concepto: t.Concepto,
@@ -287,12 +368,37 @@ export const Dashboard: React.FC = () => {
       categoria: t.Categoria,
       entidad: t.Entidad,
       fecha: t.Fecha,
-      origen: 'Manual',
+      origen: isProy ? 'Proyección' : 'Manual',
       mes: t.Mes,
       mesStr: t.Fecha.slice(0, 7),
     });
     deleteTransaction(t.id);
     agregarNotificacion(`⏳ Movimiento "${t.Concepto}" devuelto a la bandeja de Pagos Pendientes.`, 'info');
+  };
+
+  const handleReturnAllProjections = () => {
+    const proyTxs = filtered.filter(
+      (t) => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')
+    );
+    if (proyTxs.length === 0) {
+      agregarNotificacion('ℹ️ No hay transacciones marcadas como proyección en este periodo.', 'info');
+      return;
+    }
+    proyTxs.forEach((t) => {
+      addPendingItem({
+        tipo: t.Tipo,
+        concepto: t.Concepto,
+        monto: t.Monto,
+        categoria: t.Categoria,
+        entidad: t.Entidad,
+        fecha: t.Fecha,
+        origen: 'Proyección',
+        mes: t.Mes,
+        mesStr: t.Fecha.slice(0, 7),
+      });
+      deleteTransaction(t.id);
+    });
+    agregarNotificacion(`↩️ Se retornaron ${proyTxs.length} proyecciones a Pagos & Movimientos Pendientes.`, 'success');
   };
 
   const handleOpenNewPendingModal = () => {
@@ -412,8 +518,34 @@ export const Dashboard: React.FC = () => {
             <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" size={13} />
           </div>
 
-          {/* Export Buttons */}
-          <div className="flex items-center gap-1.5 col-span-2 sm:col-span-1">
+          {/* Export & Tools Buttons */}
+          <div className="flex items-center gap-1.5 col-span-2 sm:col-span-1 flex-wrap">
+            <button
+              onClick={() => setIsPrevMonthConfigModalOpen(true)}
+              className={`flex items-center justify-center gap-1 text-xs font-bold px-2.5 py-2 rounded-xl shadow-sm transition cursor-pointer ${
+                bridgeConfig.enabled && bridgeConfig.includedDays.length > 0
+                  ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white'
+                  : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700'
+              }`}
+              title={`Considerar días de ${prevMonthName} con ingresos o egresos de ${activeMonth}`}
+            >
+              <CalendarDays size={13} />
+              <span className="hidden sm:inline">Días {prevMonthName}</span>
+              <span className="sm:hidden">Días ant.</span>
+              {bridgeConfig.enabled && bridgeConfig.includedDays.length > 0 && (
+                <span className="px-1.5 py-0.2 text-[10px] bg-black/25 text-white font-black rounded-full">
+                  {bridgeConfig.includedDays.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setIsLaborBenefitsModalOpen(true)}
+              className="flex items-center justify-center gap-1 bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-500 hover:to-teal-600 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
+              title="Calculadora y simulador de Gratificación, CTS y Sueldo"
+            >
+              <Calculator size={13} />
+              <span>Grati & CTS</span>
+            </button>
             <button
               onClick={handleExportPDF}
               className="flex items-center justify-center gap-1 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3 py-2 rounded-xl shadow-sm transition cursor-pointer"
@@ -434,6 +566,51 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* ── ⚡ PANTALLA INICIAL: PROYECCIÓN DE GASTOS DE HOY DÍA ── */}
+      <TodayProjectedExpensesWidget onOpenCasualModal={() => setIsCasualModalOpen(true)} />
+
+      {/* ── 🗓️ BANNER INFORMATIVO: DÍAS DEL MES ANTERIOR CONSIDERADOS ── */}
+      {bridgeConfig.enabled && bridgeConfig.includedDays.length > 0 && (
+        <div className="bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent dark:from-amber-950/30 dark:via-amber-900/10 border border-amber-300/80 dark:border-amber-800/60 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <CalendarDays size={18} />
+            </div>
+            <div>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-sm text-slate-900 dark:text-white">
+                  Días de {prevMonthName} considerados en {activeMonth}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500/20 text-amber-800 dark:text-amber-300 border border-amber-500/30">
+                  {bridgeConfig.movementType === 'Ambos' ? '🟢 Ambos (Ing. y Egr.)' : bridgeConfig.movementType === 'Ingresos' ? '💰 Solo Ingresos' : '🛒 Solo Egresos'}
+                </span>
+                <span className="text-xs text-slate-500 dark:text-slate-400 font-semibold">
+                  (Día{bridgeConfig.includedDays.length > 1 ? 's' : ''}: {bridgeConfig.includedDays.slice().sort((a, b) => a - b).join(', ')})
+                </span>
+              </div>
+              <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
+                {bridgedTxs.length > 0 ? (
+                  <>
+                    Impacto en este mes: <span className="font-bold text-emerald-600 dark:text-emerald-400">+{formatterPEN.format(bridgedIngresos)}</span> en ingresos y <span className="font-bold text-rose-600 dark:text-rose-400">-{formatterPEN.format(bridgedEgresos)}</span> en egresos ({bridgedTxs.length} movimiento{bridgedTxs.length > 1 ? 's' : ''} contabilizado{bridgedTxs.length > 1 ? 's' : ''}).
+                  </>
+                ) : (
+                  <>Sin movimientos registrados en los días seleccionados ({bridgeConfig.includedDays.slice().sort((a, b) => a - b).join(', ')}) de {prevMonthName}.</>
+                )}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 self-end sm:self-center flex-shrink-0">
+            <button
+              onClick={() => setIsPrevMonthConfigModalOpen(true)}
+              className="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white transition flex items-center gap-1 cursor-pointer shadow-xs"
+            >
+              <Sliders size={13} />
+              <span>Configurar días</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ── KPI METRICS GRID ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         
@@ -442,7 +619,7 @@ export const Dashboard: React.FC = () => {
           <Metric 
             label="Ingresos Totales" 
             value={formatterPEN.format(totalIngresos)} 
-            subValue="Entradas netas del periodo"
+            subValue="Entradas netas reales (sin cupos de tarjeta)"
             icon={<TrendingUp className="text-emerald-700 dark:text-emerald-400" size={20} />}
             color="text-emerald-950 dark:text-emerald-300"
           />
@@ -453,7 +630,7 @@ export const Dashboard: React.FC = () => {
           <Metric 
             label="Egresos Operativos" 
             value={formatterPEN.format(totalEgresos)} 
-            subValue="Consumos y servicios corrientes"
+            subValue="Consumos corrientes de vida (sin deudas)"
             icon={<TrendingDown className="text-slate-600 dark:text-slate-400" size={20} />}
             color="text-slate-900 dark:text-slate-100"
           />
@@ -464,7 +641,7 @@ export const Dashboard: React.FC = () => {
           <Metric 
             label="Obligaciones & Deudas" 
             value={formatterPEN.format(totalDeudas)} 
-            subValue="Cuotas y pasivos programados"
+            subValue={deudasSubValue}
             icon={<CreditCard className="text-amber-700 dark:text-amber-400" size={20} />}
             color="text-amber-950 dark:text-amber-300"
           />
@@ -624,7 +801,7 @@ export const Dashboard: React.FC = () => {
       {/* ── 🤖 MOTOR DE INSIGHTS INTELIGENTES ── */}
       <SmartInsightsWidget
         diagnostic={diagnostic}
-        selectedMonth={selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth}
+        selectedMonth={selectedMonth}
       />
 
       {/* ── 🚦 CONTROL DE PRESUPUESTOS SEMAFÓRICOS ── */}
@@ -637,7 +814,7 @@ export const Dashboard: React.FC = () => {
       />
 
       {/* ── 🎯 METAS DE AHORRO & FONDOS DE RESERVA ── */}
-      <SavingsGoalsWidget monthlySavingsCapacity={diagnostic.netSavings > 0 ? diagnostic.netSavings : 600} />
+      <SavingsGoalsWidget monthlySavingsCapacity={diagnostic.totalSavings > 0 ? diagnostic.totalSavings : 0} />
 
       {/* ── BANDEJA DE PAGOS & MOVIMIENTOS PENDIENTES ── */}
       <div className="bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-4">
@@ -658,6 +835,15 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => setIsCasualModalOpen(true)}
+              className="flex items-center gap-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition border border-amber-400/40 cursor-pointer"
+              title="Proyectar gastos casuales para el mes actual (Fútbol, Bus, Taxi, Comida, etc.)"
+            >
+              <Sparkles size={15} className="text-amber-200" />
+              <span>+ Proyectar Gastos Casuales</span>
+            </button>
+
             <button
               onClick={handleOpenNewPendingModal}
               className="flex items-center gap-1.5 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition"
@@ -717,7 +903,9 @@ export const Dashboard: React.FC = () => {
                     <td className="px-4 py-2 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{p.fecha}</td>
                     <td className="px-4 py-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-slate-900 dark:text-white">{p.concepto}</span>
+                        <span className="font-bold text-slate-900 dark:text-white">
+                          {p.concepto.replace(/\s*-\s*proy/gi, '').trim()}
+                        </span>
                         {p.origen === 'Proyección' && (
                           <span className="text-[10px] bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 px-1.5 py-0.5 rounded font-bold">Proyección</span>
                         )}
@@ -780,6 +968,25 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center gap-2.5 flex-wrap">
                 <Badge variant="default">{filtered.length} registros</Badge>
+                
+                {/* Botón Retornar Todas las Proyecciones */}
+                <button
+                  onClick={handleReturnAllProjections}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition border cursor-pointer ${
+                    filtered.some(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy'))
+                      ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-amber-400/60 shadow-amber-900/30'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
+                  }`}
+                  title="Devolver todas las transacciones proyectadas en este periodo a la bandeja de Pagos Pendientes"
+                >
+                  <RotateCcw size={14} className={filtered.some(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')) ? 'text-white' : 'text-slate-400'} />
+                  <span>
+                    Retornar todas las proyecciones
+                    {filtered.filter(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')).length > 0 &&
+                      ` (${filtered.filter(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')).length})`}
+                  </span>
+                </button>
+
                 <button
                   onClick={handleOpenNewRowModal}
                   className="flex items-center gap-1.5 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs hover:shadow transition"
@@ -793,16 +1000,16 @@ export const Dashboard: React.FC = () => {
 
             <div className="overflow-x-auto max-h-[440px] overflow-y-auto">
               <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
-                <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
+                <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 uppercase font-bold text-[11px] tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                   <tr>
-                    <th className="px-4 py-3">Tipo</th>
-                    <th className="px-4 py-3">Fecha</th>
-                    <th className="px-4 py-3">Concepto</th>
-                    <th className="px-4 py-3">Categoría</th>
-                    <th className="px-4 py-3">Entidad</th>
-                    <th className="px-4 py-3 text-right">Monto</th>
-                    <th className="px-4 py-3 text-center">Estado</th>
-                    <th className="px-4 py-3 text-center">Acción</th>
+                    <th className="px-2.5 py-2.5">Tipo</th>
+                    <th className="px-2.5 py-2.5">Fecha</th>
+                    <th className="px-2.5 py-2.5">Concepto</th>
+                    <th className="px-2.5 py-2.5">Categoría</th>
+                    <th className="px-2.5 py-2.5">Entidad</th>
+                    <th className="px-2.5 py-2.5 text-right">Monto</th>
+                    <th className="px-2.5 py-2.5 text-center">Estado</th>
+                    <th className="px-2.5 py-2.5 text-center">Acción</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
@@ -825,99 +1032,113 @@ export const Dashboard: React.FC = () => {
                               : 'hover:bg-slate-50/70 dark:hover:bg-slate-800/40'
                           }`}
                         >
-                          <td className="px-4 py-2.5">
-                            <Badge variant={t.Tipo === 'Ingreso' ? 'success' : t.Categoria === 'Deuda' ? 'warning' : 'default'}>
+                          <td className="px-2.5 py-2 whitespace-nowrap">
+                            <Badge variant={t.Tipo === 'Ingreso' ? 'success' : t.Categoria === 'Deuda' ? 'warning' : 'default'} className="text-[10px] px-2 py-0.5 font-bold">
                               {t.Tipo}
                             </Badge>
                           </td>
-                          <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">{t.Fecha}</td>
-                          <td className="px-4 py-2.5 font-semibold text-slate-900 dark:text-white max-w-xs truncate">
-                            <div className="flex items-center gap-1.5">
-                              <span>{t.Concepto}</span>
+                          <td className="px-2.5 py-2 font-medium text-slate-600 dark:text-slate-400 whitespace-nowrap text-[11px]">{t.Fecha}</td>
+                          <td className="px-2.5 py-2 font-semibold text-slate-900 dark:text-white max-w-[130px] xl:max-w-[170px] truncate" title={t.Concepto}>
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span className="truncate">{t.Concepto.replace(/\s*-\s*proy/gi, '').trim()}</span>
                               {isProvisional && (
-                                <span className="text-[10px] bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 px-1.5 py-0.5 rounded font-bold">
-                                  Proyección
+                                <span className="text-[9px] bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                  Proy.
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-2">
+                          <td className="px-2.5 py-2">
                             {(() => {
-                              const stdCat = getStandardCategory(t);
+                              const cat = getEffectiveCategory(t);
                               return (
-                                <div className="relative group/cat inline-block">
+                                <div className="relative group/cat inline-block max-w-full">
                                   <select
-                                    value={stdCat}
+                                    value={cat?.id || ''}
                                     onChange={(e) => {
-                                      const newCat = e.target.value;
-                                      updateTransaction(t.id, { Categoria: newCat });
-                                      agregarNotificacion(`Categoría asignada: ${newCat}`, 'success');
+                                      const newCatId = e.target.value;
+                                      const catInfo = getCategoryByIdOrLabel(newCatId);
+                                      const catName = catInfo ? catInfo.nombre : newCatId;
+                                      const stored = getStoredClasificaciones();
+                                      stored[t.id] = newCatId;
+                                      saveStoredClasificaciones(stored);
+                                      updateTransaction(t.id, { Categoria: catName });
+                                      agregarNotificacion(`Categoría asignada: ${catInfo?.nombre || newCatId}`, 'success');
                                     }}
-                                    className="appearance-none text-xs font-bold px-2.5 py-1.5 rounded-xl border transition cursor-pointer pr-6 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 border-slate-200 dark:border-slate-700"
-                                    title="Categoría por defecto"
+                                    className={`appearance-none text-[11px] font-bold px-2.5 py-1 rounded-xl border transition cursor-pointer pr-5 max-w-[155px] xl:max-w-[180px] truncate focus:outline-none focus:ring-2 focus:ring-emerald-500 ${
+                                      cat
+                                        ? `${cat.bg} ${cat.color} ${cat.border}`
+                                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 border-slate-200 dark:border-slate-700'
+                                    }`}
+                                    title={cat ? `${cat.emoji} ${cat.nombre}` : 'Haz clic para reclasificar'}
                                   >
-                                    {CATEGORIAS.map((c) => (
-                                      <option key={c} value={c} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
-                                        {c}
+                                    <option value="" className="bg-white dark:bg-[#11191D] text-slate-800 dark:text-slate-100 font-semibold">
+                                      — Sin clasificar —
+                                    </option>
+                                    {CATEGORIAS_PERSONALES.map((c) => (
+                                      <option key={c.id} value={c.id} className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 font-semibold py-1">
+                                        {c.emoji} {c.nombre}
                                       </option>
                                     ))}
                                   </select>
                                   <ChevronDown
-                                    size={11}
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-400"
+                                    size={10}
+                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60 text-slate-400"
                                   />
                                 </div>
                               );
                             })()}
                           </td>
-                          <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-slate-300">{t.Entidad}</td>
-                          <td className="px-4 py-2.5 text-right font-bold text-slate-900 dark:text-white tabular-nums">
+                          <td className="px-2.5 py-2 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap text-[11px] max-w-[105px] xl:max-w-[130px] truncate" title={t.Entidad}>
+                            {t.Entidad}
+                          </td>
+                          <td className="px-2.5 py-2 text-right font-bold text-slate-900 dark:text-white tabular-nums whitespace-nowrap text-xs">
                             {formatterPEN.format(t.Monto)}
                           </td>
-                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
+                          <td className="px-2.5 py-2 text-center whitespace-nowrap">
                             {isProvisional ? (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-200 dark:bg-amber-900/80 text-amber-900 dark:text-amber-200">
                                 <Clock size={10} /> Proyección
                               </span>
                             ) : (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300">
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300">
                                 <CheckCircle2 size={10} /> Consolidado
                               </span>
                             )}
                           </td>
-                          <td className="px-4 py-2.5 text-center whitespace-nowrap">
-                            <div className="flex items-center justify-center gap-1.5">
+                          <td className="px-2.5 py-2 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center gap-1">
                               {/* Si está en proyección / amarillo: Mostrar Check de Aprobación */}
                               {isProvisional && (
                                 <button
                                   onClick={() => handleApproveTransaction(t)}
-                                  className="p-1.5 text-emerald-700 hover:text-emerald-950 dark:text-emerald-400 dark:hover:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg transition shadow-xs"
+                                  className="p-1 text-emerald-700 hover:text-emerald-950 dark:text-emerald-400 dark:hover:text-emerald-200 bg-emerald-100 dark:bg-emerald-950/80 hover:bg-emerald-200 dark:hover:bg-emerald-900/80 rounded-lg transition shadow-xs"
                                   title="Aprobar registro (Consolidar y quitar color amarillo)"
                                 >
-                                  <CheckCircle2 size={15} />
+                                  <CheckCircle2 size={14} />
                                 </button>
                               )}
 
                               {/* Botón de Devolver / Mover a Pago Pendiente */}
                               <button
                                 onClick={() => handleSendToPending(t)}
-                                className={`p-1.5 rounded-lg transition ${
+                                className={`p-1 rounded-lg transition ${
                                   isProvisional
                                     ? 'text-amber-800 hover:text-amber-950 dark:text-amber-300 bg-amber-200/80 hover:bg-amber-300 dark:bg-amber-900/80 dark:hover:bg-amber-800 shadow-xs'
                                     : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/40'
                                 }`}
                                 title="Devolver a bandeja de Pagos Pendientes"
                               >
-                                <RotateCcw size={15} />
+                                <RotateCcw size={14} />
                               </button>
 
                               {/* Botón de Eliminar permanente de la Base */}
                               <button
                                 onClick={() => handleDeleteTransaction(t)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
+                                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition"
                                 title="Eliminar fila de la tabla y de la base de datos permanentemente"
                               >
-                                <Trash2 size={15} />
+                                <Trash2 size={14} />
                               </button>
                             </div>
                           </td>
@@ -946,24 +1167,87 @@ export const Dashboard: React.FC = () => {
               </div>
 
               {chartData.length === 0 ? (
-                <div className="h-56 flex items-center justify-center text-slate-400 text-xs">
+                <div className="h-64 flex items-center justify-center text-slate-400 text-xs">
                   Sin egresos en el periodo
                 </div>
               ) : (
-                <div className="h-56 w-full">
+                <div className="h-64 w-full">
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData.slice(0, 6)} layout="vertical" margin={{ left: 10, right: 10, top: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                    <BarChart
+                      data={chartData.slice(0, 6)}
+                      layout="vertical"
+                      margin={{ left: 0, right: 65, top: 4, bottom: 4 }}
+                    >
+                      <defs>
+                        <linearGradient id="dash-bar-0" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#10B981" />
+                          <stop offset="100%" stopColor="#34D399" />
+                        </linearGradient>
+                        <linearGradient id="dash-bar-1" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#06B6D4" />
+                          <stop offset="100%" stopColor="#38BDF8" />
+                        </linearGradient>
+                        <linearGradient id="dash-bar-2" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#8B5CF6" />
+                          <stop offset="100%" stopColor="#A78BFA" />
+                        </linearGradient>
+                        <linearGradient id="dash-bar-3" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#F59E0B" />
+                          <stop offset="100%" stopColor="#FBBF24" />
+                        </linearGradient>
+                        <linearGradient id="dash-bar-4" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#F43F5E" />
+                          <stop offset="100%" stopColor="#FB7185" />
+                        </linearGradient>
+                        <linearGradient id="dash-bar-5" x1="0" y1="0" x2="1" y2="0">
+                          <stop offset="0%" stopColor="#3B82F6" />
+                          <stop offset="100%" stopColor="#60A5FA" />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(255, 255, 255, 0.08)" />
                       <XAxis type="number" hide />
-                      <YAxis dataKey="name" type="category" width={80} tick={{ fontSize: 11, fill: '#475569' }} />
+                      <YAxis
+                        dataKey="displayName"
+                        type="category"
+                        width={125}
+                        tickLine={false}
+                        axisLine={false}
+                        tick={({ x, y, payload }) => (
+                          <text
+                            x={x}
+                            y={y}
+                            dy={4}
+                            textAnchor="end"
+                            fill="#FFFFFF"
+                            style={{ fill: '#FFFFFF', fontWeight: 700, fontSize: '11px' }}
+                          >
+                            {payload.value}
+                          </text>
+                        )}
+                      />
                       <Tooltip 
                         formatter={(val: any) => [formatterPEN.format(Number(val) || 0), 'Total']}
-                        contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
+                        contentStyle={{
+                          backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                          backdropFilter: 'blur(8px)',
+                          borderRadius: '12px',
+                          color: '#fff',
+                          fontSize: '12px',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)',
+                        }}
                       />
-                      <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={18}>
                         {chartData.slice(0, 6).map((_, index) => (
-                          <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                          <Cell key={`cell-${index}`} fill={`url(#dash-bar-${index % 6})`} />
                         ))}
+                        <LabelList
+                          dataKey="value"
+                          position="right"
+                          formatter={(val: any) => formatterPEN.format(Number(val) || 0)}
+                          fill="#FFFFFF"
+                          style={{ fill: '#FFFFFF', fontWeight: 900, fontSize: '10px' }}
+                        />
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
@@ -971,15 +1255,15 @@ export const Dashboard: React.FC = () => {
               )}
             </div>
 
-            {/* Resumen Top Categorías */}
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+            {/* Resumen Top Categorías con Letras Blancas de Alto Contraste */}
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-2">
               {chartData.slice(0, 4).map((c, i) => (
                 <div key={c.name} className="flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: CHART_COLORS[i] }} />
-                    <span className="text-slate-600 dark:text-slate-400 font-medium truncate">{c.name}</span>
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="text-slate-900 dark:text-white font-bold truncate">{c.fullName}</span>
                   </div>
-                  <span className="font-bold text-slate-800 dark:text-slate-200">{formatterPEN.format(c.value)}</span>
+                  <span className="font-black text-slate-900 dark:text-white shrink-0 ml-2">{formatterPEN.format(c.value)}</span>
                 </div>
               ))}
             </div>
@@ -1082,8 +1366,8 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setPendFormCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {CATEGORIAS.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                    {CATEGORIAS_PERSONALES.map(c => (
+                      <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
                     ))}
                   </select>
                 </div>
@@ -1223,8 +1507,8 @@ export const Dashboard: React.FC = () => {
                     onChange={e => setNewRowCategoria(e.target.value)}
                     className="w-full bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-slate-900 dark:text-white font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
                   >
-                    {CATEGORIAS.map(c => (
-                      <option key={c} value={c}>{c}</option>
+                    {CATEGORIAS_PERSONALES.map(c => (
+                      <option key={c.id} value={c.nombre}>{c.emoji} {c.nombre}</option>
                     ))}
                   </select>
                 </div>
@@ -1295,6 +1579,25 @@ export const Dashboard: React.FC = () => {
         isOpen={isCreditLineModalOpen}
         onClose={() => setIsCreditLineModalOpen(false)}
         initialEntity={selectedCardForConfig}
+      />
+
+      {/* ── 💰 MODAL DE BENEFICIOS LABORALES (GRATIFICACIÓN & CTS) ── */}
+      <LaborBenefitsModal
+        isOpen={isLaborBenefitsModalOpen}
+        onClose={() => setIsLaborBenefitsModalOpen(false)}
+      />
+
+      {/* ── ✨ MODAL DE PROYECCIONES CASUALES DEL MES ── */}
+      <CasualProjectionsModal
+        isOpen={isCasualModalOpen}
+        onClose={() => setIsCasualModalOpen(false)}
+      />
+
+      {/* ── 🗓️ MODAL DE DÍAS PUENTE DEL MES ANTERIOR ── */}
+      <PrevMonthDaysConfigModal
+        isOpen={isPrevMonthConfigModalOpen}
+        onClose={() => setIsPrevMonthConfigModalOpen(false)}
+        targetMonth={activeMonth}
       />
 
     </div>

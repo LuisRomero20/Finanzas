@@ -1,6 +1,12 @@
 import { create } from 'zustand';
 import type { EffectiveProjectedRow } from './projectionStore';
 import { useFinanceStore, getMonthNameFromDate } from './financeStore';
+import { useAppStore } from '../store';
+import {
+  savePendingPaymentToSupabase,
+  deletePendingPaymentFromSupabase,
+  fetchPendingPaymentsFromSupabase,
+} from '../services/supabaseService';
 
 export interface PendingPaymentItem {
   id: string;
@@ -46,7 +52,12 @@ function loadInitialPendingPayments(): PendingPaymentItem[] {
     const saved = safeGetStorage(LS_PENDING_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed)) {
+        return parsed.map((it) => ({
+          ...it,
+          concepto: typeof it.concepto === 'string' ? it.concepto.replace(/\s*-\s*proy/gi, '').trim() : it.concepto,
+        }));
+      }
     }
   } catch (e) {
     console.error('Error loading pending payments from storage', e);
@@ -62,6 +73,7 @@ interface PendingPaymentsState {
   addPendingItem: (item: Omit<PendingPaymentItem, 'id' | 'estado' | 'fechaCreacion'>) => PendingPaymentItem;
   updatePendingItem: (id: string, updates: Partial<PendingPaymentItem>) => void;
   deletePendingItem: (id: string) => void;
+  syncFromSupabase: () => Promise<number>;
   
   // Ejecutar / Liquidar pago -> Transfiere a la lista maestra y lo retira de pendientes
   executePendingPayment: (id: string, customData?: { monto?: number; fecha?: string }) => { success: boolean; transactionId?: string; item?: PendingPaymentItem };
@@ -146,14 +158,21 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
     safeSetStorage(LS_PENDING_KEY, JSON.stringify(newItems));
     set({ items: newItems });
 
+    // Sincronizar en segundo plano con Supabase para móvil y web
+    newItems.forEach((it) => {
+      savePendingPaymentToSupabase(it).catch(() => {});
+    });
+
     return { added, updated, alreadyExisting };
   },
 
   addPendingItem: (itemData) => {
     const mesName = itemData.mes || getMonthNameFromDate(itemData.fecha);
     const mesStr = itemData.mesStr || itemData.fecha.slice(0, 7);
+    const cleanConcepto = (itemData.concepto || '').replace(/\s*-\s*proy/gi, '').trim();
     const newItem: PendingPaymentItem = {
       ...itemData,
+      concepto: cleanConcepto,
       id: `pend-man-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       mes: mesName,
       mesStr: mesStr,
@@ -167,15 +186,29 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       return { items: updated };
     });
 
+    // Guardar en Supabase para sincronización móvil
+    savePendingPaymentToSupabase(newItem).catch((err) => console.warn('Cloud pending add error:', err));
+
     return newItem;
   },
 
   updatePendingItem: (id, updates) => {
+    let updatedItem: PendingPaymentItem | null = null;
     set((state) => {
-      const updated = state.items.map((it) => (it.id === id ? { ...it, ...updates } : it));
+      const updated = state.items.map((it) => {
+        if (it.id === id) {
+          updatedItem = { ...it, ...updates };
+          return updatedItem;
+        }
+        return it;
+      });
       safeSetStorage(LS_PENDING_KEY, JSON.stringify(updated));
       return { items: updated };
     });
+
+    if (updatedItem) {
+      savePendingPaymentToSupabase(updatedItem).catch((err) => console.warn('Cloud pending update error:', err));
+    }
   },
 
   deletePendingItem: (id) => {
@@ -184,6 +217,36 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       safeSetStorage(LS_PENDING_KEY, JSON.stringify(updated));
       return { items: updated };
     });
+
+    deletePendingPaymentFromSupabase(id).catch((err) => console.warn('Cloud pending delete error:', err));
+  },
+
+  syncFromSupabase: async () => {
+    try {
+      const cloudItems = await fetchPendingPaymentsFromSupabase();
+      const currentItems = get().items;
+      if (cloudItems && cloudItems.length > 0) {
+        const map = new Map<string, PendingPaymentItem>();
+        cloudItems.forEach((it) => map.set(it.id, it));
+        for (const loc of currentItems) {
+          if (!map.has(loc.id)) {
+            map.set(loc.id, loc);
+            savePendingPaymentToSupabase(loc).catch(() => {});
+          }
+        }
+        const merged = Array.from(map.values());
+        safeSetStorage(LS_PENDING_KEY, JSON.stringify(merged));
+        set({ items: merged });
+        return merged.length;
+      } else if (currentItems.length > 0) {
+        for (const loc of currentItems) {
+          savePendingPaymentToSupabase(loc).catch(() => {});
+        }
+      }
+    } catch (err) {
+      console.warn('Error syncing pending payments from Supabase:', err);
+    }
+    return get().items.length;
   },
 
   executePendingPayment: (id, customData) => {
@@ -196,8 +259,9 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
     const activeDate = customData?.fecha || item.fecha;
     const mes = getMonthNameFromDate(activeDate);
 
-    // 1. Insertar automáticamente en la lista maestra de useFinanceStore
+    // 1. Insertar automáticamente en la lista maestra de useFinanceStore (que ya sincroniza con Supabase)
     const financeStore = useFinanceStore.getState();
+    const isProy = item.origen === 'Proyección' || item.concepto.toLowerCase().includes('proy');
     const createdTx = financeStore.addTransaction({
       Tipo: item.tipo,
       Fecha: activeDate,
@@ -206,14 +270,35 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       Monto: activeAmount,
       Entidad: item.entidad,
       Mes: mes,
+      estado: isProy ? 'provisional' : 'confirmado',
     });
 
-    // 2. Remover automáticamente de la bandeja de pendientes
+    // 2. Remover de pendientes local y de Supabase
     set((state) => {
       const updated = state.items.filter((it) => it.id !== id);
       safeSetStorage(LS_PENDING_KEY, JSON.stringify(updated));
       return { items: updated };
     });
+
+    deletePendingPaymentFromSupabase(id).catch((err) => console.warn('Cloud pending delete on execute error:', err));
+
+    // 3. Sincronizar con el gestor de pasivos: si coincide con una deuda activa, avanzar la cuota pagada
+    try {
+      const appStore = useAppStore.getState();
+      const normConcept = (item.concepto || '').trim().toLowerCase();
+      const matchingDebt = appStore.deudas.find(
+        (d) => d.estado !== 'pagada' && (
+          d.acreedor.trim().toLowerCase() === normConcept ||
+          normConcept.includes(d.acreedor.trim().toLowerCase()) ||
+          d.acreedor.trim().toLowerCase().includes(normConcept)
+        )
+      );
+      if (matchingDebt) {
+        appStore.marcarCuotaPagada(matchingDebt.id);
+      }
+    } catch (err) {
+      console.error('Error al sincronizar cuota con useAppStore', err);
+    }
 
     return { success: true, transactionId: createdTx.id, item };
   },

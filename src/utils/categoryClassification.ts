@@ -5,6 +5,7 @@ export interface CategoriaInfo {
   nombre: string;
   emoji: string;
   fullLabel: string;
+  shortLabel: string;
   color: string;
   bg: string;
   border: string;
@@ -23,6 +24,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Empanada": "🍔 Comida & Restaurantes",
   "Fridays": "🍔 Comida & Restaurantes",
   "Hamburguesa": "🍔 Comida & Restaurantes",
+  "KFC": "🍔 Comida & Restaurantes",
   "Makis": "🍔 Comida & Restaurantes",
   "Menú": "🍔 Comida & Restaurantes",
   "Papa Rellena": "🍔 Comida & Restaurantes",
@@ -37,6 +39,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Chupete": "🛒 Supermercado & Alimentos",
   "Dulce": "🛒 Supermercado & Alimentos",
   "Dulce de Leche": "🛒 Supermercado & Alimentos",
+  "Galleta": "🛒 Supermercado & Alimentos",
   "Galleta Casino": "🛒 Supermercado & Alimentos",
   "Gaseosa": "🛒 Supermercado & Alimentos",
   "Mayonesa": "🛒 Supermercado & Alimentos",
@@ -52,6 +55,11 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Internet": "💡 Servicios Básicos & Facturas",
   "Luz": "💡 Servicios Básicos & Facturas",
   "Telefonia Movil": "💡 Servicios Básicos & Facturas",
+  "Desvagramen": "💡 Servicios Básicos & Facturas",
+  "Desgravamen": "💡 Servicios Básicos & Facturas",
+  "Detergente": "🏠 Hogar & Mantenimiento",
+  "Papel Higiénico": "🏠 Hogar & Mantenimiento",
+  "Papel Higienico": "🏠 Hogar & Mantenimiento",
   "Utencilios de Limpieza": "🏠 Hogar & Mantenimiento",
 
   // 👗 Ropa, Calzado & Reparaciones
@@ -122,6 +130,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Crema de Manos": "🧴 Cuidado Personal & Aseo",
   "Pasta Dental": "🧴 Cuidado Personal & Aseo",
   "Perfume Invictus": "🧴 Cuidado Personal & Aseo",
+  "Shampoo": "🧴 Cuidado Personal & Aseo",
   "Tatuaje": "🧴 Cuidado Personal & Aseo",
   "Utencilios de Aseo Personal": "🧴 Cuidado Personal & Aseo",
 
@@ -133,7 +142,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Case": "💻 Tecnología & Gadgets",
   "Dollarcity": "🛍️ Compras Generales & Bazar",
   "Figuritas": "🛍️ Compras Generales & Bazar",
-  "iPhone 16": "💻 Tecnología & Gadgets",
+  "iPhone 16": "💳 Pagos de Tarjetas & Deudas",
   "Poster de Spiderman": "🛍️ Compras Generales & Bazar",
   "Temu": "🛍️ Compras Generales & Bazar",
 
@@ -142,7 +151,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Apuestas": "🛹 Gustos & Ocio",
   "Bowling": "🛹 Gustos & Ocio",
   "Cerveza": "🎉 Salidas & Sociales",
-  "Cigarro": "🛹 Gustos & Ocio",
+  "Cigarro": "🎉 Salidas & Sociales",
   "Cine": "🛹 Gustos & Ocio",
   "Coptel": "🎉 Salidas & Sociales",
   "FourLoko": "🎉 Salidas & Sociales",
@@ -153,6 +162,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Ron": "🎉 Salidas & Sociales",
   "Salida Casual": "🎉 Salidas & Sociales",
   "Salida Familiar": "🎉 Salidas & Sociales",
+  "Vino": "🎉 Salidas & Sociales",
 
   // 📄 Trámites & Documentos
   "DNI Electronico": "📄 Trámites & Documentos",
@@ -162,6 +172,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   // 👥 Transferencias / Personas
   "Aaron": "👥 Familia & Transferencias",
   "Carol": "👥 Familia & Transferencias",
+  "Eduardo": "👥 Familia & Transferencias",
   "Jacko": "👥 Familia & Transferencias",
   "Madre": "👥 Familia & Transferencias",
   "Mayra": "👥 Familia & Transferencias",
@@ -170,7 +181,6 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Padre": "👥 Familia & Transferencias",
 
   // 💳 Deudas, Tarjetas & Préstamos
-  "Desvagramen": "💳 Pagos de Tarjetas & Deudas",
   "Linea Tarjeta": "💳 Pagos de Tarjetas & Deudas",
   "Pago de Tarjeta BBVA Bfree": "💳 Pagos de Tarjetas & Deudas",
   "Pago de Tarjeta Interbank Amex": "💳 Pagos de Tarjetas & Deudas",
@@ -194,6 +204,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Comida & Restaurantes',
     emoji: '🍔',
     fullLabel: '🍔 Comida & Restaurantes',
+    shortLabel: '🍔 Comida',
     color: 'text-amber-800 dark:text-amber-300',
     bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800/60',
     border: 'border-amber-300 dark:border-amber-800',
@@ -205,6 +216,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Supermercado & Alimentos',
     emoji: '🛒',
     fullLabel: '🛒 Supermercado & Alimentos',
+    shortLabel: '🛒 Supermercado',
     color: 'text-emerald-800 dark:text-emerald-300',
     bg: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800/60',
     border: 'border-emerald-300 dark:border-emerald-800',
@@ -216,17 +228,19 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Servicios Básicos & Facturas',
     emoji: '💡',
     fullLabel: '💡 Servicios Básicos & Facturas',
+    shortLabel: '💡 Servicios',
     color: 'text-yellow-800 dark:text-yellow-300',
     bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/40 dark:border-yellow-800/60',
     border: 'border-yellow-300 dark:border-yellow-800',
     tipo: 'Egreso',
-    keywords: ['agua + mantenimiento', 'gas', 'internet', 'luz', 'telefonia movil', 'telefonía móvil', 'recibo', 'calidda', 'sedapal', 'enel', 'pluz', 'claro', 'movistar', 'entel', 'bitel', 'factura', 'servicio basico'],
+    keywords: ['agua + mantenimiento', 'gas', 'internet', 'luz', 'telefonia movil', 'telefonía móvil', 'recibo', 'calidda', 'sedapal', 'enel', 'pluz', 'claro', 'movistar', 'entel', 'bitel', 'factura', 'servicio basico', 'desvagramen', 'desgravamen'],
   },
   {
     id: 'hogar',
     nombre: 'Hogar & Mantenimiento',
     emoji: '🏠',
     fullLabel: '🏠 Hogar & Mantenimiento',
+    shortLabel: '🏠 Hogar',
     color: 'text-orange-800 dark:text-orange-300',
     bg: 'bg-orange-50 border-orange-200 dark:bg-orange-950/40 dark:border-orange-800/60',
     border: 'border-orange-300 dark:border-orange-800',
@@ -238,6 +252,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Ropa & Calzado',
     emoji: '👗',
     fullLabel: '👗 Ropa & Calzado',
+    shortLabel: '👗 Ropa & Calzado',
     color: 'text-rose-800 dark:text-rose-300',
     bg: 'bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800/60',
     border: 'border-rose-300 dark:border-rose-800',
@@ -249,6 +264,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Entretenimiento & Streaming',
     emoji: '🎮',
     fullLabel: '🎮 Entretenimiento & Streaming',
+    shortLabel: '🎮 Entretenimiento',
     color: 'text-indigo-800 dark:text-indigo-300',
     bg: 'bg-indigo-50 border-indigo-200 dark:bg-indigo-950/40 dark:border-indigo-800/60',
     border: 'border-indigo-300 dark:border-indigo-800',
@@ -260,6 +276,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Tecnología & Gadgets',
     emoji: '💻',
     fullLabel: '💻 Tecnología & Gadgets',
+    shortLabel: '💻 Tecnología',
     color: 'text-blue-800 dark:text-blue-300',
     bg: 'bg-blue-50 border-blue-200 dark:bg-blue-950/40 dark:border-blue-800/60',
     border: 'border-blue-300 dark:border-blue-800',
@@ -271,6 +288,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Conciertos & Eventos',
     emoji: '🎤',
     fullLabel: '🎤 Conciertos & Eventos',
+    shortLabel: '🎤 Conciertos',
     color: 'text-purple-800 dark:text-purple-300',
     bg: 'bg-purple-50 border-purple-200 dark:bg-purple-950/40 dark:border-purple-800/60',
     border: 'border-purple-300 dark:border-purple-800',
@@ -282,6 +300,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Regalos & Celebraciones',
     emoji: '🎁',
     fullLabel: '🎁 Regalos & Celebraciones',
+    shortLabel: '🎁 Regalos',
     color: 'text-red-800 dark:text-red-300',
     bg: 'bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800/60',
     border: 'border-red-300 dark:border-red-800',
@@ -293,6 +312,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Viajes & Hospedaje',
     emoji: '✈️',
     fullLabel: '✈️ Viajes & Hospedaje',
+    shortLabel: '✈️ Viajes',
     color: 'text-sky-800 dark:text-sky-300',
     bg: 'bg-sky-50 border-sky-200 dark:bg-sky-950/40 dark:border-sky-800/60',
     border: 'border-sky-300 dark:border-sky-800',
@@ -304,6 +324,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Salud & Farmacia',
     emoji: '🏥',
     fullLabel: '🏥 Salud & Farmacia',
+    shortLabel: '🏥 Salud',
     color: 'text-teal-800 dark:text-teal-300',
     bg: 'bg-teal-50 border-teal-200 dark:bg-teal-950/40 dark:border-teal-800/60',
     border: 'border-teal-300 dark:border-teal-800',
@@ -315,6 +336,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Cuidado Personal & Aseo',
     emoji: '🧴',
     fullLabel: '🧴 Cuidado Personal & Aseo',
+    shortLabel: '🧴 Cuidado Personal',
     color: 'text-pink-800 dark:text-pink-300',
     bg: 'bg-pink-50 border-pink-200 dark:bg-pink-950/40 dark:border-pink-800/60',
     border: 'border-pink-300 dark:border-pink-800',
@@ -326,6 +348,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Transporte & Movilidad',
     emoji: '🚍',
     fullLabel: '🚍 Transporte & Movilidad',
+    shortLabel: '🚍 Transporte',
     color: 'text-cyan-800 dark:text-cyan-300',
     bg: 'bg-cyan-50 border-cyan-200 dark:bg-cyan-950/40 dark:border-cyan-800/60',
     border: 'border-cyan-300 dark:border-cyan-800',
@@ -337,6 +360,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Compras Generales & Bazar',
     emoji: '🛍️',
     fullLabel: '🛍️ Compras Generales & Bazar',
+    shortLabel: '🛍️ Compras & Bazar',
     color: 'text-violet-800 dark:text-violet-300',
     bg: 'bg-violet-50 border-violet-200 dark:bg-violet-950/40 dark:border-violet-800/60',
     border: 'border-violet-300 dark:border-violet-800',
@@ -348,6 +372,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Salidas & Sociales',
     emoji: '🎉',
     fullLabel: '🎉 Salidas & Sociales',
+    shortLabel: '🎉 Salidas & Sociales',
     color: 'text-amber-900 dark:text-amber-300',
     bg: 'bg-amber-100 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800/70',
     border: 'border-amber-400 dark:border-amber-700',
@@ -359,6 +384,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Gustos & Ocio',
     emoji: '🛹',
     fullLabel: '🛹 Gustos & Ocio',
+    shortLabel: '🛹 Gustos & Ocio',
     color: 'text-slate-800 dark:text-slate-200',
     bg: 'bg-slate-100 border-slate-300 dark:bg-slate-800 dark:border-slate-700',
     border: 'border-slate-300 dark:border-slate-600',
@@ -370,6 +396,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Trámites & Documentos',
     emoji: '📄',
     fullLabel: '📄 Trámites & Documentos',
+    shortLabel: '📄 Trámites',
     color: 'text-stone-800 dark:text-stone-300',
     bg: 'bg-stone-100 border-stone-300 dark:bg-stone-800 dark:border-stone-700',
     border: 'border-stone-300 dark:border-stone-600',
@@ -381,6 +408,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Familia & Transferencias',
     emoji: '👥',
     fullLabel: '👥 Familia & Transferencias',
+    shortLabel: '👥 Familia',
     color: 'text-lime-800 dark:text-lime-300',
     bg: 'bg-lime-50 border-lime-200 dark:bg-lime-950/40 dark:border-lime-800/60',
     border: 'border-lime-300 dark:border-lime-800',
@@ -392,17 +420,19 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Pagos de Tarjetas & Deudas',
     emoji: '💳',
     fullLabel: '💳 Pagos de Tarjetas & Deudas',
+    shortLabel: '💳 Tarjetas & Deudas',
     color: 'text-rose-900 dark:text-rose-300',
     bg: 'bg-rose-100 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800/60',
     border: 'border-rose-400 dark:border-rose-700',
     tipo: 'Egreso',
-    keywords: ['desvagramen', 'desgravamen', 'linea tarjeta', 'pago de tarjeta bbva bfree', 'pago de tarjeta interbank amex', 'pago de tarjeta ripley', 'prestamo bcp', 'préstamo bcp', 'prestamo yape', 'préstamo yape', 'yape credito', 'yape crédito', 'cuota', 'amortización'],
+    keywords: ['prestamo bcp', 'préstamo bcp', 'prestamo yape', 'préstamo yape', 'yape credito', 'yape crédito', 'iphone 16', 'cuota', 'amortización', 'prestamo', 'préstamo'],
   },
   {
     id: 'sueldos',
     nombre: 'Sueldos & Beneficios Laborales',
     emoji: '💵',
     fullLabel: '💵 Sueldos & Beneficios Laborales',
+    shortLabel: '💵 Sueldos',
     color: 'text-emerald-900 dark:text-emerald-300',
     bg: 'bg-emerald-100 border-emerald-300 dark:bg-emerald-950/50 dark:border-emerald-800/70',
     border: 'border-emerald-400 dark:border-emerald-700',
@@ -414,6 +444,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     nombre: 'Otros Ingresos & Ventas',
     emoji: '📈',
     fullLabel: '📈 Otros Ingresos & Ventas',
+    shortLabel: '📈 Otros Ingresos',
     color: 'text-blue-900 dark:text-blue-300',
     bg: 'bg-blue-100 border-blue-300 dark:bg-blue-950/50 dark:border-blue-800/70',
     border: 'border-blue-400 dark:border-blue-700',
@@ -593,19 +624,90 @@ export function getEffectiveCategoryLabel(
 }
 
 /**
- * Determina de manera consistente si una transacción es un pago de deuda / pasivo / amortización
+ * Obtiene el nombre adaptado y conciso de la categoría para visualización en Dashboards y métricas,
+ * evitando nombres excesivamente largos que se corten en gráficos o leyendas.
  */
-export function isDebtTransaction(
-  t: Transaction,
+export function getAdaptedCategoryLabel(
+  target: Transaction | CategoriaInfo | string | null | undefined,
   customClasificaciones?: Record<string, string>
-): boolean {
+): string {
+  if (!target) return 'Otros';
+
+  if (typeof target === 'object' && 'shortLabel' in target) {
+    return (target as CategoriaInfo).shortLabel;
+  }
+
+  if (typeof target === 'object' && ('Concepto' in target || 'id' in target)) {
+    const cat = getEffectiveCategory(target as Transaction, customClasificaciones);
+    if (cat?.shortLabel) return cat.shortLabel;
+    const raw = (target as Transaction).Categoria || 'Otros';
+    return getAdaptedCategoryLabel(raw);
+  }
+
+  if (typeof target === 'string') {
+    const cat = getCategoryByIdOrLabel(target);
+    if (cat?.shortLabel) return cat.shortLabel;
+
+    const trimmed = target.trim();
+    if (trimmed === 'Gasto') return '🛍️ Gastos Diarios';
+    if (trimmed === 'Servicio') return '💡 Servicios';
+    if (trimmed === 'Deuda') return '💳 Deudas & Préstamos';
+    if (trimmed === 'Tarjeta') return '💳 Tarjetas';
+    if (trimmed === 'Otro Egre') return '📄 Otros Egresos';
+    if (trimmed === 'Sueldo') return '💵 Sueldos';
+    if (trimmed === 'Otro Ing') return '📈 Otros Ingresos';
+
+    return trimmed;
+  }
+
+  return 'Otros';
+}
+
+/**
+ * Determina si una transacción es una de las 3 deudas reales activas:
+ * 1. Préstamo BCP
+ * 2. Préstamo Yape / Yape Crédito
+ * 3. iPhone 16
+ * (Excluye explícitamente tarjetas de crédito: pagos de tarjeta y líneas de tarjeta)
+ */
+export function isDebtTransaction(t: any): boolean {
   if (!t) return false;
-  const rawCat = t.Categoria || (t as any).categoria;
-  if (rawCat === 'Deuda') return true;
-  const cat = getEffectiveCategory(t, customClasificaciones);
-  if (cat?.id === 'deudas') return true;
-  const concepto = (t.Concepto || (t as any).concepto || '').toLowerCase();
-  return /prestamo|préstamo|linea\s*tarjeta|pago\s*de\s*tarjeta|yape\s*cr[eé]dito|amortizaci[oó]n|desgravamen|desvagramen/i.test(concepto);
+  const c = (t.Concepto || t.concepto || '').trim().toLowerCase();
+  const cat = (t.Categoria || t.categoria || '').trim().toLowerCase();
+
+  // Tarjetas de crédito NUNCA se consideran deudas ni pasivos
+  if (/pago\s*de\s*tarjeta|linea\s*tarjeta/i.test(c)) return false;
+
+  // Deudas conocidas activas
+  if (/prestamo\s*bcp|préstamo\s*bcp/i.test(c)) return true;
+  if (/prestamo\s*yape|préstamo\s*yape|yape\s*cr[eé]dito/i.test(c)) return true;
+  if (/iphone\s*16/i.test(c)) return true;
+
+  // Préstamos históricos personales cerrados
+  if (/aaron|jacko|padre/i.test(c) && cat.includes('deuda')) return true;
+
+  // Detección genérica de cualquier nuevo préstamo o amortización
+  if (/prestamo|préstamo|cuota\b|amortizaci[oó]n/i.test(c)) return true;
+
+  return cat === 'deuda';
+}
+
+/**
+ * Determina si un movimiento es una transferencia o abono para pagar una tarjeta de crédito
+ */
+export function isCreditCardPayment(t: any): boolean {
+  if (!t) return false;
+  const c = (t.Concepto || t.concepto || '').trim().toLowerCase();
+  return /pago\s*de\s*tarjeta/i.test(c);
+}
+
+/**
+ * Determina si un movimiento es una asignación de línea/cupo de tarjeta de crédito
+ */
+export function isCreditCardLine(t: any): boolean {
+  if (!t) return false;
+  const c = (t.Concepto || t.concepto || '').trim().toLowerCase();
+  return /linea\s*tarjeta/i.test(c);
 }
 
 /**
@@ -628,10 +730,12 @@ export function getStandardCategory(t: Transaction | any): string {
 
   // Egresos
   if (/linea\s*tarjeta/i.test(concepto)) return 'Tarjeta';
-  if (/prestamo|préstamo|yape\s*cr[eé]dito|amortizaci[oó]n|pago\s*de\s*tarjeta/i.test(concepto)) return 'Deuda';
+  if (/pago\s*de\s*tarjeta/i.test(concepto)) return 'Servicio';
+  if (/prestamo|préstamo|yape\s*cr[eé]dito|iphone\s*16|amortizaci[oó]n/i.test(concepto)) return 'Deuda';
   if (/luz|agua|gas|internet|telefonia|telefonía|recibo|calidda|sedapal|enel|claro|movistar|entel|bitel|icloud|spotify|streaming/i.test(concepto)) return 'Servicio';
   if (/titulacion|titulación|dni|pasaporte|tramite|trámite/i.test(concepto)) return 'Otro Egre';
   return 'Gasto';
 }
+
 
 

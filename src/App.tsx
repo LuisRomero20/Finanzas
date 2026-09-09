@@ -21,6 +21,8 @@ import {
   Search,
 } from "lucide-react";
 import { useFinanceStore } from "./store/financeStore";
+import { usePendingPaymentsStore } from "./store/pendingPaymentsStore";
+import { usePrevMonthBridgeStore } from "./store/prevMonthBridgeStore";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
@@ -52,9 +54,11 @@ export default function App() {
   const { theme } = useThemeStore();
   const { syncFromSupabase } = useFinanceStore();
 
-  // Sincronizar automáticamente con Supabase al abrir la aplicación
+  // Sincronizar automáticamente con Supabase al abrir la aplicación (transacciones, pagos pendientes y configuración)
   useEffect(() => {
     syncFromSupabase().catch(err => console.warn('Background Supabase sync error:', err));
+    usePendingPaymentsStore.getState().syncFromSupabase().catch(err => console.warn('Pending payments sync error:', err));
+    usePrevMonthBridgeStore.getState().syncFromSupabase().catch(err => console.warn('Bridge config sync error:', err));
   }, [syncFromSupabase]);
 
   // Atajo global de teclado Ctrl + K para abrir buscador universal

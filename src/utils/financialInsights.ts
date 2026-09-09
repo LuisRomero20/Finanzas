@@ -1,5 +1,10 @@
-import type { Transaction } from '../utils/masterData';
-import { CONCEPTO_A_CATEGORIA, getEffectiveCategory, isDebtTransaction } from './categoryClassification';
+import type { Transaction } from '../store/financeStore';
+import {
+  getEffectiveCategory,
+  isDebtTransaction,
+  isCreditCardPayment,
+  isCreditCardLine,
+} from './categoryClassification';
 
 export interface FinancialInsight {
   id: string;
@@ -14,44 +19,148 @@ export interface MonthDiagnostic {
   savingsRate: number;
   totalIncome: number;
   totalExpense: number;
-  netSavings: number;
+  totalDebts: number;
+  totalSavings: number;
+  liquidBalance: number;
+  explicitSavings: number;
+  accountingSurplus: number;
+  debtToIncomeRatio: number;
+  cardSpent: number;
+  cardPaid: number;
+  netCardFlow: number;
   topCategory: { category: string; amount: number; percentage: number } | null;
   discretionaryRatio: number;
   insights: FinancialInsight[];
 }
 
+const formatPEN = (val: number): string =>
+  `S/ ${val.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
 export function generateFinancialInsights(
   transactions: Transaction[] = [],
   selectedMonth: string = 'Setiembre',
   allMonths: string[] = [],
-  budgetLimits: Record<string, number> = {}
+  budgetLimits: Record<string, number> = {},
+  liquidBalance?: number
 ): MonthDiagnostic {
   const safeTxList = Array.isArray(transactions) ? transactions : [];
+  const isAllMonths = selectedMonth === 'Todos';
 
-  // Filtrar transacciones del mes actual
-  const currentMonthTx = safeTxList.filter((t) => {
-    const mes = t.Mes || (t as any).mes;
-    return mes === selectedMonth;
-  });
+  // Filtrar transacciones del periodo evaluado (mes específico o global anual)
+  const currentMonthTx = isAllMonths
+    ? safeTxList
+    : safeTxList.filter((t) => {
+        const mes = t.Mes || (t as any).mes;
+        return mes === selectedMonth;
+      });
 
+  // 1. Ingresos Netos Reales: Excluye líneas/cupos asignados de tarjetas de crédito
   const totalIncome = currentMonthTx
     .filter((t) => {
       const tipo = t.Tipo || (t as any).tipo;
-      return tipo === 'Ingreso';
+      return tipo === 'Ingreso' && !isCreditCardLine(t);
     })
     .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
 
+  // 2. Obligaciones y Deudas Fijas Activas (BCP, Yape, iPhone 16 y préstamos)
+  const totalDebts = currentMonthTx
+    .filter((t) => {
+      const tipo = t.Tipo || (t as any).tipo;
+      return (tipo === 'Egreso' || tipo === 'Gasto') && isDebtTransaction(t);
+    })
+    .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
+
+  // 3. Egresos Operativos Reales: Consumos corrientes de vida.
+  // Excluye préstamos/deudas, pagos a tarjetas y asignaciones de línea de crédito.
   const totalExpense = currentMonthTx
     .filter((t) => {
       const tipo = t.Tipo || (t as any).tipo;
-      return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t);
+      return (
+        (tipo === 'Egreso' || tipo === 'Gasto') &&
+        !isDebtTransaction(t) &&
+        !isCreditCardPayment(t) &&
+        !isCreditCardLine(t)
+      );
     })
     .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
 
-  const netSavings = totalIncome - totalExpense;
-  const savingsRate = totalIncome > 0 ? (netSavings / totalIncome) * 100 : 0;
+  // 4. Saldo Líquido Disponible y Ahorro Explícito en el Maestro
+  const effectiveLiquidBalance = typeof liquidBalance === 'number'
+    ? liquidBalance
+    : (() => {
+        const ingLiq = currentMonthTx
+          .filter((t) => {
+            const ent = t.Entidad || (t as any).entidad || '';
+            const tipo = t.Tipo || (t as any).tipo;
+            return (ent === 'Interbank' || ent === 'BCP') && tipo === 'Ingreso' && !isCreditCardLine(t);
+          })
+          .reduce((s, t) => s + (Number(t.Monto || (t as any).monto) || 0), 0);
+        const egreLiq = currentMonthTx
+          .filter((t) => {
+            const ent = t.Entidad || (t as any).entidad || '';
+            const tipo = t.Tipo || (t as any).tipo;
+            return (ent === 'Interbank' || ent === 'BCP') && (tipo === 'Egreso' || tipo === 'Gasto') && !isCreditCardLine(t);
+          })
+          .reduce((s, t) => s + (Number(t.Monto || (t as any).monto) || 0), 0);
+        return ingLiq - egreLiq;
+      })();
 
-  // Agrupar gastos por categoría efectiva de 21
+  // Ahorro explícito formal en el maestro (movimientos con categoría 'Ahorro' o afines)
+  const explicitSavings = currentMonthTx
+    .filter((t) => {
+      const tipo = t.Tipo || (t as any).tipo;
+      const cat = (t.Categoria || (t as any).categoria || '').toLowerCase();
+      const conc = (t.Concepto || (t as any).concepto || '').toLowerCase();
+      if (tipo === 'Ingreso') return false; // descartar bonificaciones o intereses ganados
+      return (
+        (tipo === 'Egreso' || tipo === 'Transferencia' || (t as any).tipo === 'Ahorro') &&
+        (cat.includes('ahorro') || cat.includes('inversi') || conc.includes('ahorro'))
+      );
+    })
+    .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
+
+  // ── REGLA FUNDAMENTAL DE AHORRO ──
+  // Si en lo líquido hay saldo disponible (>0) o hay una categoría de ahorro en el maestro,
+  // considerarlo tipo de ahorro. Sino, NO considerar nada como ahorro (0.0%).
+  let totalSavings = 0;
+  if (explicitSavings > 0) {
+    totalSavings = explicitSavings;
+  } else if (effectiveLiquidBalance > 0) {
+    totalSavings = effectiveLiquidBalance;
+  } else {
+    totalSavings = 0;
+  }
+
+  const savingsRate = totalIncome > 0 ? (totalSavings / totalIncome) * 100 : 0;
+  const debtToIncomeRatio = totalIncome > 0 ? (totalDebts / totalIncome) * 100 : 0;
+  const accountingSurplus = totalIncome - totalExpense - totalDebts;
+
+  // 5. Análisis de Pasivos y Tarjetas de Crédito
+  const CREDIT_CARD_ENTITIES = new Set(['BBVA Bfree', 'Interbank Amex', 'Ripley']);
+  const cardSpent = currentMonthTx
+    .filter((t) => {
+      const tipo = t.Tipo || (t as any).tipo;
+      const entidad = t.Entidad || (t as any).entidad || '';
+      return (
+        (tipo === 'Egreso' || tipo === 'Gasto') &&
+        CREDIT_CARD_ENTITIES.has(entidad) &&
+        !isCreditCardPayment(t) &&
+        !isCreditCardLine(t) &&
+        !isDebtTransaction(t)
+      );
+    })
+    .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
+
+  const cardPaid = currentMonthTx
+    .filter((t) => {
+      const tipo = t.Tipo || (t as any).tipo;
+      return (tipo === 'Egreso' || tipo === 'Gasto') && isCreditCardPayment(t);
+    })
+    .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
+
+  const netCardFlow = cardPaid - cardSpent;
+
+  // 6. Agrupación y Concentración de Gastos Operativos Reales
   const categoryTotals: Record<string, number> = {};
   let discretionarySum = 0;
 
@@ -70,7 +179,12 @@ export function generateFinancialInsights(
   currentMonthTx
     .filter((t) => {
       const tipo = t.Tipo || (t as any).tipo;
-      return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t);
+      return (
+        (tipo === 'Egreso' || tipo === 'Gasto') &&
+        !isDebtTransaction(t) &&
+        !isCreditCardPayment(t) &&
+        !isCreditCardLine(t)
+      );
     })
     .forEach((t) => {
       const cat = getEffectiveCategory(t);
@@ -97,73 +211,134 @@ export function generateFinancialInsights(
 
   const insights: FinancialInsight[] = [];
 
-  // 1. Diagnóstico de Ratio de Ahorro
+  // ── Insight 1: Diagnóstico de Ahorro Real & Consejo por Saldo Líquido (> 1k) ──
   if (totalIncome > 0) {
-    if (savingsRate >= 30) {
+    if (explicitSavings > 0) {
       insights.push({
-        id: 'savings-excellent',
+        id: 'savings-explicit',
         type: 'success',
-        title: '🌟 Capacidad de Ahorro Excelente',
-        description: `Estás ahorrando el ${savingsRate.toFixed(1)}% de tus ingresos (S/ ${netSavings.toLocaleString('es-PE', { minimumFractionDigits: 2 })}). Superas la regla de oro del 20%.`,
-        badge: 'Top 10%',
+        title: '🏦 Ahorro Formal Registrado',
+        description: `Destinaste ${formatPEN(explicitSavings)} a cuentas o fondos de ahorro (${savingsRate.toFixed(1)}% de tus ingresos netos).`,
+        badge: formatPEN(explicitSavings),
       });
-    } else if (savingsRate >= 15) {
+    } else if (effectiveLiquidBalance >= 1000) {
+      const suggestedMin = Math.round(effectiveLiquidBalance * 0.25);
+      const suggestedMax = Math.round(effectiveLiquidBalance * 0.50);
       insights.push({
-        id: 'savings-good',
+        id: 'savings-liquid-advice-over-1k',
+        type: 'success',
+        title: '💰 Oportunidad de Ahorro: Saldo Líquido > S/ 1,000',
+        description: `Tu saldo líquido disponible en cuenta es de ${formatPEN(effectiveLiquidBalance)}. Dado que actualmente el ahorro no está mapeado en tus registros, tienes un margen favorable para ahorrar: te aconsejamos separar entre ${formatPEN(suggestedMin)} y ${formatPEN(suggestedMax)} hacia una cuenta de ahorros o fondo de reserva antes del cierre de mes.`,
+        badge: 'Liquidez > 1k',
+      });
+    } else if (effectiveLiquidBalance > 0) {
+      insights.push({
+        id: 'savings-liquid-under-1k',
         type: 'info',
-        title: '👍 Salud Financiera Saludable',
-        description: `Ahorro neto del ${savingsRate.toFixed(1)}% (S/ ${netSavings.toLocaleString('es-PE', { minimumFractionDigits: 2 })}). Mantienes un margen positivo estable.`,
-        badge: 'Estable',
-      });
-    } else if (savingsRate > 0) {
-      insights.push({
-        id: 'savings-tight',
-        type: 'warning',
-        title: '⚠️ Margen de Ahorro Ajustado',
-        description: `Tu ratio de ahorro es del ${savingsRate.toFixed(1)}%. Se recomienda reducir gastos discrecionales para construir un fondo de emergencia más robusto.`,
-        badge: 'Atención',
+        title: `💧 Saldo Líquido en Cuenta (${formatPEN(effectiveLiquidBalance)})`,
+        description: `Tu saldo líquido disponible es de ${formatPEN(effectiveLiquidBalance)}. Al ser inferior a S/ 1,000 y no tener ahorro mapeado, se aconseja mantener este remanente como colchón de contingencia para gastos imprevistos del mes antes de separar ahorro.`,
+        badge: 'Colchón de Reserva',
       });
     } else {
       insights.push({
-        id: 'savings-deficit',
+        id: 'savings-zero',
         type: 'warning',
-        title: '🚨 Déficit Mensual Detectado',
-        description: `Tus egresos superan los ingresos en S/ ${Math.abs(netSavings).toLocaleString('es-PE', { minimumFractionDigits: 2 })}. Revisa tus gastos en tarjetas para evitar endeudamiento.`,
-        badge: 'Crítico',
+        title: '⚠️ Sin Margen de Ahorro Líquido',
+        description: 'No se registran movimientos en categoría de ahorro ni quedó saldo líquido disponible en cuenta. Todo el flujo fue absorbido por egresos, deudas o pagos.',
+        badge: '0.0%',
       });
     }
   }
 
-  // 2. Diagnóstico de Categoría Principal
-  if (topCategory && topCategory.percentage > 35) {
+  // ── Insight 2: Diagnóstico de Tarjetas de Crédito y Pasivos ──
+  if (cardPaid > 0 || cardSpent > 0) {
+    if (netCardFlow >= 0) {
+      insights.push({
+        id: 'card-payoff-positive',
+        type: 'success',
+        title: '💳 Desapalancamiento Positivo de Tarjetas',
+        description: `Abonaste ${formatPEN(cardPaid)} a tus tarjetas mientras que consumiste ${formatPEN(cardSpent)} (+${formatPEN(netCardFlow)} a favor). Estás reduciendo activamente tu saldo rotativo en plásticos.`,
+        badge: `+S/ ${Math.round(netCardFlow)}`,
+      });
+    } else {
+      insights.push({
+        id: 'card-balance-alert',
+        type: 'warning',
+        title: '💳 Consumo de Tarjetas Supera Pagos',
+        description: `Tus consumos con tarjeta (${formatPEN(cardSpent)}) superaron los pagos realizados (${formatPEN(cardPaid)}) en ${formatPEN(Math.abs(netCardFlow))}. Planifica los abonos antes del corte para evitar intereses.`,
+        badge: 'Atención Pasivos',
+      });
+    }
+  }
+
+  // ── Insight 3: Diagnóstico de Deudas Fijas Activas (BCP, Yape, iPhone 16) ──
+  if (totalDebts > 0) {
+    const debtConcepts = Array.from(
+      new Set(
+        currentMonthTx
+          .filter((t) => (t.Tipo === 'Egreso' || (t as any).tipo === 'Egreso') && isDebtTransaction(t))
+          .map((t) => (t.Concepto || (t as any).concepto || '').trim())
+      )
+    ).filter(Boolean);
+
+    if (debtToIncomeRatio <= 30) {
+      insights.push({
+        id: 'debt-healthy',
+        type: 'info',
+        title: `🛡️ Deudas Fijas Bajo Control (${debtToIncomeRatio.toFixed(1)}% DTI)`,
+        description: `Destinas el ${debtToIncomeRatio.toFixed(1)}% de tus ingresos a préstamos activos (${formatPEN(totalDebts)}${debtConcepts.length > 0 ? ` en ${debtConcepts.join(', ')}` : ''}). Nivel de endeudamiento seguro y saludable (<30%).`,
+        badge: 'Saludable',
+      });
+    } else {
+      insights.push({
+        id: 'debt-elevated',
+        type: 'warning',
+        title: `⚠️ Carga de Deudas Elevada (${debtToIncomeRatio.toFixed(1)}% DTI)`,
+        description: `Tus cuotas de préstamos fijos absorben el ${debtToIncomeRatio.toFixed(1)}% de tus ingresos netos (${formatPEN(totalDebts)}). Se recomienda prudencia antes de tomar nuevas obligaciones.`,
+        badge: 'Alerta DTI',
+      });
+    }
+  }
+
+  // ── Insight 4: Concentración en Categoría Operativa Principal Real ──
+  if (topCategory && topCategory.percentage >= 20) {
     insights.push({
       id: 'top-category-concentration',
       type: 'info',
       title: `📊 Concentración en ${topCategory.category}`,
-      description: `Esta categoría representa el ${topCategory.percentage.toFixed(1)}% del total de egresos (S/ ${topCategory.amount.toLocaleString('es-PE', { minimumFractionDigits: 2 })}).`,
-      badge: `${topCategory.percentage.toFixed(0)}% del total`,
+      description: `Esta categoría concentra el ${topCategory.percentage.toFixed(1)}% de tus egresos operativos corrientes (${formatPEN(topCategory.amount)}).`,
+      badge: `${topCategory.percentage.toFixed(0)}% del gasto`,
     });
   }
 
-  // 3. Comparativa con el mes anterior
+  // ── Insight 5: Comparativa de Consumos Operativos vs Mes Anterior ──
   const currentMonthIdx = allMonths.indexOf(selectedMonth);
-  if (currentMonthIdx > 0) {
+  if (currentMonthIdx > 0 && !isAllMonths) {
     const prevMonthName = allMonths[currentMonthIdx - 1];
     const prevMonthTx = safeTxList.filter((t) => {
       const mes = t.Mes || (t as any).mes;
       const tipo = t.Tipo || (t as any).tipo;
-      return (tipo === 'Egreso' || tipo === 'Gasto') && mes === prevMonthName;
+      return (
+        (tipo === 'Egreso' || tipo === 'Gasto') &&
+        mes === prevMonthName &&
+        !isDebtTransaction(t) &&
+        !isCreditCardPayment(t) &&
+        !isCreditCardLine(t)
+      );
     });
-    const prevMonthExpense = prevMonthTx.reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
+    const prevMonthExpense = prevMonthTx.reduce(
+      (acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0),
+      0
+    );
 
     if (prevMonthExpense > 0 && totalExpense > 0) {
       const diffPct = ((totalExpense - prevMonthExpense) / prevMonthExpense) * 100;
-      if (diffPct > 20) {
+      if (diffPct > 15) {
         insights.push({
           id: 'expense-spike',
           type: 'warning',
-          title: `📈 Incremento de Gasto vs ${prevMonthName}`,
-          description: `Tus egresos subieron un ${diffPct.toFixed(1)}% comparado con el mes anterior (+S/ ${(totalExpense - prevMonthExpense).toFixed(2)}).`,
+          title: `📈 Incremento de Gasto Operativo vs ${prevMonthName}`,
+          description: `Tus consumos corrientes subieron un ${diffPct.toFixed(1)}% respecto a ${prevMonthName} (+${formatPEN(totalExpense - prevMonthExpense)}).`,
           badge: `+${diffPct.toFixed(0)}%`,
         });
       } else if (diffPct < -10) {
@@ -171,14 +346,25 @@ export function generateFinancialInsights(
           id: 'expense-reduction',
           type: 'success',
           title: `📉 Reducción de Gastos vs ${prevMonthName}`,
-          description: `Has gastado un ${Math.abs(diffPct).toFixed(1)}% menos que el mes pasado (-S/ ${(prevMonthExpense - totalExpense).toFixed(2)}). ¡Gran disciplina!`,
+          description: `Has gastado un ${Math.abs(diffPct).toFixed(1)}% menos en consumos corrientes que el mes pasado (-${formatPEN(prevMonthExpense - totalExpense)}). ¡Gran disciplina!`,
           badge: `${diffPct.toFixed(0)}%`,
         });
       }
     }
   }
 
-  // 4. Diagnóstico de Presupuestos Excedidos
+  // ── Insight 6: Estilo de Vida y Gastos Discrecionales ──
+  if (discretionaryRatio >= 45 && totalExpense > 0) {
+    insights.push({
+      id: 'lifestyle-ratio',
+      type: 'tip',
+      title: `💡 Estilo de Vida: ${discretionaryRatio.toFixed(0)}% de tus Consumos`,
+      description: `El ${discretionaryRatio.toFixed(1)}% de tus egresos corrientes (${formatPEN(discretionarySum)}) se destina a comidas fuera, salidas, ocio o ropa. Buen espacio de optimización si deseas elevar tu ahorro.`,
+      badge: 'Oportunidad',
+    });
+  }
+
+  // ── Insight 7: Diagnóstico de Presupuestos Excedidos ──
   const exceededBudgets = Object.entries(budgetLimits)
     .filter(([cat, limit]) => (categoryTotals[cat] || 0) > limit && limit > 0)
     .map(([cat, limit]) => ({
@@ -192,13 +378,13 @@ export function generateFinancialInsights(
     insights.push({
       id: 'budgets-exceeded',
       type: 'warning',
-      title: `⚡ ${exceededBudgets.length} Presupuestos Excedidos`,
+      title: `⚡ ${exceededBudgets.length} Presupuesto${exceededBudgets.length > 1 ? 's' : ''} Excedido${exceededBudgets.length > 1 ? 's' : ''}`,
       description: `Has sobrepasado el límite en: ${exceededBudgets.map((b) => `${b.cat} (+S/ ${b.over.toFixed(0)})`).join(', ')}.`,
       badge: 'Alerta Semáforo',
     });
   }
 
-  // 5. Tip Inteligente de Tarjetas & Ciclos de Facturación
+  // ── Insight 8: Tip Estratégico de Tarjetas & Ciclos de Corte ──
   const now = new Date();
   const currentDay = now.getDate();
   if (currentDay >= 1 && currentDay <= 4) {
@@ -214,7 +400,7 @@ export function generateFinancialInsights(
       id: 'card-cycle-tip-ibk',
       type: 'tip',
       title: '💳 Estrategia Interbank (Corte Día 15)',
-      description: 'El corte de Interbank es el día 15. Realiza compras grandes a partir del día 16 para posponer el pago hasta el siguiente mes.',
+      description: 'El corte de Interbank es el día 15. Realiza compras grandes a partir del día 16 para posponer el pago hasta el siguiente ciclo.',
       badge: 'Financiamiento 0%',
     });
   }
@@ -223,7 +409,15 @@ export function generateFinancialInsights(
     savingsRate,
     totalIncome,
     totalExpense,
-    netSavings,
+    totalDebts,
+    totalSavings,
+    liquidBalance: effectiveLiquidBalance,
+    explicitSavings,
+    accountingSurplus,
+    debtToIncomeRatio,
+    cardSpent,
+    cardPaid,
+    netCardFlow,
     topCategory,
     discretionaryRatio,
     insights,
