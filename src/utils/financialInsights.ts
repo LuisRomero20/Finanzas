@@ -387,20 +387,28 @@ export function generateFinancialInsights(
   // ── Insight 8: Tip Estratégico de Tarjetas & Ciclos de Corte ──
   const now = new Date();
   const currentDay = now.getDate();
-  if (currentDay >= 1 && currentDay <= 4) {
+  if (currentDay >= 1 && currentDay <= 3) {
+    insights.push({
+      id: 'card-cycle-tip-ripley',
+      type: 'tip',
+      title: '💳 Estrategia Ripley (Corte Día 03 · Pago Día 01)',
+      description: 'El corte de Ripley es el 03 de cada mes. Si compras a partir del día 04, tendrás hasta 55 días de financiamiento sin intereses.',
+      badge: 'Optimización',
+    });
+  } else if (currentDay >= 4 && currentDay <= 10) {
     insights.push({
       id: 'card-cycle-tip-bbva',
       type: 'tip',
-      title: '💳 Estrategia BBVA & Ripley (Corte Día 04)',
-      description: 'El corte de BBVA y Ripley es el 04 de cada mes. Si compras a partir del día 05, tendrás hasta 50 días de financiamiento sin intereses.',
-      badge: 'Optimización',
+      title: '💳 Estrategia BBVA (Corte Día 10 · Pago Día 05)',
+      description: 'El corte de BBVA Bfree es el día 10. Realiza compras a partir del día 11 para patear el pago casi 2 meses después.',
+      badge: 'Financiamiento 0%',
     });
-  } else if (currentDay >= 11 && currentDay <= 15) {
+  } else if (currentDay >= 16 && currentDay <= 21) {
     insights.push({
       id: 'card-cycle-tip-ibk',
       type: 'tip',
-      title: '💳 Estrategia Interbank (Corte Día 15)',
-      description: 'El corte de Interbank es el día 15. Realiza compras grandes a partir del día 16 para posponer el pago hasta el siguiente ciclo.',
+      title: '💳 Estrategia Interbank Amex (Corte Día 21 · Pago Día 15)',
+      description: 'El corte de Interbank Amex es el día 21. Realiza compras grandes a partir del día 22 para posponer el pago hasta el siguiente ciclo.',
       badge: 'Financiamiento 0%',
     });
   }

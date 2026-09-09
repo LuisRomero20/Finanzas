@@ -12,13 +12,17 @@ import { DashboardsPage } from '../../pages/DashboardsPage';
 
 describe('Projection store & card due calculation', () => {
   it('calculates card payment dates correctly', () => {
-    // BBVA (corte 11, pago 5)
-    expect(calculateCardPaymentDate('BBVA Bfree', 2026, 8, 10).mesPago).toBe('2026-10'); // 10 Sep -> 05 Oct
-    expect(calculateCardPaymentDate('BBVA Bfree', 2026, 8, 11).mesPago).toBe('2026-11'); // 11 Sep -> 05 Nov
+    // BBVA (corte 10, pago 5)
+    expect(calculateCardPaymentDate('BBVA Bfree', 2026, 8, 9).mesPago).toBe('2026-10'); // 9 Sep -> 05 Oct
+    expect(calculateCardPaymentDate('BBVA Bfree', 2026, 8, 10).mesPago).toBe('2026-11'); // 10 Sep -> 05 Nov
     
+    // Ripley (corte 3, pago 1)
+    expect(calculateCardPaymentDate('Ripley', 2026, 8, 2).mesPago).toBe('2026-10'); // 2 Sep -> 01 Oct
+    expect(calculateCardPaymentDate('Ripley', 2026, 8, 3).mesPago).toBe('2026-11'); // 3 Sep -> 01 Nov
+
     // Interbank Amex (corte 21, pago 15)
     expect(calculateCardPaymentDate('Interbank Amex', 2026, 8, 20).mesPago).toBe('2026-10'); // 20 Sep -> 15 Oct
-    expect(calculateCardPaymentDate('Interbank Amex', 2026, 8, 23).mesPago).toBe('2026-11'); // 23 Sep -> 15 Nov
+    expect(calculateCardPaymentDate('Interbank Amex', 2026, 8, 21).mesPago).toBe('2026-11'); // 21 Sep -> 15 Nov
   });
 
   it('calculates monthly projections for Oct 2026 and Nov 2026 without error', () => {

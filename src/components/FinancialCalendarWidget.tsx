@@ -3,6 +3,7 @@ import { Calendar as CalendarIcon, X, ArrowUpRight, ArrowDownRight, CreditCard, 
 import type { Transaction } from '../utils/masterData';
 import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
 import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
+import { useCreditCardStore } from '../store/creditCardStore';
 import { PrevMonthDaysConfigModal } from './PrevMonthDaysConfigModal';
 
 interface Props {
@@ -115,13 +116,22 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
     { incomes: Transaction[]; expenses: Transaction[]; totalIncome: number; totalExpense: number; events: string[] }
   > = {};
 
+  const activeCards = useCreditCardStore((s) => s.cards);
+
   for (let d = 1; d <= daysInMonth; d++) {
     dayData[d] = { incomes: [], expenses: [], totalIncome: 0, totalExpense: 0, events: [] };
 
-    // Hitos bancarios fijos
-    if (d === 1) dayData[d].events.push('💳 Pago Ripley (Día 01)');
-    if (d === 4) dayData[d].events.push('✂️ Corte BBVA & Ripley (Día 04)');
-    if (d === 15) dayData[d].events.push('✂️ Corte Interbank (Día 15)');
+    // Hitos bancarios dinámicos por tarjeta de crédito
+    activeCards.forEach((card) => {
+      if (d === card.cycleStartDay) {
+        dayData[d].events.push(`✂️ Corte ${card.name} (Día ${String(card.cycleStartDay).padStart(2, '0')})`);
+      }
+      if (d === card.paymentDay) {
+        dayData[d].events.push(`💳 Pago ${card.name} (Día ${String(card.paymentDay).padStart(2, '0')})`);
+      }
+    });
+
+    // Sueldo estimado
     if (d === 25 || d === 30) dayData[d].events.push('💰 Día de Sueldo Estimado');
   }
 

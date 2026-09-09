@@ -71,8 +71,8 @@ export interface CardCycleRule {
 
 export const CARD_RULES: Record<string, CardCycleRule> = {
   'Interbank Amex': { entity: 'Interbank Amex', corteDay: 21, pagoDay: 15 },
-  'BBVA Bfree': { entity: 'BBVA Bfree', corteDay: 11, pagoDay: 5 },
-  'Ripley': { entity: 'Ripley', corteDay: 4, pagoDay: 1 },
+  'BBVA Bfree': { entity: 'BBVA Bfree', corteDay: 10, pagoDay: 5 },
+  'Ripley': { entity: 'Ripley', corteDay: 3, pagoDay: 1 },
 };
 
 /**
@@ -82,7 +82,7 @@ export const CARD_RULES: Record<string, CardCycleRule> = {
  * Regla:
  * - Si el consumo es ANTES del corte (día < corteDay): pertenece al ciclo actual y se paga el mes siguiente (mes + 1).
  * - Si el consumo es EL DÍA DEL CORTE O DESPUÉS (día >= corteDay): pertenece al nuevo ciclo y se paga 2 meses después (mes + 2).
- *   Ejemplo BBVA (corte 11, pago 5): Consumo del 11 de Setiembre entra al ciclo que cierra en Octubre y se paga el 5 de Noviembre.
+ *   Ejemplo BBVA (corte 10, pago 5): Consumo antes del 10 se paga el 5 del mes siguiente; del 10 en adelante se paga en 2 meses.
  */
 export function calculateCardPaymentDate(entity: string, year: number, monthIndex: number, day: number): { 
   mesPago: string; 
@@ -90,7 +90,17 @@ export function calculateCardPaymentDate(entity: string, year: number, monthInde
   cicloDescripcion: string;
   pagaEnMesSiguiente: boolean;
 } {
-  const rule = CARD_RULES[entity];
+  let rule = CARD_RULES[entity];
+  if (!rule) {
+    try {
+      // Búsqueda dinámica en useCreditCardStore
+      const { useCreditCardStore } = require('./creditCardStore');
+      const found = useCreditCardStore.getState().getCardByEntity(entity);
+      if (found) {
+        rule = { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
+      }
+    } catch {}
+  }
   if (!rule) {
     const padM = String(monthIndex + 1).padStart(2, '0');
     return { 

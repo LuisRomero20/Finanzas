@@ -1,52 +1,21 @@
 import type { Transaction } from '../store/financeStore';
+import { useCreditCardStore, DEFAULT_CARDS, type CardConfig } from '../store/creditCardStore';
 
-export interface CardConfig {
-  entity: string;
-  name: string;
-  cycleStartDay: number; // día que inicia el ciclo (ej. 21)
-  paymentDay: number;    // día de pago (ej. 15)
-  accentBg?: string;
-  accentText?: string;
-  headerBg?: string;
-  pillBg?: string;
-  pillText?: string;
+export { type CardConfig, DEFAULT_CARDS };
+
+/**
+ * Listado de tarjetas de crédito configuradas en la aplicación.
+ * Si el store está disponible, devuelve las tarjetas dinámicas del usuario.
+ */
+export const CARDS: CardConfig[] = DEFAULT_CARDS;
+
+export function getActiveCards(): CardConfig[] {
+  try {
+    const fromStore = useCreditCardStore.getState().cards;
+    if (fromStore && fromStore.length > 0) return fromStore;
+  } catch {}
+  return DEFAULT_CARDS;
 }
-
-export const CARDS: CardConfig[] = [
-  {
-    entity: 'Interbank Amex',
-    name: 'Interbank Amex',
-    cycleStartDay: 21,
-    paymentDay: 15,
-    accentBg: 'bg-blue-600',
-    accentText: 'text-blue-700',
-    headerBg: 'from-blue-700 to-blue-500',
-    pillBg: 'bg-blue-100',
-    pillText: 'text-blue-700',
-  },
-  {
-    entity: 'BBVA Bfree',
-    name: 'BBVA Bfree',
-    cycleStartDay: 11,
-    paymentDay: 5,
-    accentBg: 'bg-sky-600',
-    accentText: 'text-sky-700',
-    headerBg: 'from-sky-700 to-sky-500',
-    pillBg: 'bg-sky-100',
-    pillText: 'text-sky-700',
-  },
-  {
-    entity: 'Ripley',
-    name: 'Ripley',
-    cycleStartDay: 4,
-    paymentDay: 1,
-    accentBg: 'bg-purple-600',
-    accentText: 'text-purple-700',
-    headerBg: 'from-purple-700 to-purple-500',
-    pillBg: 'bg-purple-100',
-    pillText: 'text-purple-700',
-  },
-];
 
 /** Parsea "YYYY-MM-DD" en hora local (evita desfase UTC) */
 export function parseLocalDate(dateStr: string): Date {

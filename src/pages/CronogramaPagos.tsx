@@ -13,11 +13,15 @@ import {
   RotateCcw,
   UploadCloud,
   FileCheck2,
+  Plus,
+  Trash2,
+  Lock,
 } from 'lucide-react';
 import { StatementImportModal } from '../components/StatementImportModal';
+import { AddCardModal } from '../components/AddCardModal';
 import { useCardStatementStore } from '../store/cardStatementStore';
+import { useCreditCardStore } from '../store/creditCardStore';
 import {
-  CARDS,
   getCycles,
   getCardTxs as getTxs,
   getCardPaymentTxs as getPaymentTxs,
@@ -41,6 +45,8 @@ const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' 
 // ============================================================
 export const CronogramaPagos: React.FC = () => {
   const { transactions } = useFinanceStore();
+  const { cards, deleteCard } = useCreditCardStore();
+  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [refDate, setRefDate] = useState(() => {
     const d = new Date();
     d.setHours(12, 0, 0, 0);
@@ -76,7 +82,7 @@ export const CronogramaPagos: React.FC = () => {
     let totalAcumulando = 0;
     const proximoPago: { card: string; payDate: Date; total: number }[] = [];
 
-    CARDS.forEach(card => {
+    cards.forEach(card => {
       const { current, prev } = getCycles(refDate, card);
       const verifiedStmt = getVerifiedStatement(card.entity, prev.payDate, prev.end);
       
@@ -93,7 +99,7 @@ export const CronogramaPagos: React.FC = () => {
 
     proximoPago.sort((a, b) => a.payDate.getTime() - b.payDate.getTime());
     return { totalPorPagar, totalAcumulando, proximoPago };
-  }, [transactions, refDate, statements, getVerifiedStatement]);
+  }, [cards, transactions, refDate, statements, getVerifiedStatement]);
 
   return (
     <div className="space-y-8">
@@ -126,10 +132,19 @@ export const CronogramaPagos: React.FC = () => {
 
         {/* Action Controls */}
         <div className="flex items-center gap-3 flex-wrap">
+          {/* Botón Agregar Tarjeta */}
+          <button
+            onClick={() => setIsAddCardModalOpen(true)}
+            className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+          >
+            <Plus size={16} />
+            <span>Nueva Tarjeta</span>
+          </button>
+
           {/* Botón Importar Estado de Cuenta General */}
           <button
             onClick={() => handleOpenImport()}
-            className="flex items-center gap-2 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all"
+            className="flex items-center gap-2 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
           >
             <UploadCloud size={16} />
             <span>Importar Estado de Cuenta</span>
@@ -199,7 +214,7 @@ export const CronogramaPagos: React.FC = () => {
 
       {/* ── Tarjetas individuales ── */}
       <div className="space-y-6">
-        {CARDS.map(card => {
+        {cards.map(card => {
           const { current, prev } = getCycles(refDate, card);
           const prevTxs = getTxs(transactions, card.entity, prev.start, prev.end);
           const currTxs = getTxs(transactions, card.entity, current.start, current.end);
@@ -213,8 +228,9 @@ export const CronogramaPagos: React.FC = () => {
           const pagadoTxs = getPaymentTxs(transactions, card.entity, prev.prevPayDate, prev.payDate);
           const pagadoTotal = pagadoTxs.reduce((s, t) => s + t.Monto, 0);
           
-          const isPaid = pagadoTotal > 0;
-          const netToPay = isPaid ? 0 : prevTotal;
+          const isPaid = (pagadoTotal >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && pagadoTotal > 0);
+          const netToPay = isPaid ? 0 : Math.max(0, prevTotal - pagadoTotal);
+          const liveDebt = isPaid ? currTotal : (netToPay + currTotal);
 
           const daysLeft = daysFromToday(prev.payDate);
           const isOverdue = daysLeft < 0 && !isPaid && netToPay > 0;
@@ -240,11 +256,11 @@ export const CronogramaPagos: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 self-start sm:self-center">
+                  <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
                     {/* Botón Cargar Estado de Cuenta */}
                     <button
                       onClick={() => handleOpenImport(card.entity)}
-                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20"
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20 cursor-pointer"
                       title="Importar estado de cuenta para esta tarjeta"
                     >
                       <UploadCloud size={14} />
@@ -263,6 +279,31 @@ export const CronogramaPagos: React.FC = () => {
                         {isOverdue ? `VENCIDO hace ${Math.abs(daysLeft)}d` : `¡Pagar en ${daysLeft}d!`}
                       </div>
                     ) : null}
+
+                    {/* Botón Eliminar Tarjeta condicional: solo disponible si deuda está 100% saldada */}
+                    {liveDebt === 0 ? (
+                      <button
+                        onClick={() => {
+                          if (confirm(`¿Eliminar definitivamente la tarjeta "${card.name}"? Su deuda está saldada al 100%.`)) {
+                            deleteCard(card.id);
+                            setSuccessToast(`Tarjeta "${card.name}" eliminada.`);
+                          }
+                        }}
+                        className="flex items-center gap-1 bg-red-500/20 hover:bg-red-500/40 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg backdrop-blur-sm transition border border-red-400/40 cursor-pointer"
+                        title="Eliminar tarjeta (deuda 100% saldada)"
+                      >
+                        <Trash2 size={13} />
+                        <span className="hidden sm:inline">Eliminar</span>
+                      </button>
+                    ) : (
+                      <div
+                        className="flex items-center gap-1 bg-black/20 text-white/60 text-[11px] font-medium px-2 py-1 rounded-lg backdrop-blur-sm border border-white/10 cursor-not-allowed"
+                        title={`No se puede eliminar: Esta tarjeta tiene una deuda viva de ${fmt.format(liveDebt)} pendiente de saldar.`}
+                      >
+                        <Lock size={11} />
+                        <span className="hidden sm:inline">Deuda viva {fmt.format(liveDebt)}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -449,6 +490,12 @@ export const CronogramaPagos: React.FC = () => {
         onClose={() => setIsModalOpen(false)}
         initialCard={targetCardForModal}
         onDebtUpdated={handleDebtUpdated}
+      />
+
+      {/* Modal para Agregar Nueva Tarjeta */}
+      <AddCardModal
+        isOpen={isAddCardModalOpen}
+        onClose={() => setIsAddCardModalOpen(false)}
       />
 
     </div>

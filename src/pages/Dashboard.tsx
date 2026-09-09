@@ -27,9 +27,11 @@ import { useBudgetStore } from '../store/budgetStore';
 import { useCreditLineStore } from '../store/creditLineStore';
 import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
 import { useCardStatementStore } from '../store/cardStatementStore';
-import { CARDS, calculateCardLivePosition, getCycles } from '../utils/creditCardCycles';
+import { useCreditCardStore } from '../store/creditCardStore';
+import { calculateCardLivePosition, getCycles } from '../utils/creditCardCycles';
 import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
 import { PrevMonthDaysConfigModal } from '../components/PrevMonthDaysConfigModal';
+import { AddCardModal } from '../components/AddCardModal';
 import {
   ChevronDown,
   Download,
@@ -52,6 +54,7 @@ import {
   Sliders,
   Calculator,
   CalendarDays,
+  Lock,
 } from 'lucide-react';
 import { LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
 import { TodayProjectedExpensesWidget } from '../components/TodayProjectedExpensesWidget';
@@ -188,6 +191,7 @@ export const Dashboard: React.FC = () => {
 
   // ── POSICIÓN VIVA Y EN TIEMPO REAL (INDEPENDIENTE DEL FILTRO DE MES) ──
   // Conectado con la hoja de tarjetas y ciclos de facturación reales
+  const { cards, deleteCard } = useCreditCardStore();
   const { getVerifiedStatement } = useCardStatementStore();
   const liveRefDate = useMemo(() => {
     const d = new Date();
@@ -197,7 +201,7 @@ export const Dashboard: React.FC = () => {
 
   const liveCardPositions = useMemo(() => {
     const map: Record<string, ReturnType<typeof calculateCardLivePosition>> = {};
-    CARDS.forEach(card => {
+    cards.forEach(card => {
       const { prev } = getCycles(liveRefDate, card);
       const verified = getVerifiedStatement(card.entity, prev.payDate, prev.end);
       map[card.entity] = calculateCardLivePosition(
@@ -208,7 +212,7 @@ export const Dashboard: React.FC = () => {
       );
     });
     return map;
-  }, [rawTransactions, liveRefDate, getVerifiedStatement]);
+  }, [cards, rawTransactions, liveRefDate, getVerifiedStatement]);
 
   const liveAccountPositions = useMemo(() => {
     const activeOpMonth = 'Setiembre';
@@ -303,6 +307,7 @@ export const Dashboard: React.FC = () => {
   const [isLaborBenefitsModalOpen, setIsLaborBenefitsModalOpen] = useState(false);
   const [isCasualModalOpen, setIsCasualModalOpen] = useState(false);
   const [isPrevMonthConfigModalOpen, setIsPrevMonthConfigModalOpen] = useState(false);
+  const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
 
   const { agregarNotificacion } = useAppStore();
 
@@ -745,26 +750,39 @@ export const Dashboard: React.FC = () => {
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => {
-              setSelectedCardForConfig(undefined);
-              setIsCreditLineModalOpen(true);
-            }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
-            title="Configurar líneas de crédito de las tarjetas"
-          >
-            <Sliders size={13} className="text-emerald-500" />
-            <span className="hidden sm:inline">Ajustar Líneas</span>
-            <span className="sm:hidden">Líneas</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setIsAddCardModalOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
+              title="Agregar una nueva tarjeta de crédito"
+            >
+              <Plus size={13} />
+              <span className="hidden sm:inline">Nueva Tarjeta</span>
+              <span className="sm:hidden">Tarjeta</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedCardForConfig(undefined);
+                setIsCreditLineModalOpen(true);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white dark:bg-slate-900 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200/80 dark:border-slate-800 text-xs font-bold shadow-sm transition cursor-pointer shrink-0"
+              title="Configurar líneas de crédito de las tarjetas"
+            >
+              <Sliders size={13} className="text-emerald-500" />
+              <span className="hidden sm:inline">Ajustar Líneas</span>
+              <span className="sm:hidden">Líneas</span>
+            </button>
+          </div>
         </div>
 
         {(() => {
-          const CARD_ORDER = ['Interbank', 'BCP', 'BBVA Bfree', 'Interbank Amex', 'Ripley'];
+          const CARD_ORDER = ['Interbank', 'BCP', ...cards.map(c => c.entity)];
 
           return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
               {CARD_ORDER.map(ent => {
                 // Cuenta Interbank (Saldo Líquido disponible)
                 if (/^Interbank$/i.test(ent)) {
@@ -834,6 +852,7 @@ export const Dashboard: React.FC = () => {
 
                 // Tarjetas de crédito (conciliadas con ciclo de corte y pagos)
                 const cardPos = liveCardPositions[ent];
+                const matchingCard = cards.find(c => c.entity === ent);
                 const totalLine = entityLineaTotals[ent] || 0;
 
                 if (cardPos) {
@@ -859,6 +878,30 @@ export const Dashboard: React.FC = () => {
                               <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded-full">
                                 Pendiente
                               </span>
+                            )}
+                            {matchingCard && (
+                              cardPos.liveDebt === 0 ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`¿Eliminar definitivamente la tarjeta "${matchingCard.name}"? Su deuda está saldada al 100%.`)) {
+                                      deleteCard(matchingCard.id);
+                                      agregarNotificacion(`Tarjeta "${matchingCard.name}" eliminada.`);
+                                    }
+                                  }}
+                                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                                  title="Eliminar tarjeta (deuda 100% saldada)"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              ) : (
+                                <span
+                                  className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed"
+                                  title={`No se puede eliminar: Esta tarjeta tiene una deuda viva de ${formatterPEN.format(cardPos.liveDebt)} pendiente de saldar.`}
+                                >
+                                  <Lock size={12} />
+                                </span>
+                              )
                             )}
                           </div>
                         </div>
@@ -1736,6 +1779,12 @@ export const Dashboard: React.FC = () => {
         isOpen={isPrevMonthConfigModalOpen}
         onClose={() => setIsPrevMonthConfigModalOpen(false)}
         targetMonth={activeMonth}
+      />
+
+      {/* ── 💳 MODAL PARA REGISTRAR NUEVA TARJETA ── */}
+      <AddCardModal
+        isOpen={isAddCardModalOpen}
+        onClose={() => setIsAddCardModalOpen(false)}
       />
 
     </div>
