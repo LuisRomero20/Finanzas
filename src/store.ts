@@ -5,20 +5,26 @@ import { masterTransactions } from './utils/masterData';
 // Helpers Supabase para persistir deudas entre dispositivos (Vercel/iPhone/PC)
 async function saveDeudasToSupabase(deudas: any[]): Promise<boolean> {
   try {
-    const payload = {
-      id: 'config-deudas-v1',
-      tipo: 'Egreso',
-      fecha: '2026-01-01',
-      concepto: JSON.stringify(deudas),
-      categoria: 'Config',
-      entidad: 'Sistema',
-      monto: 0,
-      mes: 'Config',
-    };
-    const { error } = await supabase
-      .from('transacciones')
-      .upsert(payload, { onConflict: 'id' });
-    return !error;
+    // 1. Limpiar registros previos de deudas en Supabase
+    await supabase.from('transacciones').delete().like('id', 'config-deuda-%');
+    await supabase.from('transacciones').delete().eq('id', 'config-deudas-v1');
+
+    // 2. Guardar cada deuda como fila individual (< 255 caracteres cada una)
+    if (deudas && deudas.length > 0) {
+      const rows = deudas.map(d => ({
+        id: `config-deuda-${d.id}`,
+        tipo: 'Egreso',
+        fecha: '2026-01-01',
+        concepto: JSON.stringify(d),
+        categoria: 'Config',
+        entidad: 'Sistema',
+        monto: 0,
+        mes: 'Config',
+      }));
+      const { error } = await supabase.from('transacciones').upsert(rows);
+      return !error;
+    }
+    return true;
   } catch {
     return false;
   }
@@ -29,11 +35,38 @@ async function fetchDeudasFromSupabase(): Promise<any[] | null> {
     const { data, error } = await supabase
       .from('transacciones')
       .select('*')
-      .eq('id', 'config-deudas-v1')
-      .single();
-    if (error || !data || !data.concepto) return null;
-    const parsed = JSON.parse(data.concepto);
-    return Array.isArray(parsed) ? parsed : null;
+      .like('id', 'config-deuda-%');
+    if (error || !data || data.length === 0) return null;
+    const deudas: any[] = [];
+    for (const item of data) {
+      try {
+        if (item.concepto) {
+          const parsed = JSON.parse(item.concepto);
+          if (parsed && parsed.acreedor && parsed.acreedor.toLowerCase() !== 'visa') {
+            deudas.push(parsed);
+          }
+        }
+      } catch {}
+    }
+    if (deudas.length === 0) return null;
+
+    const orderMap: Record<string, number> = {
+      'iphone 16': 1,
+      'prestamo yape': 2,
+      'prestamo bcp': 3,
+      'yape crédito': 4,
+      'aaron': 5,
+      'jacko': 6,
+      'padre': 7,
+    };
+
+    deudas.sort((a, b) => {
+      const rankA = orderMap[(a.acreedor || '').toLowerCase()] || 99;
+      const rankB = orderMap[(b.acreedor || '').toLowerCase()] || 99;
+      return rankA - rankB;
+    });
+
+    return deudas;
   } catch {
     return null;
   }
@@ -101,30 +134,18 @@ interface AppStore {
 const initialDemoDeudas: Deuda[] = [
   {
     id: '1',
-    acreedor: 'Yape Crédito',
-    monto: 724.32,
-    tasa_anual: 0.0,
-    plazo_meses: 6,
-    meses_pagados: 6,
-    fecha_inicio: '2025-10-15',
-    tipo_tasa: 'efectiva',
-    moneda: 'PEN',
-    estado: 'pagada'
-  },
-  {
-    id: '2',
     acreedor: 'iPhone 16',
-    monto: 2949,
+    monto: 2949.00,
     tasa_anual: 0.0,
     plazo_meses: 12,
     meses_pagados: 6,
-    fecha_inicio: '2026-03-01',
+    fecha_inicio: '2026-03-30',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'activa'
   },
   {
-    id: '3',
+    id: '2',
     acreedor: 'Prestamo Yape',
     monto: 701.10,
     tasa_anual: 0.0,
@@ -136,7 +157,7 @@ const initialDemoDeudas: Deuda[] = [
     estado: 'activa'
   },
   {
-    id: '4',
+    id: '3',
     acreedor: 'Prestamo BCP',
     monto: 1717.92,
     tasa_anual: 0.0,
@@ -148,13 +169,25 @@ const initialDemoDeudas: Deuda[] = [
     estado: 'activa'
   },
   {
+    id: '4',
+    acreedor: 'Yape Crédito',
+    monto: 362.16,
+    tasa_anual: 0.0,
+    plazo_meses: 6,
+    meses_pagados: 6,
+    fecha_inicio: '2026-01-14',
+    tipo_tasa: 'efectiva',
+    moneda: 'PEN',
+    estado: 'pagada'
+  },
+  {
     id: '5',
     acreedor: 'Aaron',
     monto: 92.42,
     tasa_anual: 0.0,
     plazo_meses: 1,
     meses_pagados: 1,
-    fecha_inicio: '2026-05-01',
+    fecha_inicio: '2026-04-30',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'pagada'
@@ -162,11 +195,11 @@ const initialDemoDeudas: Deuda[] = [
   {
     id: '6',
     acreedor: 'Jacko',
-    monto: 100,
+    monto: 100.00,
     tasa_anual: 0.0,
     plazo_meses: 1,
     meses_pagados: 1,
-    fecha_inicio: '2026-05-01',
+    fecha_inicio: '2026-04-30',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'pagada'
@@ -174,11 +207,11 @@ const initialDemoDeudas: Deuda[] = [
   {
     id: '7',
     acreedor: 'Padre',
-    monto: 60,
+    monto: 60.00,
     tasa_anual: 0.0,
     plazo_meses: 1,
     meses_pagados: 1,
-    fecha_inicio: '2026-05-01',
+    fecha_inicio: '2026-04-30',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'pagada'
@@ -190,12 +223,17 @@ const getStoredDeudas = (): Deuda[] => {
     const stored = localStorage.getItem('demo_deudas');
     if (stored) {
       const parsed: Deuda[] = JSON.parse(stored);
-      // limpiar registro accidental 'Madre' creado en histórico de pruebas
-      const cleaned = parsed.filter(d => (d.acreedor || '').toLowerCase() !== 'madre');
-      if (cleaned.length !== parsed.length) {
-        localStorage.setItem('demo_deudas', JSON.stringify(cleaned));
+      // limpiar registro accidental 'Madre' o 'Visa'
+      const cleaned = parsed.filter(d => {
+        const name = (d.acreedor || '').toLowerCase();
+        return name !== 'madre' && name !== 'visa';
+      });
+      if (cleaned.length >= 3) {
+        if (cleaned.length !== parsed.length) {
+          localStorage.setItem('demo_deudas', JSON.stringify(cleaned));
+        }
+        return cleaned;
       }
-      return cleaned;
     }
   } catch {}
   return initialDemoDeudas;
@@ -457,7 +495,7 @@ export const useAppStore = create<AppStore>((set, get) => {
         if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
           // 1. Intentar desde Supabase (prioridad: datos más actualizados)
           const cloudDeudas = await fetchDeudasFromSupabase();
-          if (cloudDeudas && cloudDeudas.length > 0) {
+          if (cloudDeudas && cloudDeudas.length >= 3) {
             localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
             set({ deudas: cloudDeudas });
             return;
@@ -466,10 +504,13 @@ export const useAppStore = create<AppStore>((set, get) => {
           const storedLocal = localStorage.getItem('demo_deudas');
           if (storedLocal) {
             const deudas = JSON.parse(storedLocal);
-            if (deudas && deudas.length > 0) {
-              set({ deudas });
-              // Subir a Supabase para que otros dispositivos la tengan
-              saveDeudasToSupabase(deudas).catch(() => {});
+            const valid = (deudas || []).filter((d: any) => {
+              const name = (d.acreedor || '').toLowerCase();
+              return name !== 'visa' && name !== 'madre';
+            });
+            if (valid && valid.length >= 3) {
+              set({ deudas: valid });
+              saveDeudasToSupabase(valid).catch(() => {});
               return;
             }
           }
@@ -559,20 +600,20 @@ export const useAppStore = create<AppStore>((set, get) => {
     syncDeudasFromSupabase: async () => {
       try {
         const cloudDeudas = await fetchDeudasFromSupabase();
-        if (cloudDeudas && cloudDeudas.length > 0) {
-          const current = get().deudas;
-          // Solo reemplazar si la nube tiene más datos o datos diferentes
-          if (JSON.stringify(cloudDeudas) !== JSON.stringify(current)) {
-            localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
-            set({ deudas: cloudDeudas });
-          }
-        } else {
-          // Si no hay nada en la nube, subir los datos locales
-          const current = get().deudas;
-          if (current.length > 0) {
-            saveDeudasToSupabase(current).catch(() => {});
-          }
+        if (cloudDeudas && cloudDeudas.length >= 3) {
+          localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
+          set({ deudas: cloudDeudas });
+          return;
         }
+        // Si no hay datos suficientes en la nube, asegurar initialDemoDeudas
+        const current = get().deudas.filter(d => {
+          const name = (d.acreedor || '').toLowerCase();
+          return name !== 'visa' && name !== 'madre';
+        });
+        const toSave = current.length >= 3 ? current : initialDemoDeudas;
+        localStorage.setItem('demo_deudas', JSON.stringify(toSave));
+        set({ deudas: toSave });
+        saveDeudasToSupabase(toSave).catch(() => {});
       } catch (e) {
         console.warn('Error syncing deudas from Supabase:', e);
       }
@@ -716,6 +757,7 @@ export const useAppStore = create<AppStore>((set, get) => {
           });
           localStorage.setItem('demo_deudas', JSON.stringify(merged));
           set({ deudas: merged });
+          saveDeudasToSupabase(merged).catch(() => {});
           get().agregarNotificacion('Deudas importadas desde histórico', 'success');
           return;
         }
