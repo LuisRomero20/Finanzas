@@ -2,6 +2,43 @@ import { create } from 'zustand';
 import { supabase } from './lib/supabase';
 import { masterTransactions } from './utils/masterData';
 
+// Helpers Supabase para persistir deudas entre dispositivos (Vercel/iPhone/PC)
+async function saveDeudasToSupabase(deudas: any[]): Promise<boolean> {
+  try {
+    const payload = {
+      id: 'config-deudas-v1',
+      tipo: 'Egreso',
+      fecha: '2026-01-01',
+      concepto: JSON.stringify(deudas),
+      categoria: 'Config',
+      entidad: 'Sistema',
+      monto: 0,
+      mes: 'Config',
+    };
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchDeudasFromSupabase(): Promise<any[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .eq('id', 'config-deudas-v1')
+      .single();
+    if (error || !data || !data.concepto) return null;
+    const parsed = JSON.parse(data.concepto);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 export interface Deuda {
   id: string;
   acreedor: string;
@@ -58,6 +95,7 @@ interface AppStore {
 
   // Dev helper
   resetDemoDeudas?: () => void;
+  syncDeudasFromSupabase: () => Promise<void>;
 }
 
 const initialDemoDeudas: Deuda[] = [
@@ -66,12 +104,12 @@ const initialDemoDeudas: Deuda[] = [
     acreedor: 'Yape Crédito',
     monto: 724.32,
     tasa_anual: 0.0,
-    plazo_meses: 12,
-    meses_pagados: 11,
+    plazo_meses: 6,
+    meses_pagados: 6,
     fecha_inicio: '2025-10-15',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
-    estado: 'activa'
+    estado: 'pagada'
   },
   {
     id: '2',
@@ -79,7 +117,7 @@ const initialDemoDeudas: Deuda[] = [
     monto: 2949,
     tasa_anual: 0.0,
     plazo_meses: 12,
-    meses_pagados: 0,
+    meses_pagados: 6,
     fecha_inicio: '2026-03-01',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
@@ -88,14 +126,14 @@ const initialDemoDeudas: Deuda[] = [
   {
     id: '3',
     acreedor: 'Prestamo Yape',
-    monto: 701.05,
+    monto: 701.10,
     tasa_anual: 0.0,
     plazo_meses: 6,
-    meses_pagados: 6,
+    meses_pagados: 3,
     fecha_inicio: '2026-01-07',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
-    estado: 'pagada'
+    estado: 'activa'
   },
   {
     id: '4',
@@ -103,7 +141,7 @@ const initialDemoDeudas: Deuda[] = [
     monto: 1717.92,
     tasa_anual: 0.0,
     plazo_meses: 12,
-    meses_pagados: 0,
+    meses_pagados: 3,
     fecha_inicio: '2026-01-15',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
@@ -280,6 +318,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           deudas.push(nuevaDeuda);
           localStorage.setItem('demo_deudas', JSON.stringify(deudas));
           set({ deudas: get().deudas.concat(nuevaDeuda) });
+          // Sincronizar con Supabase para otros dispositivos
+          saveDeudasToSupabase(get().deudas.concat(nuevaDeuda)).catch(() => {});
           get().agregarNotificacion(`Deuda con ${deuda.acreedor} agregada`, 'success');
           return;
         }
@@ -316,6 +356,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           deudas = deudas.map((d: any) => d.id === id ? { ...d, ...deudaActualizada } : d);
           localStorage.setItem('demo_deudas', JSON.stringify(deudas));
           set({ deudas });
+          // Sincronizar con Supabase para otros dispositivos
+          saveDeudasToSupabase(deudas).catch(() => {});
           get().agregarNotificacion('Deuda actualizada', 'success');
           return;
         }
@@ -346,6 +388,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           deudas = deudas.filter((d: any) => d.id !== id);
           localStorage.setItem('demo_deudas', JSON.stringify(deudas));
           set({ deudas });
+          // Sincronizar con Supabase para otros dispositivos
+          saveDeudasToSupabase(deudas).catch(() => {});
           get().agregarNotificacion('Deuda eliminada', 'success');
           return;
         }
@@ -380,6 +424,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           );
           localStorage.setItem('demo_deudas', JSON.stringify(deudas));
           set({ deudas });
+          // Sincronizar con Supabase para otros dispositivos
+          saveDeudasToSupabase(deudas).catch(() => {});
           get().agregarNotificacion('Cuota marcada como pagada', 'success');
           return;
         }
@@ -407,16 +453,30 @@ export const useAppStore = create<AppStore>((set, get) => {
         const usuario = get().usuario;
         if (!usuario) return;
 
-        // Modo demo: cargar desde localStorage
+        // Modo demo: primero intentar cargar desde Supabase (para sincronizar entre dispositivos)
         if (usuario.id === '550e8400-e29b-41d4-a716-446655440000') {
-          const deudas = JSON.parse(localStorage.getItem('demo_deudas') || '[]');
-          // if no stored demo, initialize with built-in demo set
-          if (!deudas || deudas.length === 0) {
-            localStorage.setItem('demo_deudas', JSON.stringify(initialDemoDeudas));
-            set({ deudas: initialDemoDeudas });
-          } else {
-            set({ deudas });
+          // 1. Intentar desde Supabase (prioridad: datos más actualizados)
+          const cloudDeudas = await fetchDeudasFromSupabase();
+          if (cloudDeudas && cloudDeudas.length > 0) {
+            localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
+            set({ deudas: cloudDeudas });
+            return;
           }
+          // 2. Fallback a localStorage
+          const storedLocal = localStorage.getItem('demo_deudas');
+          if (storedLocal) {
+            const deudas = JSON.parse(storedLocal);
+            if (deudas && deudas.length > 0) {
+              set({ deudas });
+              // Subir a Supabase para que otros dispositivos la tengan
+              saveDeudasToSupabase(deudas).catch(() => {});
+              return;
+            }
+          }
+          // 3. Inicializar con demo data y subirla
+          localStorage.setItem('demo_deudas', JSON.stringify(initialDemoDeudas));
+          set({ deudas: initialDemoDeudas });
+          saveDeudasToSupabase(initialDemoDeudas).catch(() => {});
           return;
         }
 
@@ -490,8 +550,31 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         localStorage.setItem('demo_deudas', JSON.stringify(initialDemoDeudas));
         set({ deudas: initialDemoDeudas });
+        saveDeudasToSupabase(initialDemoDeudas).catch(() => {});
       } catch (e) {
         console.error('Error restoring demo deudas', e);
+      }
+    },
+
+    syncDeudasFromSupabase: async () => {
+      try {
+        const cloudDeudas = await fetchDeudasFromSupabase();
+        if (cloudDeudas && cloudDeudas.length > 0) {
+          const current = get().deudas;
+          // Solo reemplazar si la nube tiene más datos o datos diferentes
+          if (JSON.stringify(cloudDeudas) !== JSON.stringify(current)) {
+            localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
+            set({ deudas: cloudDeudas });
+          }
+        } else {
+          // Si no hay nada en la nube, subir los datos locales
+          const current = get().deudas;
+          if (current.length > 0) {
+            saveDeudasToSupabase(current).catch(() => {});
+          }
+        }
+      } catch (e) {
+        console.warn('Error syncing deudas from Supabase:', e);
       }
     },
     importarDeudasDesdeHistorico: async () => {
