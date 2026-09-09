@@ -313,3 +313,280 @@ export function getUser2026HistoricalAndProjectedTable(customOctDicSalary?: numb
     totalGeneral: Math.round(totalGeneral * 100) / 100,
   };
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PARTICIPACIÓN DE LOS TRABAJADORES EN LAS UTILIDADES (D.L. 892 / D.S. 009-98-TR)
+// ══════════════════════════════════════════════════════════════════════════════
+
+export type SectorUtilidades =
+  | 'PESQUERIA' // 10%
+  | 'TELECOMUNICACIONES' // 10%
+  | 'INDUSTRIAL' // 10%
+  | 'MINERIA' // 8%
+  | 'COMERCIO_RESTAURANTES' // 8%
+  | 'SERVICIOS_OTROS' // 5% (Banca, servicios, tecnología, etc.)
+  | 'AGRARIO'; // 5%
+
+export interface SectorInfo {
+  id: SectorUtilidades;
+  nombre: string;
+  porcentaje: number;
+  descripcion: string;
+}
+
+export const SECTORES_UTILIDADES: Record<SectorUtilidades, SectorInfo> = {
+  PESQUERIA: {
+    id: 'PESQUERIA',
+    nombre: 'Empresas Pesqueras',
+    porcentaje: 10,
+    descripcion: 'Extracción y procesamiento pesquero (10%)',
+  },
+  TELECOMUNICACIONES: {
+    id: 'TELECOMUNICACIONES',
+    nombre: 'Empresas de Telecomunicaciones',
+    porcentaje: 10,
+    descripcion: 'Telefonía, internet y telecomunicaciones (10%)',
+  },
+  INDUSTRIAL: {
+    id: 'INDUSTRIAL',
+    nombre: 'Empresas Industriales / Manufactureras',
+    porcentaje: 10,
+    descripcion: 'Manufactura, producción y transformación (10%)',
+  },
+  MINERIA: {
+    id: 'MINERIA',
+    nombre: 'Empresas Mineras',
+    porcentaje: 8,
+    descripcion: 'Explotación minera y metalúrgica (8%)',
+  },
+  COMERCIO_RESTAURANTES: {
+    id: 'COMERCIO_RESTAURANTES',
+    nombre: 'Comercio al por mayor/menor y Restaurantes',
+    porcentaje: 8,
+    descripcion: 'Retail, tiendas, mayoristas y gastronomía (8%)',
+  },
+  SERVICIOS_OTROS: {
+    id: 'SERVICIOS_OTROS',
+    nombre: 'Otras actividades (Servicios, Banca, Tecnología)',
+    porcentaje: 5,
+    descripcion: 'Servicios financieros, consultoría, desarrollo y afines (5%)',
+  },
+  AGRARIO: {
+    id: 'AGRARIO',
+    nombre: 'Empresas Agrarias',
+    porcentaje: 5,
+    descripcion: 'Sector agrario y agroexportación (5%)',
+  },
+};
+
+export interface UtilidadesConfig {
+  modo: 'OFICIAL_EMPRESA' | 'MULTIPLOS_SUELDO' | 'MONTO_DIRECTO';
+  sueldoBruto: number;
+  tieneAsignacionFamiliar: boolean;
+  diasLaboradosTrabajador?: number; // Típicamente 260 a 300 días
+  remuneracionAnualTrabajador?: number; // Si no se especifica, calcula (sueldo + asig) * 14
+  
+  // Parámetros cuando modo === 'OFICIAL_EMPRESA'
+  sector?: SectorUtilidades;
+  rentaNetaEmpresa?: number; // Renta Neta Imponible antes de impuestos de la empresa
+  totalDiasEmpresa?: number; // Suma de días de todo el personal
+  masaSalarialEmpresa?: number; // Suma de remuneraciones anuales de todo el personal
+
+  // Parámetros cuando modo === 'MULTIPLOS_SUELDO'
+  multiplicadorSueldos?: number; // ej. 0.5, 1, 1.5, 2, 3
+
+  // Parámetros cuando modo === 'MONTO_DIRECTO'
+  montoDirecto?: number;
+
+  // Parámetros tributarios (I.R. 5ta categoría)
+  uit?: number; // Default S/ 5,350 (2025/2026) o S/ 5,150 (2024)
+}
+
+export interface UtilidadesResult {
+  modo: 'OFICIAL_EMPRESA' | 'MULTIPLOS_SUELDO' | 'MONTO_DIRECTO';
+  sueldoBaseMensual: number;
+  remuneracionComputableMensual: number;
+  remuneracionAnualComputable: number;
+  diasTrabajador: number;
+
+  // Datos oficiales (si aplica)
+  sector?: SectorInfo;
+  rentaNetaEmpresa?: number;
+  porcentajeDistribucion?: number;
+  fondoTotalDistribuir?: number;
+  fondoDias50?: number;
+  fondoRemuneracion50?: number;
+  factorDias?: number;
+  factorRemuneracion?: number;
+
+  // Desglose del trabajador
+  montoPorDias: number;
+  montoPorRemuneracion: number;
+  utilidadBruta: number;
+
+  // Límite legal de 18 sueldos
+  tope18Sueldos: number;
+  superaTope: boolean;
+  excedenteTope: number;
+  utilidadAfecta: number; // Monto tras aplicar el tope
+
+  // Retenciones e Inafectaciones
+  descuentoAfpOnp: number; // Siempre 0.00 (Inafecto según D.L. 892 art. 9)
+  descuentoEsSalud: number; // Siempre 0.00
+  retencionQuintaCategoriaEstimada: number;
+  
+  // Líquido en mano
+  utilidadNeta: number;
+}
+
+/**
+ * Calcula la Participación de Utilidades (D.L. 892 y D.S. 009-98-TR)
+ * Soporta cálculo oficial 50% por días laborados + 50% por remuneración anual,
+ * estimación rápida por múltiplos de sueldo, y tope legal de 18 remuneraciones.
+ */
+export function calculateUtilidades(config: UtilidadesConfig): UtilidadesResult {
+  const asig = config.tieneAsignacionFamiliar ? ASIGNACION_FAMILIAR_MONTO : 0;
+  const remComputableMensual = Math.max(0, config.sueldoBruto + asig);
+  const diasTrabajador = Math.min(365, Math.max(1, config.diasLaboradosTrabajador ?? 260));
+  const uit = config.uit ?? 5350;
+
+  // Remuneración computable anual del trabajador (12 sueldos + 2 gratificaciones ordinarias)
+  let remAnual = config.remuneracionAnualTrabajador;
+  if (!remAnual || remAnual <= 0) {
+    remAnual = Math.round((remComputableMensual * 14) * 100) / 100;
+  }
+
+  const tope18Sueldos = Math.round((remComputableMensual * 18) * 100) / 100;
+
+  let montoPorDias = 0;
+  let montoPorRemuneracion = 0;
+  let utilidadBruta = 0;
+  let fondoTotalDistribuir = 0;
+  let fondoDias50 = 0;
+  let fondoRemuneracion50 = 0;
+  let factorDias = 0;
+  let factorRemuneracion = 0;
+  let sectorInfo: SectorInfo | undefined;
+
+  if (config.modo === 'OFICIAL_EMPRESA') {
+    const sectorKey = config.sector ?? 'SERVICIOS_OTROS';
+    sectorInfo = SECTORES_UTILIDADES[sectorKey];
+    const pct = sectorInfo.porcentaje;
+    const rentaNeta = Math.max(0, config.rentaNetaEmpresa ?? 0);
+
+    fondoTotalDistribuir = Math.round((rentaNeta * (pct / 100)) * 100) / 100;
+    fondoDias50 = Math.round((fondoTotalDistribuir * 0.5) * 100) / 100;
+    fondoRemuneracion50 = Math.round((fondoTotalDistribuir * 0.5) * 100) / 100;
+
+    const totalDiasEmpresa = Math.max(1, config.totalDiasEmpresa ?? (diasTrabajador * 50));
+    const masaSalarialEmpresa = Math.max(1, config.masaSalarialEmpresa ?? (remAnual * 50));
+
+    factorDias = fondoDias50 / totalDiasEmpresa;
+    factorRemuneracion = fondoRemuneracion50 / masaSalarialEmpresa;
+
+    montoPorDias = Math.round((diasTrabajador * factorDias) * 100) / 100;
+    montoPorRemuneracion = Math.round((remAnual * factorRemuneracion) * 100) / 100;
+    utilidadBruta = Math.round((montoPorDias + montoPorRemuneracion) * 100) / 100;
+  } else if (config.modo === 'MULTIPLOS_SUELDO') {
+    const mult = Math.max(0, config.multiplicadorSueldos ?? 1);
+    utilidadBruta = Math.round((remComputableMensual * mult) * 100) / 100;
+    montoPorDias = Math.round((utilidadBruta * 0.5) * 100) / 100;
+    montoPorRemuneracion = Math.round((utilidadBruta * 0.5) * 100) / 100;
+  } else {
+    // MONTO_DIRECTO
+    utilidadBruta = Math.max(0, config.montoDirecto ?? 0);
+    montoPorDias = Math.round((utilidadBruta * 0.5) * 100) / 100;
+    montoPorRemuneracion = Math.round((utilidadBruta * 0.5) * 100) / 100;
+  }
+
+  // Evaluación del tope legal de 18 remuneraciones mensuales
+  const superaTope = utilidadBruta > tope18Sueldos;
+  const excedenteTope = superaTope ? Math.round((utilidadBruta - tope18Sueldos) * 100) / 100 : 0;
+  const utilidadAfecta = superaTope ? tope18Sueldos : utilidadBruta;
+
+  // Cálculo de I.R. de 5ta categoría marginal
+  const retencionQuinta = calculateQuintaRetentionForUtilidad(remAnual, utilidadAfecta, uit);
+  const utilidadNeta = Math.max(0, Math.round((utilidadAfecta - retencionQuinta) * 100) / 100);
+
+  return {
+    modo: config.modo,
+    sueldoBaseMensual: config.sueldoBruto,
+    remuneracionComputableMensual: remComputableMensual,
+    remuneracionAnualComputable: remAnual,
+    diasTrabajador,
+    sector: sectorInfo,
+    rentaNetaEmpresa: config.rentaNetaEmpresa,
+    porcentajeDistribucion: sectorInfo?.porcentaje,
+    fondoTotalDistribuir,
+    fondoDias50,
+    fondoRemuneracion50,
+    factorDias,
+    factorRemuneracion,
+    montoPorDias,
+    montoPorRemuneracion,
+    utilidadBruta,
+    tope18Sueldos,
+    superaTope,
+    excedenteTope,
+    utilidadAfecta,
+    descuentoAfpOnp: 0,
+    descuentoEsSalud: 0,
+    retencionQuintaCategoriaEstimada: retencionQuinta,
+    utilidadNeta,
+  };
+}
+
+/**
+ * Calcula la retención de 5ta categoría correspondiente exclusivamente al monto de utilidades,
+ * evaluando la tasa marginal sobre el tramo acumulado que supera las 7 UIT.
+ */
+export function calculateQuintaRetentionForUtilidad(remuneracionBaseAnual: number, utilidad: number, uit: number = 5350): number {
+  if (utilidad <= 0) return 0;
+
+  const impuestoSinUtilidad = calculateAnnualTax5ta(remuneracionBaseAnual, uit);
+  const impuestoConUtilidad = calculateAnnualTax5ta(remuneracionBaseAnual + utilidad, uit);
+
+  return Math.max(0, Math.round((impuestoConUtilidad - impuestoSinUtilidad) * 100) / 100);
+}
+
+function calculateAnnualTax5ta(ingresoAnual: number, uit: number): number {
+  const deduccion7Uit = 7 * uit;
+  const baseImponible = Math.max(0, ingresoAnual - deduccion7Uit);
+  if (baseImponible <= 0) return 0;
+
+  let impuesto = 0;
+  let remanente = baseImponible;
+
+  // Tramo 1: Hasta 5 UIT (8%)
+  const tramo1 = Math.min(remanente, 5 * uit);
+  impuesto += tramo1 * 0.08;
+  remanente -= tramo1;
+
+  // Tramo 2: Más de 5 hasta 20 UIT (14%)
+  if (remanente > 0) {
+    const tramo2 = Math.min(remanente, 15 * uit);
+    impuesto += tramo2 * 0.14;
+    remanente -= tramo2;
+  }
+
+  // Tramo 3: Más de 20 hasta 35 UIT (17%)
+  if (remanente > 0) {
+    const tramo3 = Math.min(remanente, 15 * uit);
+    impuesto += tramo3 * 0.17;
+    remanente -= tramo3;
+  }
+
+  // Tramo 4: Más de 35 hasta 45 UIT (20%)
+  if (remanente > 0) {
+    const tramo4 = Math.min(remanente, 10 * uit);
+    impuesto += tramo4 * 0.20;
+    remanente -= tramo4;
+  }
+
+  // Tramo 5: Más de 45 UIT (30%)
+  if (remanente > 0) {
+    impuesto += remanente * 0.30;
+  }
+
+  return impuesto;
+}
