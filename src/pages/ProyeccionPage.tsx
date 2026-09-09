@@ -792,9 +792,9 @@ export const ProyeccionPage: React.FC = () => {
               <div className="bg-sky-900 dark:bg-sky-950 text-white px-3 py-2 text-xs font-bold flex items-center justify-between">
                 <div>
                   <div className="text-white font-black">BBVA Bfree</div>
-                  <div className="text-[10px] text-sky-200/80 font-normal">Corte día 11 · Pago día 05</div>
+                  <div className="text-[10px] text-sky-200/80 font-normal">Corte día 10 · Pago día 05</div>
                 </div>
-                <span className="text-[10px] bg-sky-800 text-sky-200 px-1.5 py-0.5 rounded font-bold">Corte 11</span>
+                <span className="text-[10px] bg-sky-800 text-sky-200 px-1.5 py-0.5 rounded font-bold">Corte 10</span>
               </div>
               <div className="p-3 divide-y divide-slate-100 dark:divide-slate-800 flex-1 max-h-40 overflow-y-auto">
                 {entityBreakdown.bbvaTxs.length === 0 ? (
@@ -804,7 +804,7 @@ export const ProyeccionPage: React.FC = () => {
                     <div key={tx.id} className="py-1 flex justify-between items-center text-xs">
                       <div className="min-w-0 pr-1">
                         <p className="text-slate-700 dark:text-slate-300 font-semibold truncate">{tx.concepto}</p>
-                        <p className="text-[10px] text-slate-400">Día {tx.fecha.slice(8, 10)} · {parseInt(tx.fecha.slice(8, 10), 10) < 11 ? 'Paga mes sgte' : 'Paga en 2 meses'}</p>
+                        <p className="text-[10px] text-slate-400">Día {tx.fecha.slice(8, 10)} · {parseInt(tx.fecha.slice(8, 10), 10) < 10 ? 'Paga mes sgte' : 'Paga en 2 meses'}</p>
                       </div>
                       <span className="font-bold text-slate-900 dark:text-white tabular-nums shrink-0">{fmt.format(tx.monto)}</span>
                     </div>
@@ -837,9 +837,9 @@ export const ProyeccionPage: React.FC = () => {
               <div className="bg-purple-900 dark:bg-purple-950 text-white px-3 py-2 text-xs font-bold flex items-center justify-between">
                 <div>
                   <div className="text-white font-black">Ripley</div>
-                  <div className="text-[10px] text-purple-200/80 font-normal">Corte día 04 · Pago día 01</div>
+                  <div className="text-[10px] text-purple-200/80 font-normal">Corte día 03 · Pago día 01</div>
                 </div>
-                <span className="text-[10px] bg-purple-800 text-purple-200 px-1.5 py-0.5 rounded font-bold">Corte 4</span>
+                <span className="text-[10px] bg-purple-800 text-purple-200 px-1.5 py-0.5 rounded font-bold">Corte 3</span>
               </div>
               <div className="p-3 divide-y divide-slate-100 dark:divide-slate-800 flex-1 max-h-40 overflow-y-auto">
                 {entityBreakdown.ripleyTxs.length === 0 ? (
@@ -849,7 +849,7 @@ export const ProyeccionPage: React.FC = () => {
                     <div key={tx.id} className="py-1 flex justify-between items-center text-xs">
                       <div className="min-w-0 pr-1">
                         <p className="text-slate-700 dark:text-slate-300 font-semibold truncate">{tx.concepto}</p>
-                        <p className="text-[10px] text-slate-400">Día {tx.fecha.slice(8, 10)} · {parseInt(tx.fecha.slice(8, 10), 10) < 4 ? 'Paga mes sgte' : 'Paga en 2 meses'}</p>
+                        <p className="text-[10px] text-slate-400">Día {tx.fecha.slice(8, 10)} · {parseInt(tx.fecha.slice(8, 10), 10) < 3 ? 'Paga mes sgte' : 'Paga en 2 meses'}</p>
                       </div>
                       <span className="font-bold text-slate-900 dark:text-white tabular-nums shrink-0">{fmt.format(tx.monto)}</span>
                     </div>
