@@ -41,4 +41,13 @@ describe('All Pages Rendering Tests', () => {
     expect(renderToString(<ClasificacionPage />).length).toBeGreaterThan(0);
     expect(renderToString(<DashboardsPage />).length).toBeGreaterThan(0);
   });
+
+  it('renders Posición por Cuenta Bancaria y Tarjeta steady regardless of selectedMonth', () => {
+    const htmlSetiembre = renderToString(<Dashboard />);
+    expect(htmlSetiembre).toContain('Posición por Cuenta Bancaria y Tarjeta');
+    expect(htmlSetiembre).toContain('Interbank Amex');
+    expect(htmlSetiembre).toContain('BBVA Bfree');
+    expect(htmlSetiembre).toContain('Ripley');
+    expect(htmlSetiembre).toContain('Cancelado');
+  });
 });

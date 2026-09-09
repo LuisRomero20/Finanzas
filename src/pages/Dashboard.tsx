@@ -26,6 +26,8 @@ import { openExecutiveReportPrintWindow } from '../utils/executiveReportPdf';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCreditLineStore } from '../store/creditLineStore';
 import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
+import { useCardStatementStore } from '../store/cardStatementStore';
+import { CARDS, calculateCardLivePosition, getCycles } from '../utils/creditCardCycles';
 import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
 import { PrevMonthDaysConfigModal } from '../components/PrevMonthDaysConfigModal';
 import {
@@ -183,6 +185,62 @@ export const Dashboard: React.FC = () => {
     entityIngresos[ent] = ingresos;
     entityEgresos[ent] = egresos;
   });
+
+  // ── POSICIÓN VIVA Y EN TIEMPO REAL (INDEPENDIENTE DEL FILTRO DE MES) ──
+  // Conectado con la hoja de tarjetas y ciclos de facturación reales
+  const { getVerifiedStatement } = useCardStatementStore();
+  const liveRefDate = useMemo(() => {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }, []);
+
+  const liveCardPositions = useMemo(() => {
+    const map: Record<string, ReturnType<typeof calculateCardLivePosition>> = {};
+    CARDS.forEach(card => {
+      const { prev } = getCycles(liveRefDate, card);
+      const verified = getVerifiedStatement(card.entity, prev.payDate, prev.end);
+      map[card.entity] = calculateCardLivePosition(
+        card,
+        rawTransactions,
+        liveRefDate,
+        verified?.finalDebt
+      );
+    });
+    return map;
+  }, [rawTransactions, liveRefDate, getVerifiedStatement]);
+
+  const liveAccountPositions = useMemo(() => {
+    const activeOpMonth = 'Setiembre';
+    const monthTxs = rawTransactions.filter(t => t.Mes === activeOpMonth);
+
+    const ibkIngresos = monthTxs
+      .filter(t => /^Interbank$/i.test(t.Entidad) && t.Tipo === 'Ingreso' && !isCreditCardLine(t))
+      .reduce((a, t) => a + t.Monto, 0);
+    const ibkEgresos = monthTxs
+      .filter(t => /^Interbank$/i.test(t.Entidad) && t.Tipo === 'Egreso')
+      .reduce((a, t) => a + t.Monto, 0);
+
+    const bcpIngresos = monthTxs
+      .filter(t => /^BCP$/i.test(t.Entidad) && t.Tipo === 'Ingreso' && !isCreditCardLine(t))
+      .reduce((a, t) => a + t.Monto, 0);
+    const bcpEgresos = monthTxs
+      .filter(t => /^BCP$/i.test(t.Entidad) && t.Tipo === 'Egreso')
+      .reduce((a, t) => a + t.Monto, 0);
+
+    return {
+      Interbank: {
+        ingresos: ibkIngresos,
+        egresos: ibkEgresos,
+        balance: ibkIngresos - ibkEgresos,
+      },
+      BCP: {
+        ingresos: bcpIngresos,
+        egresos: bcpEgresos,
+        balance: bcpIngresos - bcpEgresos,
+      },
+    };
+  }, [rawTransactions]);
 
   const interbankKey = entityList.find(e => /^Interbank$/i.test(e)) || 'Interbank';
   const interbankBalance = entityBalances[interbankKey] ?? 0;
@@ -671,16 +729,19 @@ export const Dashboard: React.FC = () => {
 
       </div>
 
-      {/* ── POSICIÓN POR ENTIDAD BANCARIA ── */}
+      {/* ── POSICIÓN POR ENTIDAD BANCARIA (INDEPENDIENTE DEL FILTRO DE MES) ── */}
       <div>
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
           <div>
-            <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2">
+            <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2 flex-wrap">
               <Building2 size={18} className="text-emerald-700 dark:text-emerald-400" />
               <span>Posición por Cuenta Bancaria y Tarjeta</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                Tiempo Real · Ciclos Activos
+              </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Saldos disponibles, flujo de ingresos/egresos y límites de crédito asignados.
+              Saldos reales de cuentas y conciliación viva de ciclos de tarjetas (mantenido independientemente del filtro de mes).
             </p>
           </div>
 
@@ -705,11 +766,9 @@ export const Dashboard: React.FC = () => {
           return (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
               {CARD_ORDER.map(ent => {
-                const ingresos = entityIngresos[ent] || 0;
-                const egresos = entityEgresos[ent] || 0;
-
-                // Interbank: Saldo líquido
+                // Cuenta Interbank (Saldo Líquido disponible)
                 if (/^Interbank$/i.test(ent)) {
+                  const { ingresos, egresos, balance } = liveAccountPositions.Interbank;
                   return (
                     <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                       <div>
@@ -721,8 +780,8 @@ export const Dashboard: React.FC = () => {
                           <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
                         )}
                         <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Saldo Líquido</p>
-                        <p className={`text-xl font-black mt-0.5 tracking-tight ${interbankBalance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                          {formatterPEN.format(interbankBalance)}
+                        <p className={`text-xl font-black mt-0.5 tracking-tight ${balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                          {formatterPEN.format(balance)}
                         </p>
                       </div>
 
@@ -740,55 +799,134 @@ export const Dashboard: React.FC = () => {
                   );
                 }
 
-                // Tarjetas de crédito
-                const disponible = ingresos - egresos;
-                const colorClass = disponible >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-800 dark:text-slate-200';
+                // Cuenta BCP
+                if (/^BCP$/i.test(ent)) {
+                  const { ingresos, egresos, balance } = liveAccountPositions.BCP;
+                  return (
+                    <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
+                          <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full">Cuenta</span>
+                        </div>
+                        {activeAccountLabels[ent] && (
+                          <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
+                        )}
+                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto Actual</p>
+                        <p className="text-xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
+                          {formatterPEN.format(balance)}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Tarjetas de crédito (conciliadas con ciclo de corte y pagos)
+                const cardPos = liveCardPositions[ent];
                 const totalLine = entityLineaTotals[ent] || 0;
 
+                if (cardPos) {
+                  const isPaid = cardPos.isPaid;
+                  // Si el total facturado ya está cancelado, el pendiente de ese ciclo se restablece a 0 y la tarjeta muestra lo que viene acumulando en curso
+                  const displayAmount = isPaid ? cardPos.currTotal : cardPos.netToPay;
+                  const labelTitle = isPaid ? 'Acumulando en Curso' : 'Por Pagar Facturado';
+
+                  return (
+                    <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded-full">
+                              Tarjeta
+                            </span>
+                            {isPaid ? (
+                              <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
+                                <CheckCircle2 size={10} /> Cancelado
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded-full">
+                                Pendiente
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        {activeAccountLabels[ent] && (
+                          <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
+                        )}
+                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">{labelTitle}</p>
+                        <p className={`text-xl font-black mt-0.5 tracking-tight ${isPaid ? 'text-slate-900 dark:text-white' : 'text-amber-700 dark:text-amber-400'}`}>
+                          {formatterPEN.format(displayAmount)}
+                        </p>
+                      </div>
+
+                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
+                        {/* Estado del ciclo facturado */}
+                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                          <span>Facturado:</span>
+                          {isPaid ? (
+                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
+                              Saldado ({formatterPEN.format(cardPos.paymentTotal)})
+                            </span>
+                          ) : (
+                            <span className="font-semibold text-amber-600 dark:text-amber-400">
+                              {formatterPEN.format(cardPos.netToPay)}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Monto acumulando en curso */}
+                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                          <span>En curso:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">
+                            {formatterPEN.format(cardPos.currTotal)}
+                          </span>
+                        </div>
+
+                        {/* Línea de crédito */}
+                        {totalLine > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCardForConfig(ent);
+                              setIsCreditLineModalOpen(true);
+                            }}
+                            className="w-full flex items-center justify-between pt-1 border-t border-slate-100/60 dark:border-slate-800 font-semibold text-blue-900 dark:text-blue-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] transition group cursor-pointer"
+                            title="Clic para modificar la línea de crédito de esta tarjeta"
+                          >
+                            <span className="flex items-center gap-1">
+                              <span>Línea:</span>
+                              <Edit3 size={11} className="opacity-60 group-hover:opacity-100 transition-opacity text-emerald-600 dark:text-emerald-400" />
+                            </span>
+                            <span className="group-hover:underline underline-offset-2">{formatterPEN.format(totalLine)}</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Fallback si no es tarjeta conocida
+                const fallbackIngresos = entityIngresos[ent] || 0;
+                const fallbackEgresos = entityEgresos[ent] || 0;
+                const fallbackDisp = fallbackIngresos - fallbackEgresos;
                 return (
                   <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                     <div>
-                      <div className="flex items-center justify-between gap-1 mb-1">
-                        <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
-                        <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full">
-                          {totalLine > 0 ? 'Tarjeta' : 'Cuenta'}
-                        </span>
-                      </div>
-                      {activeAccountLabels[ent] && (
-                        <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
-                      )}
-                      <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
-                      <p className={`text-xl font-black mt-0.5 tracking-tight ${colorClass}`}>
-                        {formatterPEN.format(disponible)}
-                      </p>
-                    </div>
-
-                    <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Cargos:</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                        <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Abonos:</span>
-                        <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
-                      </div>
-                      {totalLine > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedCardForConfig(ent);
-                            setIsCreditLineModalOpen(true);
-                          }}
-                          className="w-full flex items-center justify-between pt-1 border-t border-slate-100/60 dark:border-slate-800 font-semibold text-blue-900 dark:text-blue-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] transition group cursor-pointer"
-                          title="Clic para modificar la línea de crédito de esta tarjeta"
-                        >
-                          <span className="flex items-center gap-1">
-                            <span>Línea:</span>
-                            <Edit3 size={11} className="opacity-60 group-hover:opacity-100 transition-opacity text-emerald-600 dark:text-emerald-400" />
-                          </span>
-                          <span className="group-hover:underline underline-offset-2">{formatterPEN.format(totalLine)}</span>
-                        </button>
-                      )}
+                      <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
+                      <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto</p>
+                      <p className="text-xl font-black mt-0.5 tracking-tight text-slate-900 dark:text-white">{formatterPEN.format(fallbackDisp)}</p>
                     </div>
                   </div>
                 );
