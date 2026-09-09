@@ -215,8 +215,8 @@ export const Dashboard: React.FC = () => {
   }, [cards, rawTransactions, liveRefDate, getVerifiedStatement]);
 
   const liveAccountPositions = useMemo(() => {
-    const activeOpMonth = 'Setiembre';
-    const monthTxs = rawTransactions.filter(t => t.Mes === activeOpMonth);
+    const opMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+    const monthTxs = rawTransactions.filter(t => t.Mes === opMonth);
 
     const ibkIngresos = monthTxs
       .filter(t => /^Interbank$/i.test(t.Entidad) && t.Tipo === 'Ingreso' && !isCreditCardLine(t))
@@ -244,7 +244,7 @@ export const Dashboard: React.FC = () => {
         balance: bcpIngresos - bcpEgresos,
       },
     };
-  }, [rawTransactions]);
+  }, [rawTransactions, selectedMonth]);
 
   const interbankKey = entityList.find(e => /^Interbank$/i.test(e)) || 'Interbank';
   const interbankBalance = entityBalances[interbankKey] ?? 0;
@@ -742,11 +742,11 @@ export const Dashboard: React.FC = () => {
               <Building2 size={18} className="text-emerald-700 dark:text-emerald-400" />
               <span>Posición por Cuenta Bancaria y Tarjeta</span>
               <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
-                Tiempo Real · Ciclos Activos
+                {selectedMonth === 'Todos' ? 'Todos los meses' : selectedMonth}
               </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Saldos reales de cuentas y conciliación viva de ciclos de tarjetas (mantenido independientemente del filtro de mes).
+              Saldos disponibles, flujo de ingresos/egresos y límites de crédito asignados.
             </p>
           </div>
 
@@ -830,7 +830,7 @@ export const Dashboard: React.FC = () => {
                         {activeAccountLabels[ent] && (
                           <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
                         )}
-                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto Actual</p>
+                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
                         <p className="text-xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
                           {formatterPEN.format(balance)}
                         </p>
@@ -838,11 +838,11 @@ export const Dashboard: React.FC = () => {
 
                       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
+                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Cargos:</span>
                           <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
+                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Abonos:</span>
                           <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
                         </div>
                       </div>
@@ -850,17 +850,20 @@ export const Dashboard: React.FC = () => {
                   );
                 }
 
-                // Tarjetas de crédito (conciliadas con ciclo de corte y pagos)
-                const cardPos = liveCardPositions[ent];
+                // Tarjetas de crédito: neto del mes seleccionado (Cargos vs Abonos)
                 const matchingCard = cards.find(c => c.entity === ent);
                 const totalLine = entityLineaTotals[ent] || 0;
+                const opMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+                const cardMonthTxs = rawTransactions.filter(t => t.Entidad === ent && t.Mes === opMonth);
+                const cardCargos = cardMonthTxs
+                  .filter(t => t.Tipo === 'Egreso' && !isCreditCardLine(t))
+                  .reduce((a, t) => a + t.Monto, 0);
+                const cardAbonos = cardMonthTxs
+                  .filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t))
+                  .reduce((a, t) => a + t.Monto, 0);
+                const cardNeto = cardCargos - cardAbonos;
 
-                if (cardPos) {
-                  const isPaid = cardPos.isPaid;
-                  // Si el total facturado ya está cancelado, el pendiente de ese ciclo se restablece a 0 y la tarjeta muestra lo que viene acumulando en curso
-                  const displayAmount = isPaid ? cardPos.currTotal : cardPos.netToPay;
-                  const labelTitle = isPaid ? 'Acumulando en Curso' : 'Por Pagar Facturado';
-
+                if (matchingCard || cardCargos > 0 || cardAbonos > 0) {
                   return (
                     <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                       <div>
@@ -870,17 +873,8 @@ export const Dashboard: React.FC = () => {
                             <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded-full">
                               Tarjeta
                             </span>
-                            {isPaid ? (
-                              <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded-full flex items-center gap-0.5">
-                                <CheckCircle2 size={10} /> Cancelado
-                              </span>
-                            ) : (
-                              <span className="text-[10px] font-bold bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 px-1.5 py-0.5 rounded-full">
-                                Pendiente
-                              </span>
-                            )}
                             {matchingCard && (
-                              cardPos.liveDebt === 0 ? (
+                              cardNeto === 0 ? (
                                 <button
                                   type="button"
                                   onClick={() => {
@@ -890,14 +884,14 @@ export const Dashboard: React.FC = () => {
                                     }
                                   }}
                                   className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
-                                  title="Eliminar tarjeta (deuda 100% saldada)"
+                                  title="Eliminar tarjeta (sin deuda activa en el mes)"
                                 >
                                   <Trash2 size={12} />
                                 </button>
                               ) : (
                                 <span
                                   className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                                  title={`No se puede eliminar: Esta tarjeta tiene una deuda viva de ${formatterPEN.format(cardPos.liveDebt)} pendiente de saldar.`}
+                                  title={`No se puede eliminar: Esta tarjeta tiene cargos activos de ${formatterPEN.format(cardNeto)} en ${opMonth}.`}
                                 >
                                   <Lock size={12} />
                                 </span>
@@ -908,36 +902,21 @@ export const Dashboard: React.FC = () => {
                         {activeAccountLabels[ent] && (
                           <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
                         )}
-                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">{labelTitle}</p>
-                        <p className={`text-xl font-black mt-0.5 tracking-tight ${isPaid ? 'text-slate-900 dark:text-white' : 'text-amber-700 dark:text-amber-400'}`}>
-                          {formatterPEN.format(displayAmount)}
+                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
+                        <p className={`text-xl font-black mt-0.5 tracking-tight ${cardNeto > 0 ? 'text-rose-700 dark:text-rose-400' : cardNeto < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
+                          S/ {cardNeto.toFixed(2)}
                         </p>
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-                        {/* Estado del ciclo facturado */}
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span>Facturado:</span>
-                          {isPaid ? (
-                            <span className="font-semibold text-emerald-600 dark:text-emerald-400">
-                              Saldado ({formatterPEN.format(cardPos.paymentTotal)})
-                            </span>
-                          ) : (
-                            <span className="font-semibold text-amber-600 dark:text-amber-400">
-                              {formatterPEN.format(cardPos.netToPay)}
-                            </span>
-                          )}
+                          <span className="flex items-center gap-1"><Plus className="text-rose-500 dark:text-rose-400" size={12}/> Cargos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardCargos)}</span>
                         </div>
-
-                        {/* Monto acumulando en curso */}
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span>En curso:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">
-                            {formatterPEN.format(cardPos.currTotal)}
-                          </span>
+                          <span className="flex items-center gap-1"><Minus className="text-emerald-500 dark:text-emerald-400" size={12}/> Abonos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardAbonos)}</span>
                         </div>
-
-                        {/* Línea de crédito */}
                         {totalLine > 0 && (
                           <button
                             type="button"
