@@ -25,6 +25,7 @@ import { usePendingPaymentsStore } from "./store/pendingPaymentsStore";
 import { usePrevMonthBridgeStore } from "./store/prevMonthBridgeStore";
 import { useCreditCardStore } from "./store/creditCardStore";
 import { useCreditLineStore } from "./store/creditLineStore";
+import { useProjectionStore } from "./store/projectionStore";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
@@ -67,6 +68,8 @@ export default function App() {
     useCreditLineStore.getState().syncFromSupabase().catch(err => console.warn('Credit lines sync error:', err));
     // Sincronizar deudas para que aparezcan igual en Vercel/iPhone/PC
     useAppStore.getState().syncDeudasFromSupabase().catch(err => console.warn('Deudas sync error:', err));
+    // Sincronizar proyecciones con Supabase para coherencia en Vercel, iPhone y Local
+    useProjectionStore.getState().syncFromSupabase().catch(err => console.warn('Projections sync error:', err));
   }, [syncFromSupabase]);
 
   // Atajo global de teclado Ctrl + K para abrir buscador universal

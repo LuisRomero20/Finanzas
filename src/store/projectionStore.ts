@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { masterTransactions } from '../utils/masterData';
 import { useFinanceStore } from './financeStore';
+import { supabase } from '../lib/supabase';
 
 export type ProjectedRecurrence = 'fijo' | 'temporal' | 'unico';
 
@@ -300,7 +301,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     tipo: 'Ingreso',
     categoria: 'Sueldo',
     concepto: 'Sueldo',
-    monto: 2259.63,
+    monto: 2375.30,
     entidad: 'Interbank',
     dia: 1,
     mesInicio: '2026-10',
@@ -482,11 +483,22 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     mesInicio: '2026-10',
     recurrencia: 'fijo',
   },
+  {
+    id: 'proj-19',
+    tipo: 'Egreso',
+    categoria: 'Servicio',
+    concepto: 'Madre',
+    monto: 90.0,
+    entidad: 'Interbank',
+    dia: 5,
+    mesInicio: '2026-10',
+    recurrencia: 'fijo',
+  },
 ];
 
-interface ProjectionState {
+export interface ProjectionState {
   items: ProjectedItem[];
-  probabilidadSueldoPorMes: Record<string, number>; // Ej: { '2026-10': 2700.00 }
+  probabilidadSueldoPorMes: Record<string, number>; // Ej: { '2026-10': 2375.30 }
   
   // Acciones
   addItem: (item: Omit<ProjectedItem, 'id'>) => string;
@@ -502,7 +514,12 @@ interface ProjectionState {
   
   // Escenario de probabilidad de sueldo
   setProbabilidadSueldo: (monthStr: string, monto: number) => void;
+  clearProbabilidadSueldo: (monthStr: string) => void;
   
+  // Sincronización Supabase
+  syncFromSupabase: () => Promise<void>;
+  saveToSupabase: () => Promise<void>;
+
   // Selector de cálculo
   getMonthlyProjections: (monthStr: string) => EffectiveProjectedRow[];
   resetToDefaults: () => void;
@@ -510,6 +527,100 @@ interface ProjectionState {
 
 const LS_KEY = 'finper_projections_v1';
 const LS_PROB_KEY = 'finper_projection_prob_v1';
+const CHUNK_SIZE = 240;
+const CHUNK_PREFIX = 'config-proj-chunk-';
+
+async function saveProjectionsToSupabase(
+  items: ProjectedItem[],
+  probabilidadSueldoPorMes: Record<string, number>
+): Promise<void> {
+  try {
+    const payload = JSON.stringify({ items, probabilidadSueldoPorMes });
+    const chunks: string[] = [];
+    for (let i = 0; i < payload.length; i += CHUNK_SIZE) {
+      chunks.push(payload.slice(i, i + CHUNK_SIZE));
+    }
+
+    const rowsToUpsert = chunks.map((chunk, idx) => ({
+      id: `${CHUNK_PREFIX}${String(idx).padStart(3, '0')}`,
+      fecha: '2026-10-01',
+      tipo: 'Config',
+      categoria: 'Proyecciones',
+      concepto: chunk,
+      monto: idx,
+      entidad: 'Sistema',
+    }));
+
+    const { error: upsertError } = await supabase
+      .from('transacciones')
+      .upsert(rowsToUpsert, { onConflict: 'id' });
+
+    if (upsertError) {
+      console.warn('Error saving projections chunks to Supabase:', upsertError);
+      return;
+    }
+
+    // Limpiar chunks sobrantes si el payload se redujo
+    const { data: existingChunks } = await supabase
+      .from('transacciones')
+      .select('id')
+      .like('id', `${CHUNK_PREFIX}%`);
+
+    if (existingChunks && existingChunks.length > chunks.length) {
+      const idsToDelete = existingChunks
+        .map((r) => r.id)
+        .filter((id) => {
+          const num = parseInt(id.replace(CHUNK_PREFIX, ''), 10);
+          return !isNaN(num) && num >= chunks.length;
+        });
+
+      if (idsToDelete.length > 0) {
+        await supabase.from('transacciones').delete().in('id', idsToDelete);
+      }
+    }
+  } catch (err) {
+    console.warn('saveProjectionsToSupabase error:', err);
+  }
+}
+
+async function fetchProjectionsFromSupabase(): Promise<{
+  items: ProjectedItem[];
+  probabilidadSueldoPorMes: Record<string, number>;
+} | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('id, concepto')
+      .like('id', `${CHUNK_PREFIX}%`)
+      .order('id', { ascending: true });
+
+    if (error || !data || data.length === 0) return null;
+
+    const fullPayload = data.map((r) => r.concepto).join('');
+    const parsed = JSON.parse(fullPayload);
+    if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
+      const prob = parsed.probabilidadSueldoPorMes || {};
+      if (prob['2026-10'] === 2700.0) {
+        delete prob['2026-10'];
+      }
+      return {
+        items: parsed.items,
+        probabilidadSueldoPorMes: prob,
+      };
+    }
+  } catch (err) {
+    console.warn('fetchProjectionsFromSupabase error:', err);
+  }
+  return null;
+}
+
+let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+function triggerSaveProjections(items: ProjectedItem[], prob: Record<string, number>) {
+  if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
+  saveDebounceTimer = setTimeout(() => {
+    saveProjectionsToSupabase(items, prob).catch(console.warn);
+  }, 400);
+}
 
 function loadStoredItems(): ProjectedItem[] {
   try {
@@ -522,14 +633,24 @@ function loadStoredItems(): ProjectedItem[] {
 function loadStoredProb(): Record<string, number> {
   try {
     const raw = localStorage.getItem(LS_PROB_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        // Limpiar el valor histórico hardcodeado de 2700 para evitar monto agregado artificial
+        if (parsed['2026-10'] === 2700.0) {
+          delete parsed['2026-10'];
+          localStorage.setItem(LS_PROB_KEY, JSON.stringify(parsed));
+        }
+        return parsed;
+      }
+    }
   } catch {}
-  return { '2026-10': 2700.0 };
+  return {};
 }
 
 export const useProjectionStore = create<ProjectionState>((set, get) => ({
   items: typeof window !== 'undefined' ? loadStoredItems() : INITIAL_PROJECTIONS,
-  probabilidadSueldoPorMes: typeof window !== 'undefined' ? loadStoredProb() : { '2026-10': 2700.0 },
+  probabilidadSueldoPorMes: typeof window !== 'undefined' ? loadStoredProb() : {},
 
   addItem: (newItem) => {
     const id = `proj-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
@@ -537,6 +658,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     set((state) => {
       const updated = [...state.items, fullItem];
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
     return id;
@@ -546,6 +668,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     set((state) => {
       const updated = state.items.map((item) => (item.id === id ? { ...item, ...updates } : item));
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -554,6 +677,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     set((state) => {
       const updated = state.items.filter((item) => item.id !== id);
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -567,6 +691,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         return { ...item, excepciones };
       });
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -582,6 +707,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         return { ...item, excepciones };
       });
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -595,6 +721,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         return { ...item, excepciones };
       });
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -608,6 +735,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         return { ...item, excepciones };
       });
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -621,6 +749,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         return { ...item, excepciones };
       });
       localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
   },
@@ -629,8 +758,43 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     set((state) => {
       const updated = { ...state.probabilidadSueldoPorMes, [monthStr]: monto };
       localStorage.setItem(LS_PROB_KEY, JSON.stringify(updated));
+      triggerSaveProjections(state.items, updated);
       return { probabilidadSueldoPorMes: updated };
     });
+  },
+
+  clearProbabilidadSueldo: (monthStr) => {
+    set((state) => {
+      const updated = { ...state.probabilidadSueldoPorMes };
+      delete updated[monthStr];
+      localStorage.setItem(LS_PROB_KEY, JSON.stringify(updated));
+      triggerSaveProjections(state.items, updated);
+      return { probabilidadSueldoPorMes: updated };
+    });
+  },
+
+  syncFromSupabase: async () => {
+    try {
+      const remote = await fetchProjectionsFromSupabase();
+      if (remote && remote.items && remote.items.length > 0) {
+        set({
+          items: remote.items,
+          probabilidadSueldoPorMes: remote.probabilidadSueldoPorMes || {},
+        });
+        localStorage.setItem(LS_KEY, JSON.stringify(remote.items));
+        localStorage.setItem(LS_PROB_KEY, JSON.stringify(remote.probabilidadSueldoPorMes || {}));
+      } else {
+        const { items, probabilidadSueldoPorMes } = get();
+        await saveProjectionsToSupabase(items, probabilidadSueldoPorMes);
+      }
+    } catch (err) {
+      console.warn('syncFromSupabase projections error:', err);
+    }
+  },
+
+  saveToSupabase: async () => {
+    const { items, probabilidadSueldoPorMes } = get();
+    await saveProjectionsToSupabase(items, probabilidadSueldoPorMes);
   },
 
   getMonthlyProjections: (targetMonthStr) => {
@@ -736,7 +900,8 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     localStorage.removeItem(LS_PROB_KEY);
     set({
       items: INITIAL_PROJECTIONS,
-      probabilidadSueldoPorMes: { '2026-10': 2700.0 },
+      probabilidadSueldoPorMes: {},
     });
+    triggerSaveProjections(INITIAL_PROJECTIONS, {});
   },
 }));

@@ -77,6 +77,7 @@ export const ProyeccionPage: React.FC = () => {
     modifyAmountInMonth,
     clearMonthException,
     setProbabilidadSueldo,
+    clearProbabilidadSueldo,
     getMonthlyProjections,
     resetToDefaults,
   } = useProjectionStore();
@@ -165,9 +166,10 @@ export const ProyeccionPage: React.FC = () => {
     const ripleyDueDetail = getCardDueDetailsForMonth('Ripley', activeMonthStr, items);
 
     // Probabilidad de Sueldo / Escenario
-    const sueldoProbable = probabilidadSueldoPorMes[activeMonthStr] ?? 2700.0;
     const sueldoBaseRegistrado = interbankIncomeTxs.find(r => r.categoria === 'Sueldo')?.monto ?? 0;
-    const deltaSueldo = Math.max(0, sueldoProbable - sueldoBaseRegistrado);
+    const hasCustomProb = probabilidadSueldoPorMes[activeMonthStr] !== undefined;
+    const sueldoProbable = hasCustomProb ? (probabilidadSueldoPorMes[activeMonthStr] ?? 0) : sueldoBaseRegistrado;
+    const deltaSueldo = sueldoProbable - sueldoBaseRegistrado;
     const saldoFinalProyectado = saldoNetoInterbank + deltaSueldo;
 
     return {
@@ -185,7 +187,10 @@ export const ProyeccionPage: React.FC = () => {
       amexDueDetail,
       bbvaDueDetail,
       ripleyDueDetail,
+      sueldoBaseRegistrado,
       sueldoProbable,
+      hasCustomProb,
+      deltaSueldo,
       saldoFinalProyectado,
     };
   }, [projectedRows, probabilidadSueldoPorMes, activeMonthStr]);
@@ -890,20 +895,57 @@ export const ProyeccionPage: React.FC = () => {
                   Ajusta la proyección de sueldo o ingresos adicionales para simular el saldo final.
                 </p>
               </div>
+              {entityBreakdown.hasCustomProb && (
+                <button
+                  type="button"
+                  onClick={() => clearProbabilidadSueldo(activeMonthStr)}
+                  className="text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-white flex items-center gap-1 bg-amber-200/60 dark:bg-amber-900/40 hover:bg-amber-200 dark:hover:bg-amber-800/60 px-2.5 py-1 rounded-lg transition"
+                  title="Restablecer al sueldo base registrado"
+                >
+                  <RotateCcw size={12} />
+                  <span>Restablecer</span>
+                </button>
+              )}
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-bold text-amber-950 dark:text-amber-200">Sueldo Estimado:</span>
-              <div className="flex items-center bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700/60 rounded-xl px-3 py-1.5 shadow-inner">
-                <span className="text-xs font-bold text-slate-400 mr-1.5">S/</span>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={entityBreakdown.sueldoProbable}
-                  onChange={(e) => setProbabilidadSueldo(activeMonthStr, parseFloat(e.target.value) || 0)}
-                  className="w-28 text-sm font-black text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none"
-                />
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-amber-950 dark:text-amber-200">Sueldo Estimado:</span>
+                <div className="flex items-center bg-white dark:bg-slate-800 border border-amber-300 dark:border-amber-700/60 rounded-xl px-3 py-1.5 shadow-inner">
+                  <span className="text-xs font-bold text-slate-400 mr-1.5">S/</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={entityBreakdown.hasCustomProb ? entityBreakdown.sueldoProbable : entityBreakdown.sueldoBaseRegistrado}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === '') {
+                        clearProbabilidadSueldo(activeMonthStr);
+                      } else {
+                        setProbabilidadSueldo(activeMonthStr, parseFloat(val) || 0);
+                      }
+                    }}
+                    placeholder={String(entityBreakdown.sueldoBaseRegistrado)}
+                    className="w-28 text-sm font-black text-amber-950 dark:text-amber-200 bg-transparent focus:outline-none"
+                  />
+                </div>
               </div>
+
+              {/* Indicador de variación respecto al sueldo base */}
+              {entityBreakdown.deltaSueldo !== 0 ? (
+                <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${
+                  entityBreakdown.deltaSueldo > 0 
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300' 
+                    : 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                }`}>
+                  {entityBreakdown.deltaSueldo > 0 ? '+' : ''}
+                  {fmt.format(entityBreakdown.deltaSueldo)} vs Base
+                </span>
+              ) : (
+                <span className="text-[11px] text-amber-700/70 dark:text-amber-400/60 font-medium">
+                  (Base: {fmt.format(entityBreakdown.sueldoBaseRegistrado)})
+                </span>
+              )}
             </div>
 
             <div className="pt-2 border-t border-amber-200/80 dark:border-amber-900/40 flex items-center justify-between">
