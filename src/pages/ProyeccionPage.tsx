@@ -352,7 +352,7 @@ export const ProyeccionPage: React.FC = () => {
             </button>
           </div>
 
-          {/* Botón Calculadora Gratificación & CTS */}
+          {/* Botón Calculadora Beneficios Laborales (Grati, CTS & Utilidades) */}
           <button
             onClick={() => setShowBenefitsWidget(prev => !prev)}
             className={`flex items-center gap-1.5 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm transition border ${
@@ -360,10 +360,10 @@ export const ProyeccionPage: React.FC = () => {
                 ? 'bg-emerald-600 border-emerald-400/80 shadow-emerald-900/40'
                 : 'bg-gradient-to-r from-emerald-800 to-teal-800 hover:from-emerald-700 hover:to-teal-700 border-emerald-600/50'
             }`}
-            title="Calcular gratificación, CTS y simular cuánto tendrías según lo que ganas"
+            title="Calcular gratificación, CTS, utilidades y simular cuánto tendrías según lo que ganas"
           >
             <Calculator size={15} />
-            <span>{showBenefitsWidget ? 'Ocultar Grati & CTS' : 'Calculadora Grati & CTS'}</span>
+            <span>{showBenefitsWidget ? 'Ocultar Beneficios' : 'Calculadora Beneficios (Grati, CTS & Utilidades)'}</span>
           </button>
 
           {/* Botón Enviar a Pagos Pendientes */}
@@ -425,10 +425,10 @@ export const ProyeccionPage: React.FC = () => {
             </div>
             <div>
               <span className="text-xs font-black text-white tracking-wide block">
-                Calculadora de Beneficios Laborales (Gratificación & CTS)
+                Calculadora de Beneficios Laborales (Gratificación, CTS & Utilidades)
               </span>
               <p className="text-[11px] text-slate-300">
-                Simula tu sueldo neto (S/ 2,073 vs S/ 2,259), proyecta cuánto tendrías según lo que ganas y sincroniza tu CTS y Grati.
+                Simula tu sueldo neto, gratificaciones con bono, CTS y proyecta tu participación de utilidades legales (D.L. 892).
               </p>
             </div>
           </div>

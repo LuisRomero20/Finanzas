@@ -5,6 +5,7 @@ import {
   calculateCts,
   calculateAnnualBenefits,
   getUser2026HistoricalAndProjectedTable,
+  calculateUtilidades,
 } from '../laborBenefits';
 
 describe('Labor Benefits Calculations (Peruvian Labor Law)', () => {
@@ -101,5 +102,72 @@ describe('Labor Benefits Calculations (Peruvian Labor Law)', () => {
     const julio = table.columns.find(c => c.mes === 'Julio');
     expect(julio?.gratificacion).toBe(2721.60);
     expect(julio?.total).toBe(4981.23);
+  });
+
+  describe('Worker Profit Sharing - Utilidades (D.L. 892)', () => {
+    it('calculates utilidades by salary multiplier accurately', () => {
+      const res = calculateUtilidades({
+        modo: 'MULTIPLOS_SUELDO',
+        sueldoBruto: 2559,
+        tieneAsignacionFamiliar: false,
+        multiplicadorSueldos: 1.5,
+      });
+
+      // 1.5 * 2559 = 3838.50
+      expect(res.utilidadBruta).toBe(3838.50);
+      expect(res.montoPorDias).toBe(1919.25);
+      expect(res.montoPorRemuneracion).toBe(1919.25);
+      expect(res.descuentoAfpOnp).toBe(0); // Inafecto por D.L. 892 Art. 9
+      expect(res.descuentoEsSalud).toBe(0);
+      expect(res.superaTope).toBe(false);
+      expect(res.tope18Sueldos).toBe(2559 * 18);
+    });
+
+    it('calculates official 50/50 legal formula with sector percentage', () => {
+      const res = calculateUtilidades({
+        modo: 'OFICIAL_EMPRESA',
+        sueldoBruto: 2559,
+        tieneAsignacionFamiliar: false,
+        sector: 'TELECOMUNICACIONES', // 10%
+        rentaNetaEmpresa: 10000000, // S/ 10,000,000
+        totalDiasEmpresa: 26000, // 100 trabajadores * 260 días
+        masaSalarialEmpresa: 3582600, // 100 trabajadores * 35,826
+        diasLaboradosTrabajador: 260,
+      });
+
+      // 10% de 10M = 1,000,000
+      expect(res.fondoTotalDistribuir).toBe(1000000);
+      expect(res.fondoDias50).toBe(500000);
+      expect(res.fondoRemuneracion50).toBe(500000);
+
+      // 50% por días = (500,000 / 26,000) * 260 = 5,000.00
+      expect(res.montoPorDias).toBe(5000.00);
+
+      // 50% por remuneración = (500,000 / 3,582,600) * 35,826 = 5,000.00
+      expect(res.montoPorRemuneracion).toBe(5000.00);
+
+      // Utilidad bruta = 10,000.00
+      expect(res.utilidadBruta).toBe(10000.00);
+      expect(res.superaTope).toBe(false);
+    });
+
+    it('enforces the legal limit of 18 monthly remunerations', () => {
+      const res = calculateUtilidades({
+        modo: 'OFICIAL_EMPRESA',
+        sueldoBruto: 2000,
+        tieneAsignacionFamiliar: false,
+        sector: 'MINERIA', // 8%
+        rentaNetaEmpresa: 100000000, // Ganancias enormes
+        totalDiasEmpresa: 260, // Pocos trabajadores
+        masaSalarialEmpresa: 28000,
+        diasLaboradosTrabajador: 260,
+      });
+
+      // 18 sueldos = 18 * 2,000 = 36,000
+      expect(res.tope18Sueldos).toBe(36000);
+      expect(res.superaTope).toBe(true);
+      expect(res.utilidadAfecta).toBe(36000); // Tope aplicado
+      expect(res.excedenteTope).toBeGreaterThan(0);
+    });
   });
 });
