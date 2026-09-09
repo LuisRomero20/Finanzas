@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { LINE_OVERRIDES, ACCOUNT_LABELS } from '../utils/masterData';
+import {
+  saveCreditLinesConfigToSupabase,
+  fetchCreditLinesConfigFromSupabase,
+} from '../services/supabaseService';
 
 interface CreditLineState {
   lines: Record<string, number>;
@@ -8,11 +12,12 @@ interface CreditLineState {
   setCreditLine: (entity: string, amount: number) => void;
   setAccountLabel: (entity: string, label: string) => void;
   resetDefaults: () => void;
+  syncFromSupabase: () => Promise<void>;
 }
 
 export const useCreditLineStore = create<CreditLineState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       lines: { ...LINE_OVERRIDES },
       labels: { ...ACCOUNT_LABELS },
       setCreditLine: (entity, amount) =>
@@ -21,6 +26,8 @@ export const useCreditLineStore = create<CreditLineState>()(
           try {
             localStorage.setItem('finper_line_overrides', JSON.stringify(updated));
           } catch {}
+          // Sincronizar con Supabase para otros dispositivos
+          saveCreditLinesConfigToSupabase(updated, get().labels).catch(() => {});
           return { lines: updated };
         }),
       setAccountLabel: (entity, label) =>
@@ -29,6 +36,8 @@ export const useCreditLineStore = create<CreditLineState>()(
           try {
             localStorage.setItem('finper_account_labels', JSON.stringify(updated));
           } catch {}
+          // Sincronizar con Supabase para otros dispositivos
+          saveCreditLinesConfigToSupabase(get().lines, updated).catch(() => {});
           return { labels: updated };
         }),
       resetDefaults: () =>
@@ -42,6 +51,19 @@ export const useCreditLineStore = create<CreditLineState>()(
             labels: { ...ACCOUNT_LABELS },
           };
         }),
+      syncFromSupabase: async () => {
+        try {
+          const cloudConfig = await fetchCreditLinesConfigFromSupabase();
+          if (cloudConfig) {
+            set((state) => ({
+              lines: { ...state.lines, ...cloudConfig.lines },
+              labels: { ...state.labels, ...cloudConfig.labels },
+            }));
+          }
+        } catch (e) {
+          console.warn('Error syncing credit lines from Supabase:', e);
+        }
+      },
     }),
     {
       name: 'finper_credit_lines_v2',
