@@ -149,6 +149,7 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
 
 /**
  * Obtiene todos los pagos pendientes guardados en Supabase para sincronizar entre PC y móvil.
+ * Normaliza el campo 'tipo' a formato correcto ('Ingreso' | 'Egreso') independientemente de mayúsculas.
  */
 export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> {
   try {
@@ -160,22 +161,116 @@ export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> 
 
     if (error || !data) return null;
 
-    return data.map((row: any) => ({
-      id: String(row.id).replace(/^pending-/, ''),
-      tipo: row.tipo,
-      fecha: row.fecha,
-      concepto: row.concepto,
-      categoria: row.categoria,
-      entidad: row.entidad,
-      monto: Number(row.monto),
-      mes: row.mes,
-      mesStr: row.fecha ? row.fecha.slice(0, 7) : '2026-10',
-      estado: 'pendiente',
-      origen: 'Proyección',
-      fechaCreacion: row.created_at || new Date().toISOString(),
-    }));
+    return data.map((row: any) => {
+      // Normalizar tipo para que siempre sea 'Ingreso' o 'Egreso' (con mayúscula inicial)
+      const rawTipo = String(row.tipo || 'Egreso');
+      const tipo = rawTipo.charAt(0).toUpperCase() + rawTipo.slice(1).toLowerCase();
+      const tipoNorm = tipo === 'Ingreso' ? 'Ingreso' : 'Egreso';
+
+      return {
+        id: String(row.id).replace(/^pending-/, ''),
+        tipo: tipoNorm,
+        fecha: row.fecha,
+        concepto: row.concepto,
+        categoria: row.categoria,
+        entidad: row.entidad,
+        monto: Number(row.monto),
+        mes: row.mes,
+        mesStr: row.fecha ? row.fecha.slice(0, 7) : '2026-10',
+        estado: 'pendiente',
+        origen: 'Proyección',
+        fechaCreacion: row.created_at || new Date().toISOString(),
+      };
+    });
   } catch (e) {
     console.warn('Error fetching pending payments from Supabase:', e);
+    return null;
+  }
+}
+
+/**
+ * Guarda la configuración de tarjetas de crédito en Supabase (para sincronizar entre dispositivos).
+ */
+export async function saveCardsConfigToSupabase(cards: any[]): Promise<boolean> {
+  try {
+    const payload = {
+      id: 'config-credit-cards-v2',
+      tipo: 'Egreso',
+      fecha: '2026-01-01',
+      concepto: JSON.stringify(cards),
+      categoria: 'Config',
+      entidad: 'Sistema',
+      monto: 0,
+      mes: 'Config',
+    };
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Obtiene la configuración de tarjetas de crédito desde Supabase.
+ */
+export async function fetchCardsConfigFromSupabase(): Promise<any[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .eq('id', 'config-credit-cards-v2')
+      .single();
+
+    if (error || !data || !data.concepto) return null;
+    const parsed = JSON.parse(data.concepto);
+    return Array.isArray(parsed) ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda la configuración de líneas de crédito en Supabase.
+ */
+export async function saveCreditLinesConfigToSupabase(lines: Record<string, number>, labels: Record<string, string>): Promise<boolean> {
+  try {
+    const payload = {
+      id: 'config-credit-lines-v2',
+      tipo: 'Egreso',
+      fecha: '2026-01-01',
+      concepto: JSON.stringify({ lines, labels }),
+      categoria: 'Config',
+      entidad: 'Sistema',
+      monto: 0,
+      mes: 'Config',
+    };
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Obtiene la configuración de líneas de crédito desde Supabase.
+ */
+export async function fetchCreditLinesConfigFromSupabase(): Promise<{ lines: Record<string, number>; labels: Record<string, string> } | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .eq('id', 'config-credit-lines-v2')
+      .single();
+
+    if (error || !data || !data.concepto) return null;
+    const parsed = JSON.parse(data.concepto);
+    if (parsed && typeof parsed.lines === 'object') return parsed;
+    return null;
+  } catch {
     return null;
   }
 }

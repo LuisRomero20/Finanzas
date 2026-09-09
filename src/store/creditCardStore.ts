@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { useCreditLineStore } from './creditLineStore';
+import {
+  saveCardsConfigToSupabase,
+  fetchCardsConfigFromSupabase,
+} from '../services/supabaseService';
 
 export interface CardConfig {
   id: string;
@@ -94,6 +98,8 @@ function persistCards(cards: CardConfig[]): void {
   } catch (e) {
     console.warn('Error persistiendo tarjetas:', e);
   }
+  // Sincronizar en la nube para que otros dispositivos (Vercel/iPhone) accedan a la config actualizada
+  saveCardsConfigToSupabase(cards).catch(() => {});
 }
 
 interface CreditCardStoreState {
@@ -110,6 +116,7 @@ interface CreditCardStoreState {
   updateCard: (id: string, updates: Partial<CardConfig>) => void;
   deleteCard: (id: string, force?: boolean) => boolean;
   getCardByEntity: (entity: string) => CardConfig | undefined;
+  syncFromSupabase: () => Promise<number>;
 }
 
 const COLOR_THEMES = {
@@ -229,5 +236,29 @@ export const useCreditCardStore = create<CreditCardStoreState>((set, get) => ({
     return get().cards.find(
       (c) => c.entity.toLowerCase() === norm || c.name.toLowerCase() === norm
     );
+  },
+
+  syncFromSupabase: async () => {
+    try {
+      const cloudCards = await fetchCardsConfigFromSupabase();
+      if (cloudCards && cloudCards.length > 0) {
+        // Aplicar correcciones de días a tarjetas conocidas
+        const normalized = cloudCards.map((c: CardConfig) => {
+          if (/^BBVA/i.test(c.entity)) return { ...c, cycleStartDay: 10, paymentDay: 5 };
+          if (/^Ripley/i.test(c.entity)) return { ...c, cycleStartDay: 3, paymentDay: 1 };
+          if (/^Interbank\s*Amex/i.test(c.entity)) return { ...c, cycleStartDay: 21, paymentDay: 15 };
+          return c;
+        });
+        // Guardar localmente y actualizar el estado
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
+        } catch {}
+        set({ cards: normalized });
+        return normalized.length;
+      }
+    } catch (e) {
+      console.warn('Error sincronizando tarjetas desde Supabase:', e);
+    }
+    return 0;
   },
 }));
