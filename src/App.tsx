@@ -57,7 +57,7 @@ export default function App() {
   const { syncFromSupabase } = useFinanceStore();
 
   // Sincronizar automáticamente con Supabase al abrir la aplicación
-  // Carga: transacciones, pagos pendientes, configuración de puente, tarjetas y líneas de crédito
+  // Carga: transacciones, pagos pendientes, configuración de puente, tarjetas, líneas de crédito y deudas
   useEffect(() => {
     syncFromSupabase().catch(err => console.warn('Background Supabase sync error:', err));
     usePendingPaymentsStore.getState().syncFromSupabase().catch(err => console.warn('Pending payments sync error:', err));
@@ -65,6 +65,8 @@ export default function App() {
     // Sincronizar tarjetas y líneas de crédito para que sean iguales en todos los dispositivos
     useCreditCardStore.getState().syncFromSupabase().catch(err => console.warn('Cards sync error:', err));
     useCreditLineStore.getState().syncFromSupabase().catch(err => console.warn('Credit lines sync error:', err));
+    // Sincronizar deudas para que aparezcan igual en Vercel/iPhone/PC
+    useAppStore.getState().syncDeudasFromSupabase().catch(err => console.warn('Deudas sync error:', err));
   }, [syncFromSupabase]);
 
   // Atajo global de teclado Ctrl + K para abrir buscador universal
