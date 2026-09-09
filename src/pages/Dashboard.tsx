@@ -850,20 +850,14 @@ export const Dashboard: React.FC = () => {
                   );
                 }
 
-                // Tarjetas de crédito: neto del mes seleccionado (Cargos vs Abonos)
+                // Tarjetas de crédito: Ingresos - Egresos de la entidad, filtrado por mes
                 const matchingCard = cards.find(c => c.entity === ent);
                 const totalLine = entityLineaTotals[ent] || 0;
-                const opMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
-                const cardMonthTxs = rawTransactions.filter(t => t.Entidad === ent && t.Mes === opMonth);
-                const cardCargos = cardMonthTxs
-                  .filter(t => t.Tipo === 'Egreso' && !isCreditCardLine(t))
-                  .reduce((a, t) => a + t.Monto, 0);
-                const cardAbonos = cardMonthTxs
-                  .filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t))
-                  .reduce((a, t) => a + t.Monto, 0);
-                const cardNeto = cardCargos - cardAbonos;
+                const cardIngresos = entityIngresos[ent] || 0;
+                const cardEgresos = entityEgresos[ent] || 0;
+                const cardNeto = cardIngresos - cardEgresos;
 
-                if (matchingCard || cardCargos > 0 || cardAbonos > 0) {
+                if (matchingCard || cardIngresos > 0 || cardEgresos > 0) {
                   return (
                     <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                       <div>
@@ -874,24 +868,24 @@ export const Dashboard: React.FC = () => {
                               Tarjeta
                             </span>
                             {matchingCard && (
-                              cardNeto === 0 ? (
+                              cardNeto >= 0 ? (
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    if (confirm(`¿Eliminar definitivamente la tarjeta "${matchingCard.name}"? Su deuda está saldada al 100%.`)) {
+                                    if (confirm(`¿Eliminar definitivamente la tarjeta "${matchingCard.name}"? Su saldo en el mes está saldado.`)) {
                                       deleteCard(matchingCard.id);
                                       agregarNotificacion(`Tarjeta "${matchingCard.name}" eliminada.`);
                                     }
                                   }}
                                   className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
-                                  title="Eliminar tarjeta (sin deuda activa en el mes)"
+                                  title="Eliminar tarjeta"
                                 >
                                   <Trash2 size={12} />
                                 </button>
                               ) : (
                                 <span
                                   className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                                  title={`No se puede eliminar: Esta tarjeta tiene cargos activos de ${formatterPEN.format(cardNeto)} en ${opMonth}.`}
+                                  title={`No se puede eliminar: Hay egresos activos de ${formatterPEN.format(cardEgresos)} en este mes.`}
                                 >
                                   <Lock size={12} />
                                 </span>
@@ -903,19 +897,19 @@ export const Dashboard: React.FC = () => {
                           <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
                         )}
                         <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
-                        <p className={`text-xl font-black mt-0.5 tracking-tight ${cardNeto > 0 ? 'text-rose-700 dark:text-rose-400' : cardNeto < 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-slate-900 dark:text-white'}`}>
-                          S/ {cardNeto.toFixed(2)}
+                        <p className={`text-xl font-black mt-0.5 tracking-tight ${cardNeto >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
+                          {formatterPEN.format(cardNeto)}
                         </p>
                       </div>
 
                       <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Plus className="text-rose-500 dark:text-rose-400" size={12}/> Cargos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardCargos)}</span>
+                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardIngresos)}</span>
                         </div>
                         <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Minus className="text-emerald-500 dark:text-emerald-400" size={12}/> Abonos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardAbonos)}</span>
+                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
+                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardEgresos)}</span>
                         </div>
                         {totalLine > 0 && (
                           <button
