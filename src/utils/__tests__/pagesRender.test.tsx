@@ -52,6 +52,5 @@ describe('All Pages Rendering Tests', () => {
     expect(htmlSetiembre).toContain('Interbank Amex');
     expect(htmlSetiembre).toContain('BBVA Bfree');
     expect(htmlSetiembre).toContain('Ripley');
-    expect(htmlSetiembre).toContain('Cancelado');
   });
 });

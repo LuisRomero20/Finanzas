@@ -9,6 +9,23 @@ if ('serviceWorker' in navigator && !window.location.host.includes('localhost:51
     navigator.serviceWorker.register('/sw.js').then((reg) => {
       // Chequear actualizaciones inmediatamente al abrir la app
       reg.update().catch(() => {});
+
+      // Si ya hay un worker esperando, activarlo de inmediato
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      // Escuchar cuando se descargue una nueva versión
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }
+      });
     }).catch((err) => {
       console.warn('Service Worker registration warning:', err);
     });
