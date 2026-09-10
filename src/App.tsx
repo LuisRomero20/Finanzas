@@ -26,6 +26,7 @@ import { usePrevMonthBridgeStore } from "./store/prevMonthBridgeStore";
 import { useCreditCardStore } from "./store/creditCardStore";
 import { useCreditLineStore } from "./store/creditLineStore";
 import { useProjectionStore } from "./store/projectionStore";
+import { initLiveUpdateService } from "./utils/liveUpdateService";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
@@ -57,20 +58,12 @@ export default function App() {
   const { theme } = useThemeStore();
   const { syncFromSupabase } = useFinanceStore();
 
-  // Sincronizar automáticamente con Supabase al abrir la aplicación
-  // Carga: transacciones, pagos pendientes, configuración de puente, tarjetas, líneas de crédito y deudas
+  // Inicializar servicio de actualización instantánea (Vercel) y sincronización en tiempo real (Supabase)
+  // Mantiene el smartphone siempre al día al desbloquear la pantalla, cambiar de app o recibir cambios desde PC
   useEffect(() => {
-    syncFromSupabase().catch(err => console.warn('Background Supabase sync error:', err));
-    usePendingPaymentsStore.getState().syncFromSupabase().catch(err => console.warn('Pending payments sync error:', err));
-    usePrevMonthBridgeStore.getState().syncFromSupabase().catch(err => console.warn('Bridge config sync error:', err));
-    // Sincronizar tarjetas y líneas de crédito para que sean iguales en todos los dispositivos
-    useCreditCardStore.getState().syncFromSupabase().catch(err => console.warn('Cards sync error:', err));
-    useCreditLineStore.getState().syncFromSupabase().catch(err => console.warn('Credit lines sync error:', err));
-    // Sincronizar deudas para que aparezcan igual en Vercel/iPhone/PC
-    useAppStore.getState().syncDeudasFromSupabase().catch(err => console.warn('Deudas sync error:', err));
-    // Sincronizar proyecciones con Supabase para coherencia en Vercel, iPhone y Local
-    useProjectionStore.getState().syncFromSupabase().catch(err => console.warn('Projections sync error:', err));
-  }, [syncFromSupabase]);
+    const cleanup = initLiveUpdateService();
+    return cleanup;
+  }, []);
 
   // Atajo global de teclado Ctrl + K para abrir buscador universal
   useEffect(() => {
