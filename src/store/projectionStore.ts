@@ -339,6 +339,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     dia: 1,
     mesInicio: '2026-10',
     recurrencia: 'fijo',
+    excepciones: { '2026-10': { montoModificado: 41.80 } },
   },
   {
     id: 'proj-6',
@@ -354,9 +355,9 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
   {
     id: 'proj-7',
     tipo: 'Egreso',
-    categoria: 'Deuda',
+    categoria: 'Tecnología & Gadgets',
     concepto: 'iPhone 16',
-    monto: 245.75,
+    monto: 246.75,
     entidad: 'Interbank',
     dia: 1,
     mesInicio: '2026-10',
@@ -367,18 +368,19 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     tipo: 'Egreso',
     categoria: 'Servicio',
     concepto: 'Pago de Tarjeta Ripley',
-    monto: 381.88,
+    monto: 374.82,
     entidad: 'Interbank',
     dia: 1,
     mesInicio: '2026-10',
     recurrencia: 'fijo',
+    excepciones: { '2026-10': { montoModificado: 374.82 } },
   },
   {
     id: 'proj-9',
     tipo: 'Egreso',
     categoria: 'Deuda',
     concepto: 'Prestamo Yape',
-    monto: 116.85,
+    monto: 116.65,
     entidad: 'Interbank',
     dia: 1,
     mesInicio: '2026-10',
@@ -396,11 +398,22 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     recurrencia: 'fijo',
   },
   {
+    id: 'proj-20',
+    tipo: 'Egreso',
+    categoria: 'Hogar & Mantenimiento',
+    concepto: 'Utensilios de Limpieza',
+    monto: 30.0,
+    entidad: 'Ripley',
+    dia: 4,
+    mesInicio: '2026-10',
+    recurrencia: 'fijo',
+  },
+  {
     id: 'proj-11',
     tipo: 'Egreso',
     categoria: 'Servicio',
     concepto: 'Agua + Mantenimiento',
-    monto: 160.0,
+    monto: 180.0,
     entidad: 'Interbank',
     dia: 5,
     mesInicio: '2026-10',
@@ -411,7 +424,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     tipo: 'Egreso',
     categoria: 'Servicio',
     concepto: 'Pago de Tarjeta Interbank Amex',
-    monto: 36.6,
+    monto: 465.30,
     entidad: 'Interbank',
     dia: 5,
     mesInicio: '2026-10',
@@ -422,7 +435,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     tipo: 'Egreso',
     categoria: 'Servicio',
     concepto: 'Pago de Tarjeta BBVA Bfree',
-    monto: 271.84,
+    monto: 272.80,
     entidad: 'Interbank',
     dia: 5,
     mesInicio: '2026-10',
@@ -471,6 +484,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     dia: 15,
     mesInicio: '2026-10',
     recurrencia: 'fijo',
+    excepciones: { '2026-10': { suprimido: true } },
   },
   {
     id: 'proj-18',
@@ -549,6 +563,7 @@ async function saveProjectionsToSupabase(
       concepto: chunk,
       monto: idx,
       entidad: 'Sistema',
+      mes: 'Config',
     }));
 
     const { error: upsertError } = await supabase
@@ -596,7 +611,13 @@ async function fetchProjectionsFromSupabase(): Promise<{
 
     if (error || !data || data.length === 0) return null;
 
-    const fullPayload = data.map((r) => r.concepto).join('');
+    const sorted = [...data].sort((a, b) => {
+      const numA = parseInt(a.id.replace(CHUNK_PREFIX, ''), 10);
+      const numB = parseInt(b.id.replace(CHUNK_PREFIX, ''), 10);
+      return numA - numB;
+    });
+
+    const fullPayload = sorted.map((r) => r.concepto).join('');
     const parsed = JSON.parse(fullPayload);
     if (parsed && Array.isArray(parsed.items) && parsed.items.length > 0) {
       const prob = parsed.probabilidadSueldoPorMes || {};
@@ -625,7 +646,19 @@ function triggerSaveProjections(items: ProjectedItem[], prob: Record<string, num
 function loadStoredItems(): ProjectedItem[] {
   try {
     const raw = localStorage.getItem(LS_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        const isStaleDefault = parsed.length === 19 && parsed.some(
+          (i: ProjectedItem) => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido)
+        );
+        if (isStaleDefault) {
+          localStorage.setItem(LS_KEY, JSON.stringify(INITIAL_PROJECTIONS));
+          return INITIAL_PROJECTIONS;
+        }
+        return parsed;
+      }
+    }
   } catch {}
   return INITIAL_PROJECTIONS;
 }
@@ -785,7 +818,12 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         localStorage.setItem(LS_PROB_KEY, JSON.stringify(remote.probabilidadSueldoPorMes || {}));
       } else {
         const { items, probabilidadSueldoPorMes } = get();
-        await saveProjectionsToSupabase(items, probabilidadSueldoPorMes);
+        const isClean = items && items.length >= 20 && !items.some(
+          i => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido)
+        );
+        if (isClean) {
+          await saveProjectionsToSupabase(items, probabilidadSueldoPorMes);
+        }
       }
     } catch (err) {
       console.warn('syncFromSupabase projections error:', err);

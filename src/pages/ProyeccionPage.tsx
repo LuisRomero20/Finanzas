@@ -37,6 +37,7 @@ import {
   FileSpreadsheet,
   Send,
   Calculator,
+  Cloud,
 } from 'lucide-react';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { LaborBenefitsCalculatorWidget, LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
@@ -106,10 +107,40 @@ export const ProyeccionPage: React.FC = () => {
   const [formRecurrencia, setFormRecurrencia] = useState<ProjectedRecurrence>('fijo');
   const [formMesesDuracion, setFormMesesDuracion] = useState<number>(3);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [isSyncingCloud, setIsSyncingCloud] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3500);
+  };
+
+  // Auto-sincronización inteligente al cargar la vista de proyecciones
+  React.useEffect(() => {
+    const initSync = async () => {
+      const store = useProjectionStore.getState();
+      const isDefaultOld = store.items.length === 19 && store.items.some(i => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido));
+      if (!isDefaultOld && store.items.length >= 20) {
+        // En PC/Web con la configuración limpia: respaldar de inmediato en Supabase
+        await store.saveToSupabase();
+      } else {
+        // En celular: descargar de Supabase la configuración limpia
+        await store.syncFromSupabase();
+      }
+    };
+    initSync();
+  }, []);
+
+  const handleSyncCloud = async () => {
+    setIsSyncingCloud(true);
+    try {
+      const store = useProjectionStore.getState();
+      await store.saveToSupabase();
+      showToast('☁️ Proyecciones guardadas en la nube. Tu celular y PC ahora están 100% sincronizados.');
+    } catch {
+      showToast('⚠️ Error al sincronizar con la nube.');
+    } finally {
+      setIsSyncingCloud(false);
+    }
   };
 
   // Navegación de meses
@@ -364,6 +395,17 @@ export const ProyeccionPage: React.FC = () => {
           >
             <Calculator size={15} />
             <span>{showBenefitsWidget ? 'Ocultar Beneficios' : 'Calculadora Beneficios (Grati, CTS & Utilidades)'}</span>
+          </button>
+
+          {/* Botón Sincronizar Nube */}
+          <button
+            onClick={handleSyncCloud}
+            disabled={isSyncingCloud}
+            className="flex items-center gap-1.5 bg-gradient-to-r from-blue-700 to-indigo-700 hover:from-blue-600 hover:to-indigo-600 active:scale-95 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition border border-blue-400/40 cursor-pointer disabled:opacity-50"
+            title="Guardar tus proyecciones en la nube y sincronizarlas de inmediato con el celular"
+          >
+            <Cloud size={15} className={isSyncingCloud ? 'animate-spin' : ''} />
+            <span>{isSyncingCloud ? 'Sincronizando...' : 'Sincronizar Nube'}</span>
           </button>
 
           {/* Botón Enviar a Pagos Pendientes */}
