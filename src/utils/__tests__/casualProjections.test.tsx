@@ -146,4 +146,36 @@ describe('Casual Projections and Return to Pending Workflow', () => {
     // Debe quedar vacía
     expect(usePendingPaymentsStore.getState().items).toHaveLength(0);
   });
+
+  it('consolidates a provisional transaction using confirmTransaction', () => {
+    const { addTransaction, confirmTransaction, transactions } = useFinanceStore.getState();
+
+    const tx = addTransaction({
+      Tipo: 'Egreso',
+      Fecha: '2026-09-01',
+      Concepto: 'Futbol - proy',
+      Categoria: 'Gustos & Ocio',
+      Entidad: 'Interbank',
+      Monto: 26.49,
+      Mes: 'Setiembre',
+      estado: 'provisional',
+    });
+
+    expect(tx.id.startsWith('proy-')).toBe(true);
+    expect(tx.estado).toBe('provisional');
+
+    // Confirm / consolidate
+    confirmTransaction(tx.id);
+
+    const updatedTxs = useFinanceStore.getState().transactions;
+    // Old proy- ID should not exist
+    expect(updatedTxs.find(t => t.id === tx.id)).toBeUndefined();
+
+    // New custom- ID should exist with estado='confirmado' and clean concept
+    const confirmed = updatedTxs.find(t => t.Concepto === 'Futbol');
+    expect(confirmed).toBeDefined();
+    expect(confirmed?.id.startsWith('custom-')).toBe(true);
+    expect(confirmed?.estado).toBe('confirmado');
+    expect(confirmed?.Monto).toBe(26.49);
+  });
 });

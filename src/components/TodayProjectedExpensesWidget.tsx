@@ -54,6 +54,7 @@ export const TodayProjectedExpensesWidget: React.FC<TodayProjectedExpensesWidget
       (t) =>
         t.Fecha === selectedDate &&
         t.Tipo === 'Egreso' &&
+        t.estado !== 'confirmado' &&
         (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy'))
     );
   }, [transactions, selectedDate]);

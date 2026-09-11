@@ -143,7 +143,30 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   },
 
   confirmTransaction: (id: string) => {
-    get().updateTransaction(id, { estado: 'confirmado' });
+    const currentTx = get().transactions.find((t) => t.id === id);
+    if (!currentTx) return;
+
+    const isProyId = id.startsWith('proy-');
+    const newId = isProyId ? `custom-${id.replace(/^proy-/, '')}` : id;
+    const cleanConcept = currentTx.Concepto.replace(/\s*[-_]?\s*(?:\[proy\]|\(proy\)|\bproy\b\.?)/gi, '').trim() || currentTx.Concepto;
+
+    const confirmedTx: Transaction = {
+      ...currentTx,
+      id: newId,
+      Concepto: cleanConcept,
+      estado: 'confirmado',
+    };
+
+    set((state) => {
+      const updated = state.transactions.map((t) => (t.id === id ? confirmedTx : t));
+      safeSetStorage(LS_TX_KEY, JSON.stringify(updated));
+      return { transactions: updated };
+    });
+
+    if (isProyId) {
+      deleteTransactionFromSupabase(id).catch((err) => console.warn('Cloud delete proy error:', err));
+    }
+    insertTransactionToSupabase(confirmedTx).catch((err) => console.warn('Cloud sync confirmed error:', err));
   },
 
   deleteTransaction: (id: string) => {
