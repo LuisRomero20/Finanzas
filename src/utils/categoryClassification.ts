@@ -191,6 +191,8 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
 
   // 💵 Ingresos
   "AFP": "💵 Sueldos & Beneficios Laborales",
+  "Ahorro Diciembre 25": "📈 Otros Ingresos & Ventas",
+  "ahorro diciembre 25": "📈 Otros Ingresos & Ventas",
   "Bonificación Ahorro": "📈 Otros Ingresos & Ventas",
   "CTS": "💵 Sueldos & Beneficios Laborales",
   "Gratificación": "💵 Sueldos & Beneficios Laborales",
@@ -449,7 +451,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     bg: 'bg-blue-100 border-blue-300 dark:bg-blue-950/50 dark:border-blue-800/70',
     border: 'border-blue-400 dark:border-blue-700',
     tipo: 'Ingreso',
-    keywords: ['bonificacion ahorro', 'bonificación ahorro', 'venta de iphone', 'venta', 'intereses', 'cashback', 'reembolso', 'premio', 'dividendo', 'ganancia'],
+    keywords: ['ahorro diciembre 25', 'bonificacion ahorro', 'bonificación ahorro', 'venta de iphone', 'venta', 'intereses', 'cashback', 'reembolso', 'premio', 'dividendo', 'ganancia'],
   },
 ];
 

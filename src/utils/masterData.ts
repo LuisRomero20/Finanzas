@@ -1864,9 +1864,19 @@ export const masterTransactions: Transaction[] = [
     "id": "tx-180",
     "Tipo": "Ingreso",
     "Fecha": "2026-03-01",
-    "Categoria": "Viajes & Hospedaje",
-    "Concepto": "Viaje Argentina",
+    "Categoria": "Sueldos & Beneficios Laborales",
+    "Concepto": "AFP",
     "Monto": 1050,
+    "Entidad": "Interbank",
+    "Mes": "Marzo"
+  },
+  {
+    "id": "tx-ahorro-dic25-marzo",
+    "Tipo": "Ingreso",
+    "Fecha": "2026-03-01",
+    "Categoria": "Otros Ingresos & Ventas",
+    "Concepto": "Ahorro Diciembre 25",
+    "Monto": 3002,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
@@ -2066,7 +2076,7 @@ export const masterTransactions: Transaction[] = [
     "Fecha": "2026-03-01",
     "Categoria": "Viajes & Hospedaje",
     "Concepto": "Viaje Argentina",
-    "Monto": 1050,
+    "Monto": 4052,
     "Entidad": "Interbank",
     "Mes": "Marzo"
   },
