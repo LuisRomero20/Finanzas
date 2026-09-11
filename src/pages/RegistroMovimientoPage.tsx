@@ -11,7 +11,6 @@ import { Card } from '../components/ui/Card';
 import { Badge } from '../components/ui/Badge';
 import {
   Smartphone,
-  Send,
   Sparkles,
   Cloud,
   CloudCheck,
@@ -25,21 +24,13 @@ import {
   CheckCircle2,
   AlertCircle,
   Database,
-  ArrowRight,
-  Plus,
   Trash2,
-  Clock,
   History,
   ShoppingBag,
-  Coffee,
-  Car,
-  Home,
-  HeartPulse,
   DollarSign,
   Zap,
   Briefcase,
   PiggyBank,
-  Wallet,
 } from 'lucide-react';
 
 const ENTIDADES_LIST = [

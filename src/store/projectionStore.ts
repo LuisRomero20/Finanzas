@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { masterTransactions } from '../utils/masterData';
 import { useFinanceStore } from './financeStore';
+import { useCreditCardStore } from './creditCardStore';
 import { supabase } from '../lib/supabase';
 
 export type ProjectedRecurrence = 'fijo' | 'temporal' | 'unico';
@@ -95,7 +96,6 @@ export function calculateCardPaymentDate(entity: string, year: number, monthInde
   if (!rule) {
     try {
       // Búsqueda dinámica en useCreditCardStore
-      const { useCreditCardStore } = require('./creditCardStore');
       const found = useCreditCardStore.getState().getCardByEntity(entity);
       if (found) {
         rule = { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
@@ -544,7 +544,7 @@ async function saveProjectionsToSupabase(
     const rowsToUpsert = chunks.map((chunk, idx) => ({
       id: `${CHUNK_PREFIX}${String(idx).padStart(3, '0')}`,
       fecha: '2026-10-01',
-      tipo: 'Config',
+      tipo: 'Egreso',
       categoria: 'Proyecciones',
       concepto: chunk,
       monto: idx,

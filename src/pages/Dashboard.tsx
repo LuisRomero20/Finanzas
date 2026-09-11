@@ -1175,7 +1175,7 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   ) : (
                     filtered.map((t) => {
-                      const isProvisional = t.estado === 'provisional' || t.estado === 'pendiente';
+                      const isProvisional = t.estado === 'provisional' || t.estado === 'pendiente' || t.id.startsWith('proy-') || t.Concepto.toLowerCase().includes('proy');
 
                       return (
                         <tr

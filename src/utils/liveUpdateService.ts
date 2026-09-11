@@ -13,6 +13,7 @@ import { useCreditCardStore } from '../store/creditCardStore';
 import { useCreditLineStore } from '../store/creditLineStore';
 import { useAppStore } from '../store';
 import { useProjectionStore } from '../store/projectionStore';
+import { useSavingsGoalsStore } from '../store/savingsGoalsStore';
 import { supabase } from '../lib/supabase';
 
 // Declaración global del build timestamp inyectado por Vite
@@ -40,6 +41,7 @@ export async function syncAllStoresFromSupabase(): Promise<void> {
       useCreditLineStore.getState().syncFromSupabase(),
       useAppStore.getState().syncDeudasFromSupabase(),
       useProjectionStore.getState().syncFromSupabase(),
+      useSavingsGoalsStore.getState().syncFromSupabase(),
     ]);
   } catch (err) {
     console.warn('Sync all stores error:', err);
