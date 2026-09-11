@@ -317,8 +317,13 @@ export async function savePendingPaymentToSupabase(item: any): Promise<boolean> 
 
 /**
  * Elimina un pago pendiente de Supabase.
+ * Soporta borrado por ID y opcionalmente por coincidencia exacta de datos comerciales
+ * para erradicar cualquier duplicado zombie que haya quedado en la nube.
  */
-export async function deletePendingPaymentFromSupabase(id: string): Promise<boolean> {
+export async function deletePendingPaymentFromSupabase(
+  id: string,
+  matchCriteria?: { fecha?: string; concepto?: string; entidad?: string; monto?: number }
+): Promise<boolean> {
   try {
     const cleanId = String(id).replace(/^pending-/, '');
     const { error } = await supabase
@@ -328,8 +333,31 @@ export async function deletePendingPaymentFromSupabase(id: string): Promise<bool
 
     if (error) {
       console.warn('Error deleting pending payment from Supabase:', error.message);
-      return false;
     }
+
+    // Si tenemos datos comerciales del item, eliminar también cualquier fila pendiente duplicada en Supabase con los mismos datos
+    if (matchCriteria?.fecha && matchCriteria?.concepto) {
+      const cleanConcepto = matchCriteria.concepto.replace(/\s*-\s*proy/gi, '').trim();
+      let query = supabase
+        .from('transacciones')
+        .delete()
+        .like('id', 'pending-%')
+        .eq('fecha', matchCriteria.fecha)
+        .ilike('concepto', `%${cleanConcepto}%`);
+
+      if (matchCriteria.entidad) {
+        query = query.eq('entidad', matchCriteria.entidad);
+      }
+      if (matchCriteria.monto !== undefined && Number(matchCriteria.monto) > 0) {
+        query = query.eq('monto', Number(matchCriteria.monto));
+      }
+
+      const { error: matchErr } = await query;
+      if (matchErr) {
+        console.warn('Error deleting matching pending duplicates from Supabase:', matchErr.message);
+      }
+    }
+
     return true;
   } catch (err) {
     console.warn('Catch deleting pending payment from Supabase:', err);

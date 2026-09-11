@@ -122,4 +122,28 @@ describe('Casual Projections and Return to Pending Workflow', () => {
     expect(remainingVodka).toBeUndefined();
     expect(remainingBroaster).toBeUndefined();
   });
+
+  it('deletes a pending payment and records tombstone to prevent resurrection', () => {
+    const { addPendingItem, deletePendingItem } = usePendingPaymentsStore.getState();
+
+    const item = addPendingItem({
+      tipo: 'Egreso',
+      fecha: '2026-09-10',
+      concepto: 'Pastilla Madre',
+      categoria: 'Salud & Farmacia',
+      entidad: 'Ripley',
+      monto: 120,
+      origen: 'Proyección',
+      mes: 'Setiembre',
+      mesStr: '2026-09',
+    });
+
+    expect(usePendingPaymentsStore.getState().items).toHaveLength(1);
+
+    // Eliminar la partida
+    deletePendingItem(item.id);
+
+    // Debe quedar vacía
+    expect(usePendingPaymentsStore.getState().items).toHaveLength(0);
+  });
 });

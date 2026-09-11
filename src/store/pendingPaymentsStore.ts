@@ -29,6 +29,7 @@ export interface PendingPaymentItem {
 }
 
 const LS_PENDING_KEY = 'finper_pending_payments_v1';
+const LS_DELETED_PENDING_KEY = 'finper_deleted_pending_v2';
 
 function safeGetStorage(key: string): string | null {
   try {
@@ -47,11 +48,48 @@ function safeSetStorage(key: string, value: string): void {
   } catch {}
 }
 
-function getPendingBusinessKey(it: PendingPaymentItem): string {
-  if (it.sourceRowId) return `src:${it.sourceRowId}`;
-  const norm = (it.concepto || '').trim().toLowerCase().replace(/\s*-\s*proy/gi, '');
-  const mesStr = it.mesStr || (it.fecha ? it.fecha.slice(0, 7) : '');
-  return `biz:${mesStr}_${norm}_${it.entidad}_${it.tipo}_${it.fecha}_${it.monto}`;
+export function getDeletedPendingKeys(): Set<string> {
+  try {
+    const raw = safeGetStorage(LS_DELETED_PENDING_KEY);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch {}
+  return new Set();
+}
+
+export function addDeletedPendingKey(key: string, id?: string) {
+  try {
+    const current = getDeletedPendingKeys();
+    if (key) current.add(key);
+    if (id) {
+      const cleanId = String(id).replace(/^pending-/, '');
+      current.add(cleanId);
+      current.add(`pending-${cleanId}`);
+    }
+    const arr = Array.from(current).slice(-300);
+    safeSetStorage(LS_DELETED_PENDING_KEY, JSON.stringify(arr));
+  } catch {}
+}
+
+export function removeDeletedPendingKey(key: string, id?: string) {
+  try {
+    const current = getDeletedPendingKeys();
+    if (key) current.delete(key);
+    if (id) {
+      const cleanId = String(id).replace(/^pending-/, '');
+      current.delete(cleanId);
+      current.delete(`pending-${cleanId}`);
+    }
+    safeSetStorage(LS_DELETED_PENDING_KEY, JSON.stringify(Array.from(current)));
+  } catch {}
+}
+
+export function getPendingBusinessKey(it: PendingPaymentItem | { fecha?: string; concepto?: string; entidad?: string; tipo?: string; monto?: number }): string {
+  const normConcept = (it.concepto || '').trim().toLowerCase().replace(/\s*-\s*proy/gi, '');
+  const normEntidad = (it.entidad || '').trim().toLowerCase();
+  const normTipo = (it.tipo || 'Egreso').trim().toLowerCase();
+  const fecha = it.fecha || '';
+  const monto = Number(it.monto || 0).toFixed(2);
+  return `${fecha}_${normConcept}_${normEntidad}_${normTipo}_${monto}`;
 }
 
 export function deduplicatePendingList(items: PendingPaymentItem[]): { uniqueList: PendingPaymentItem[]; duplicateIds: string[] } {
@@ -79,10 +117,17 @@ function loadInitialPendingPayments(): PendingPaymentItem[] {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        const cleaned = parsed.map((it) => ({
-          ...it,
-          concepto: typeof it.concepto === 'string' ? it.concepto.replace(/\s*-\s*proy/gi, '').trim() : it.concepto,
-        }));
+        const deletedKeys = getDeletedPendingKeys();
+        const cleaned = parsed
+          .filter((it) => {
+            const key = getPendingBusinessKey(it);
+            const cleanId = String(it.id || '').replace(/^pending-/, '');
+            return !deletedKeys.has(key) && !deletedKeys.has(it.id) && !deletedKeys.has(cleanId) && !deletedKeys.has(`pending-${cleanId}`);
+          })
+          .map((it) => ({
+            ...it,
+            concepto: typeof it.concepto === 'string' ? it.concepto.replace(/\s*-\s*proy/gi, '').trim() : it.concepto,
+          }));
         return deduplicatePendingList(cleaned).uniqueList;
       }
     }
@@ -188,6 +233,7 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
 
     // Sincronizar en segundo plano con Supabase para móvil y web
     newItems.forEach((it) => {
+      removeDeletedPendingKey(getPendingBusinessKey(it), it.id);
       savePendingPaymentToSupabase(it).catch(() => {});
     });
 
@@ -233,6 +279,8 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
     // Guardar en Supabase para sincronización móvil
     savePendingPaymentToSupabase(newItem).catch((err) => console.warn('Cloud pending add error:', err));
 
+    removeDeletedPendingKey(getPendingBusinessKey(newItem), newItem.id);
+
     return newItem;
   },
 
@@ -256,56 +304,97 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
   },
 
   deletePendingItem: (id) => {
+    const currentItems = get().items;
+    const cleanId = String(id).replace(/^pending-/, '');
+    const target = currentItems.find((it) => it.id === id || it.id === cleanId || `pending-${it.id}` === id);
+
+    if (target) {
+      const key = getPendingBusinessKey(target);
+      addDeletedPendingKey(key, target.id);
+    } else {
+      addDeletedPendingKey('', id);
+    }
+
     set((state) => {
-      const updated = state.items.filter((it) => it.id !== id);
+      const updated = state.items.filter((it) => it.id !== id && it.id !== cleanId && `pending-${it.id}` !== id);
       safeSetStorage(LS_PENDING_KEY, JSON.stringify(updated));
       return { items: updated };
     });
 
-    deletePendingPaymentFromSupabase(id).catch((err) => console.warn('Cloud pending delete error:', err));
+    deletePendingPaymentFromSupabase(id, target ? {
+      fecha: target.fecha,
+      concepto: target.concepto,
+      entidad: target.entidad,
+      monto: target.monto,
+    } : undefined).catch((err) => console.warn('Cloud pending delete error:', err));
   },
 
   syncFromSupabase: async () => {
     try {
       const cloudItems = await fetchPendingPaymentsFromSupabase();
-      const currentItems = get().items;
-
-      const combined: PendingPaymentItem[] = [];
-      if (cloudItems && cloudItems.length > 0) {
-        combined.push(...cloudItems);
-      }
-      for (const loc of currentItems) {
-        combined.push(loc);
+      if (!cloudItems) {
+        return get().items.length;
       }
 
-      if (combined.length > 0) {
-        const { uniqueList, duplicateIds } = deduplicatePendingList(combined);
+      const deletedKeys = getDeletedPendingKeys();
 
-        // Purgar duplicados detectados de Supabase para limpiar la base de datos
-        if (duplicateIds.length > 0) {
-          duplicateIds.forEach((dupId) => {
-            deletePendingPaymentFromSupabase(dupId).catch(() => {});
+      // 1. Filtrar los items de la nube contra la lista de eliminados conocidos
+      const survivingCloudItems: PendingPaymentItem[] = [];
+      const itemsToPurgeFromCloud: { id: string; fecha?: string; concepto?: string; entidad?: string; monto?: number }[] = [];
+
+      for (const item of cloudItems) {
+        const key = getPendingBusinessKey(item);
+        const cleanId = String(item.id).replace(/^pending-/, '');
+        if (
+          deletedKeys.has(key) ||
+          deletedKeys.has(item.id) ||
+          deletedKeys.has(cleanId) ||
+          deletedKeys.has(`pending-${cleanId}`)
+        ) {
+          itemsToPurgeFromCloud.push({
+            id: item.id,
+            fecha: item.fecha,
+            concepto: item.concepto,
+            entidad: item.entidad,
+            monto: item.monto,
           });
+        } else {
+          survivingCloudItems.push(item);
         }
-
-        safeSetStorage(LS_PENDING_KEY, JSON.stringify(uniqueList));
-        set({ items: uniqueList });
-
-        // Asegurar que los únicos queden guardados en la nube
-        uniqueList.forEach((it) => {
-          savePendingPaymentToSupabase(it).catch(() => {});
-        });
-
-        return uniqueList.length;
       }
+
+      // Purgar de Supabase aquellos que ya habían sido eliminados por el usuario
+      if (itemsToPurgeFromCloud.length > 0) {
+        itemsToPurgeFromCloud.forEach((target) => {
+          deletePendingPaymentFromSupabase(target.id, target).catch(() => {});
+        });
+      }
+
+      // 2. Deduplicar los items que quedan
+      const { uniqueList, duplicateIds } = deduplicatePendingList(survivingCloudItems);
+
+      // Si había IDs duplicados en Supabase, borrarlos en segundo plano
+      if (duplicateIds.length > 0) {
+        duplicateIds.forEach((dupId) => {
+          deletePendingPaymentFromSupabase(dupId).catch(() => {});
+        });
+      }
+
+      // 3. Supabase es la fuente autoritativa:
+      // Reemplazamos el almacenamiento y estado local con la lista de la nube.
+      // NUNCA volvemos a subir ítems viejos de localStorage a Supabase durante el sync.
+      safeSetStorage(LS_PENDING_KEY, JSON.stringify(uniqueList));
+      set({ items: uniqueList });
+
+      return uniqueList.length;
     } catch (err) {
       console.warn('Error syncing pending payments from Supabase:', err);
+      return get().items.length;
     }
-    return get().items.length;
   },
 
   executePendingPayment: (id, customData) => {
-    const item = get().items.find((it) => it.id === id);
+    const item = get().items.find((it) => it.id === id || it.id === String(id).replace(/^pending-/, ''));
     if (!item) {
       return { success: false };
     }
@@ -329,14 +418,24 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       estado: isProy ? 'provisional' : 'confirmado',
     });
 
+    // Registrar en eliminados para que no resucite en otros dispositivos
+    const key = getPendingBusinessKey(item);
+    addDeletedPendingKey(key, item.id);
+
     // 2. Remover de pendientes local y de Supabase
     set((state) => {
-      const updated = state.items.filter((it) => it.id !== id);
+      const cleanId = String(id).replace(/^pending-/, '');
+      const updated = state.items.filter((it) => it.id !== id && it.id !== cleanId);
       safeSetStorage(LS_PENDING_KEY, JSON.stringify(updated));
       return { items: updated };
     });
 
-    deletePendingPaymentFromSupabase(id).catch((err) => console.warn('Cloud pending delete on execute error:', err));
+    deletePendingPaymentFromSupabase(id, {
+      fecha: item.fecha,
+      concepto: item.concepto,
+      entidad: item.entidad,
+      monto: item.monto,
+    }).catch((err) => console.warn('Cloud pending delete on execute error:', err));
 
     // 3. Sincronizar con el gestor de pasivos: si coincide con una deuda activa, avanzar la cuota pagada
     try {
