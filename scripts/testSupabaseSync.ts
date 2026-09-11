@@ -1,50 +1,36 @@
 import { supabase } from '../src/lib/supabase';
 
 async function main() {
-  console.log('Testing connection to Supabase...');
+  console.log('Verificando pagos pendientes en Supabase...');
   
-  // 1. Probar transacciones estado
-  const { data: txEstado, error: txEstadoErr } = await supabase
-    .from('transacciones')
-    .select('id, estado')
-    .limit(1);
-  console.log('Tabla transacciones estado column:', txEstado, 'error:', txEstadoErr?.message);
-
-  // 2. Probar insertar un registro con prefijo pending- en transacciones
-  const testPending = {
-    id: 'pending-test-001',
-    tipo: 'Egreso',
-    fecha: '2026-10-05',
-    concepto: 'Prueba Pendiente Sincronizado',
-    categoria: 'Servicios Básicos & Facturas',
-    entidad: 'Interbank',
-    monto: 150,
-    mes: 'Octubre',
-  };
-
-  const { data: insData, error: insError } = await supabase
-    .from('transacciones')
-    .upsert(testPending)
-    .select();
-  console.log('Upsert pending-test result:', insData, 'error:', insError?.message);
-
-  // 3. Probar leer registros pending
-  const { data: readPending, error: readError } = await supabase
-    .from('transacciones')
-    .select('*')
-    .like('id', 'pending-%');
-  console.log('Read pending result count:', readPending?.length, 'error:', readError?.message);
-
-  // 4. Limpiar registro de prueba
+  // Limpiar test
   await supabase.from('transacciones').delete().eq('id', 'pending-test-001');
-  console.log('Limpiado registro de prueba');
 
-  // 4. Probar rpc o tablas
-  const { data: cData, error: cError } = await supabase
-    .from('configuraciones')
-    .select('*')
-    .limit(1);
-  console.log('Tabla configuraciones:', cData ? 'Existe' : 'No existe', 'error:', cError?.message);
+  // Purgar 2026-09-10 Pastilla Madre
+  const { data: delData } = await supabase
+    .from('transacciones')
+    .delete()
+    .like('id', 'pending-%')
+    .eq('fecha', '2026-09-10')
+    .ilike('concepto', '%Pastilla Madre%')
+    .select();
+  if (delData && delData.length > 0) {
+    console.log('Eliminado con éxito:', delData);
+  }
+
+  // Leer estado actual
+  const { data: current } = await supabase
+    .from('transacciones')
+    .select('id, fecha, concepto, monto, entidad')
+    .like('id', 'pending-%')
+    .order('fecha', { ascending: true });
+
+  console.log(`Total pendientes en Supabase: ${current?.length || 0}`);
+  if (current) {
+    current.forEach((r, idx) => {
+      console.log(`${idx + 1}. [${r.fecha}] ${r.concepto} - S/ ${r.monto} (${r.entidad}) [${r.id}]`);
+    });
+  }
 }
 
 main().catch(console.error);
