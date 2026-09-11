@@ -1204,8 +1204,8 @@ export const masterTransactions: Transaction[] = [
     "id": "tx-112",
     "Tipo": "Ingreso",
     "Fecha": "2026-02-06",
-    "Categoria": "Viajes & Hospedaje",
-    "Concepto": "Viaje Argentina",
+    "Categoria": "Sueldos & Beneficios Laborales",
+    "Concepto": "AFP",
     "Monto": 600,
     "Entidad": "Interbank",
     "Mes": "Febrero"
