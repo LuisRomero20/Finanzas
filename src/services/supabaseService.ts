@@ -135,8 +135,10 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
       const isProvisional =
         row.estado === 'provisional' ||
         row.estado === 'pendiente' ||
-        String(row.id).startsWith('proy-') ||
-        (typeof row.concepto === 'string' && /\[proy\]|\(proy\)/i.test(row.concepto));
+        (row.estado !== 'confirmado' && (
+          String(row.id).startsWith('proy-') ||
+          (typeof row.concepto === 'string' && /\[proy\]|\(proy\)/i.test(row.concepto))
+        ));
 
       return {
         id: String(row.id),

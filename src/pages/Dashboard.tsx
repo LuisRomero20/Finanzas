@@ -419,14 +419,15 @@ export const Dashboard: React.FC = () => {
 
   const handleApproveTransaction = (t: Transaction) => {
     confirmTransaction(t.id);
-    agregarNotificacion(`✅ Movimiento "${t.Concepto}" aprobado y consolidado.`, 'success');
+    const cleanConcept = t.Concepto.replace(/\s*[-_]?\s*(?:\[proy\]|\(proy\)|\bproy\b\.?)/gi, '').trim() || t.Concepto;
+    agregarNotificacion(`✅ Movimiento "${cleanConcept}" aprobado y consolidado.`, 'success');
   };
 
   const handleSendToPending = (t: Transaction) => {
-    const isProy = t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy');
+    const isProy = t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-'));
     addPendingItem({
       tipo: t.Tipo,
-      concepto: t.Concepto,
+      concepto: t.Concepto.replace(/\s*[-_]?\s*(?:\[proy\]|\(proy\)|\bproy\b\.?)/gi, '').trim() || t.Concepto,
       monto: t.Monto,
       categoria: t.Categoria,
       entidad: t.Entidad,
@@ -441,7 +442,7 @@ export const Dashboard: React.FC = () => {
 
   const handleReturnAllProjections = () => {
     const proyTxs = filtered.filter(
-      (t) => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')
+      (t) => t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-'))
     );
     if (proyTxs.length === 0) {
       agregarNotificacion('ℹ️ No hay transacciones marcadas como proyección en este periodo.', 'info');
@@ -1127,17 +1128,17 @@ export const Dashboard: React.FC = () => {
                 <button
                   onClick={handleReturnAllProjections}
                   className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl shadow-xs transition border cursor-pointer ${
-                    filtered.some(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy'))
+                    filtered.some(t => t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-')))
                       ? 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white border-amber-400/60 shadow-amber-900/30'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-500 dark:text-slate-400 border-slate-300 dark:border-slate-700 hover:text-slate-700 dark:hover:text-slate-200'
                   }`}
                   title="Devolver todas las transacciones proyectadas en este periodo a la bandeja de Pagos Pendientes"
                 >
-                  <RotateCcw size={14} className={filtered.some(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')) ? 'text-white' : 'text-slate-400'} />
+                  <RotateCcw size={14} className={filtered.some(t => t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-'))) ? 'text-white' : 'text-slate-400'} />
                   <span>
                     Retornar todas las proyecciones
-                    {filtered.filter(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')).length > 0 &&
-                      ` (${filtered.filter(t => t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy')).length})`}
+                    {filtered.filter(t => t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-'))).length > 0 &&
+                      ` (${filtered.filter(t => t.estado !== 'confirmado' && (t.estado === 'provisional' || t.Concepto.toLowerCase().includes('proy') || t.id.startsWith('proy-'))).length})`}
                   </span>
                 </button>
 
@@ -1175,7 +1176,9 @@ export const Dashboard: React.FC = () => {
                     </tr>
                   ) : (
                     filtered.map((t) => {
-                      const isProvisional = t.estado === 'provisional' || t.estado === 'pendiente' || t.id.startsWith('proy-') || t.Concepto.toLowerCase().includes('proy');
+                      const isProvisional = t.estado === 'confirmado'
+                        ? false
+                        : (t.estado === 'provisional' || t.estado === 'pendiente' || t.id.startsWith('proy-') || (t.Concepto ? /\[proy\]|\(proy\)|\bproy\b/i.test(t.Concepto) : false));
 
                       return (
                         <tr
