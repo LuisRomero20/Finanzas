@@ -55,8 +55,6 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Internet": "💡 Servicios Básicos & Facturas",
   "Luz": "💡 Servicios Básicos & Facturas",
   "Telefonia Movil": "💡 Servicios Básicos & Facturas",
-  "Desvagramen": "💡 Servicios Básicos & Facturas",
-  "Desgravamen": "💡 Servicios Básicos & Facturas",
   "Detergente": "🏠 Hogar & Mantenimiento",
   "Papel Higiénico": "🏠 Hogar & Mantenimiento",
   "Papel Higienico": "🏠 Hogar & Mantenimiento",
@@ -181,6 +179,8 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Padre": "👥 Familia & Transferencias",
 
   // 💳 Deudas, Tarjetas & Préstamos
+  "Desvagramen": "💳 Pagos de Tarjetas & Deudas",
+  "Desgravamen": "💳 Pagos de Tarjetas & Deudas",
   "Linea Tarjeta": "💳 Pagos de Tarjetas & Deudas",
   "Pago de Tarjeta BBVA Bfree": "💳 Pagos de Tarjetas & Deudas",
   "Pago de Tarjeta Interbank Amex": "💳 Pagos de Tarjetas & Deudas",
@@ -233,7 +233,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     bg: 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/40 dark:border-yellow-800/60',
     border: 'border-yellow-300 dark:border-yellow-800',
     tipo: 'Egreso',
-    keywords: ['agua + mantenimiento', 'gas', 'internet', 'luz', 'telefonia movil', 'telefonía móvil', 'recibo', 'calidda', 'sedapal', 'enel', 'pluz', 'claro', 'movistar', 'entel', 'bitel', 'factura', 'servicio basico', 'desvagramen', 'desgravamen'],
+    keywords: ['agua + mantenimiento', 'gas', 'internet', 'luz', 'telefonia movil', 'telefonía móvil', 'recibo', 'calidda', 'sedapal', 'enel', 'pluz', 'claro', 'movistar', 'entel', 'bitel', 'factura', 'servicio basico'],
   },
   {
     id: 'hogar',
@@ -425,7 +425,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     bg: 'bg-rose-100 border-rose-300 dark:bg-rose-950/40 dark:border-rose-800/60',
     border: 'border-rose-400 dark:border-rose-700',
     tipo: 'Egreso',
-    keywords: ['prestamo bcp', 'préstamo bcp', 'prestamo yape', 'préstamo yape', 'yape credito', 'yape crédito', 'iphone 16', 'cuota', 'amortización', 'prestamo', 'préstamo'],
+    keywords: ['prestamo bcp', 'préstamo bcp', 'prestamo yape', 'préstamo yape', 'yape credito', 'yape crédito', 'iphone 16', 'cuota', 'amortización', 'prestamo', 'préstamo', 'desvagramen', 'desgravamen'],
   },
   {
     id: 'sueldos',
