@@ -47,16 +47,43 @@ function safeSetStorage(key: string, value: string): void {
   } catch {}
 }
 
+function getPendingBusinessKey(it: PendingPaymentItem): string {
+  if (it.sourceRowId) return `src:${it.sourceRowId}`;
+  const norm = (it.concepto || '').trim().toLowerCase().replace(/\s*-\s*proy/gi, '');
+  const mesStr = it.mesStr || (it.fecha ? it.fecha.slice(0, 7) : '');
+  return `biz:${mesStr}_${norm}_${it.entidad}_${it.tipo}_${it.fecha}_${it.monto}`;
+}
+
+export function deduplicatePendingList(items: PendingPaymentItem[]): { uniqueList: PendingPaymentItem[]; duplicateIds: string[] } {
+  const seenKeys = new Map<string, PendingPaymentItem>();
+  const duplicateIds: string[] = [];
+
+  for (const it of items) {
+    const key = getPendingBusinessKey(it);
+    if (seenKeys.has(key)) {
+      duplicateIds.push(it.id);
+    } else {
+      seenKeys.set(key, it);
+    }
+  }
+
+  return {
+    uniqueList: Array.from(seenKeys.values()),
+    duplicateIds,
+  };
+}
+
 function loadInitialPendingPayments(): PendingPaymentItem[] {
   try {
     const saved = safeGetStorage(LS_PENDING_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed.map((it) => ({
+        const cleaned = parsed.map((it) => ({
           ...it,
           concepto: typeof it.concepto === 'string' ? it.concepto.replace(/\s*-\s*proy/gi, '').trim() : it.concepto,
         }));
+        return deduplicatePendingList(cleaned).uniqueList;
       }
     }
   } catch (e) {
@@ -131,9 +158,10 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
           alreadyExisting++;
         }
       } else {
-        // Crear nuevo pendiente
+        // Crear nuevo pendiente con ID determinista para evitar duplicación entre dispositivos
+        const deterministicId = r.id ? `pend-proj-${r.id}` : `pend-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         const newItem: PendingPaymentItem = {
-          id: `pend-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+          id: deterministicId,
           sourceRowId: r.id,
           mes: mesName,
           mesStr: mesStr,
@@ -170,6 +198,22 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
     const mesName = itemData.mes || getMonthNameFromDate(itemData.fecha);
     const mesStr = itemData.mesStr || itemData.fecha.slice(0, 7);
     const cleanConcepto = (itemData.concepto || '').replace(/\s*-\s*proy/gi, '').trim();
+
+    // Evitar duplicar si ya existe un item pendiente idéntico
+    const currentItems = get().items;
+    const existing = currentItems.find(
+      (it) =>
+        it.estado === 'pendiente' &&
+        it.fecha === itemData.fecha &&
+        it.concepto.trim().toLowerCase() === cleanConcepto.toLowerCase() &&
+        it.entidad === itemData.entidad &&
+        Number(it.monto) === Number(itemData.monto) &&
+        it.tipo === itemData.tipo
+    );
+    if (existing) {
+      return existing;
+    }
+
     const newItem: PendingPaymentItem = {
       ...itemData,
       concepto: cleanConcepto,
@@ -225,23 +269,34 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
     try {
       const cloudItems = await fetchPendingPaymentsFromSupabase();
       const currentItems = get().items;
+
+      const combined: PendingPaymentItem[] = [];
       if (cloudItems && cloudItems.length > 0) {
-        const map = new Map<string, PendingPaymentItem>();
-        cloudItems.forEach((it) => map.set(it.id, it));
-        for (const loc of currentItems) {
-          if (!map.has(loc.id)) {
-            map.set(loc.id, loc);
-            savePendingPaymentToSupabase(loc).catch(() => {});
-          }
+        combined.push(...cloudItems);
+      }
+      for (const loc of currentItems) {
+        combined.push(loc);
+      }
+
+      if (combined.length > 0) {
+        const { uniqueList, duplicateIds } = deduplicatePendingList(combined);
+
+        // Purgar duplicados detectados de Supabase para limpiar la base de datos
+        if (duplicateIds.length > 0) {
+          duplicateIds.forEach((dupId) => {
+            deletePendingPaymentFromSupabase(dupId).catch(() => {});
+          });
         }
-        const merged = Array.from(map.values());
-        safeSetStorage(LS_PENDING_KEY, JSON.stringify(merged));
-        set({ items: merged });
-        return merged.length;
-      } else if (currentItems.length > 0) {
-        for (const loc of currentItems) {
-          savePendingPaymentToSupabase(loc).catch(() => {});
-        }
+
+        safeSetStorage(LS_PENDING_KEY, JSON.stringify(uniqueList));
+        set({ items: uniqueList });
+
+        // Asegurar que los únicos queden guardados en la nube
+        uniqueList.forEach((it) => {
+          savePendingPaymentToSupabase(it).catch(() => {});
+        });
+
+        return uniqueList.length;
       }
     } catch (err) {
       console.warn('Error syncing pending payments from Supabase:', err);
@@ -261,8 +316,9 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
 
     // 1. Insertar automáticamente en la lista maestra de useFinanceStore (que ya sincroniza con Supabase)
     const financeStore = useFinanceStore.getState();
-    const isProy = item.origen === 'Proyección' || item.concepto.toLowerCase().includes('proy');
+    const isProy = item.origen === 'Proyección' || item.concepto.toLowerCase().includes('proy') || (item.sourceRowId !== undefined);
     const createdTx = financeStore.addTransaction({
+      id: isProy ? `proy-${item.id.replace(/^pend-/, '')}` : undefined,
       Tipo: item.tipo,
       Fecha: activeDate,
       Categoria: item.categoria,

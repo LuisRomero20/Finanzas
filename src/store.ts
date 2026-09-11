@@ -539,12 +539,14 @@ export const useAppStore = create<AppStore>((set, get) => {
     obtenerDeuda: (id) => get().deudas.find(d => d.id === id),
 
     agregarNotificacion: (mensaje: string, tipo: 'info' | 'success' | 'warning' | 'error') => {
-      const id = Date.now().toString();
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       set(state => ({
-        notificaciones: [...state.notificaciones, { id, mensaje, tipo, timestamp: Date.now() }]
+        notificaciones: [...state.notificaciones.slice(-2), { id, mensaje, tipo, timestamp: Date.now() }]
       }));
       
-      setTimeout(() => get().eliminarNotificacion(id), 5000);
+      setTimeout(() => {
+        get().eliminarNotificacion(id);
+      }, 3500);
     },
 
     eliminarNotificacion: (id: string) => {

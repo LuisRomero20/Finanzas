@@ -131,17 +131,25 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
       return null;
     }
 
-    return data.map((row: any) => ({
-      id: String(row.id),
-      Tipo: row.tipo,
-      Fecha: row.fecha,
-      Concepto: row.concepto,
-      Categoria: row.categoria,
-      Entidad: row.entidad,
-      Monto: Number(row.monto),
-      Mes: row.mes,
-      estado: row.estado || 'confirmado',
-    }));
+    return data.map((row: any) => {
+      const isProvisional =
+        row.estado === 'provisional' ||
+        row.estado === 'pendiente' ||
+        String(row.id).startsWith('proy-') ||
+        (typeof row.concepto === 'string' && /\[proy\]|\(proy\)/i.test(row.concepto));
+
+      return {
+        id: String(row.id),
+        Tipo: row.tipo,
+        Fecha: row.fecha,
+        Concepto: row.concepto,
+        Categoria: row.categoria,
+        Entidad: row.entidad,
+        Monto: Number(row.monto),
+        Mes: row.mes,
+        estado: isProvisional ? 'provisional' : (row.estado || 'confirmado'),
+      };
+    });
   } catch {
     return null;
   }
@@ -366,6 +374,49 @@ export async function fetchBridgeConfigFromSupabase(): Promise<Record<string, an
 
     if (error || !data || !data.concepto) return null;
     return JSON.parse(data.concepto);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Guarda las metas de ahorro en Supabase para sincronizar entre PC y celular.
+ */
+export async function saveSavingsGoalsToSupabase(goals: any[]): Promise<boolean> {
+  try {
+    const payload = {
+      id: 'config-savings-goals-v1',
+      tipo: 'Egreso',
+      fecha: '2026-01-01',
+      concepto: JSON.stringify(goals),
+      categoria: 'Config',
+      entidad: 'Sistema',
+      monto: 0,
+      mes: 'Config',
+    };
+    const { error } = await supabase
+      .from('transacciones')
+      .upsert(payload, { onConflict: 'id' });
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Obtiene las metas de ahorro desde Supabase.
+ */
+export async function fetchSavingsGoalsFromSupabase(): Promise<any[] | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transacciones')
+      .select('*')
+      .eq('id', 'config-savings-goals-v1')
+      .single();
+
+    if (error || !data || !data.concepto) return null;
+    const parsed = JSON.parse(data.concepto);
+    return Array.isArray(parsed) ? parsed : null;
   } catch {
     return null;
   }

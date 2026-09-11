@@ -73,7 +73,7 @@ interface FinanceState {
   isSyncingCloud: boolean;
   setMonth: (month: string) => void;
   setEntity: (entity: string) => void;
-  addTransaction: (tx: Omit<Transaction, 'id'> & { id?: string }) => Transaction;
+  addTransaction: (tx: Omit<Transaction, 'id' | 'Mes'> & { id?: string; Mes?: string }) => Transaction;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   confirmTransaction: (id: string) => void;
   deleteTransaction: (id: string) => void;
@@ -93,7 +93,12 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   setEntity: (entity) => set({ selectedEntity: entity }),
 
   addTransaction: (txData) => {
-    const id = txData.id || `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const isProvisional = txData.estado === 'provisional' || txData.estado === 'pendiente';
+    const id = txData.id || (
+      isProvisional
+        ? `proy-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+        : `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+    );
     const mes = txData.Mes || getMonthNameFromDate(txData.Fecha);
     const newTx: Transaction = {
       id,
@@ -168,9 +173,24 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     try {
       const cloudData = await fetchTransactionsFromSupabase();
       if (cloudData && cloudData.length > 0) {
-        set({ transactions: cloudData, isSyncingCloud: false });
-        safeSetStorage(LS_TX_KEY, JSON.stringify(cloudData));
-        return cloudData.length;
+        const currentLocal = get().transactions;
+        const localProvisionalMap = new Map<string, 'provisional' | 'confirmado' | 'pendiente'>();
+        currentLocal.forEach((t) => {
+          if (t.estado) localProvisionalMap.set(t.id, t.estado);
+        });
+
+        const merged = cloudData.map((remoteTx) => {
+          const localEstado = localProvisionalMap.get(remoteTx.id);
+          // Si localmente estaba marcado como provisional y en la nube vino confirmado por defecto (fallback), preservar provisional
+          if (localEstado === 'provisional' && remoteTx.estado === 'confirmado' && !remoteTx.id.startsWith('custom-conf-')) {
+            return { ...remoteTx, estado: 'provisional' as const };
+          }
+          return remoteTx;
+        });
+
+        set({ transactions: merged, isSyncingCloud: false });
+        safeSetStorage(LS_TX_KEY, JSON.stringify(merged));
+        return merged.length;
       }
     } catch (e) {
       console.error('Error syncing from Supabase', e);

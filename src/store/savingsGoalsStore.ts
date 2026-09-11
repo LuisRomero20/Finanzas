@@ -1,5 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import {
+  saveSavingsGoalsToSupabase,
+  fetchSavingsGoalsFromSupabase,
+} from '../services/supabaseService';
 
 export interface SavingsGoal {
   id: string;
@@ -19,6 +23,8 @@ interface SavingsGoalsState {
   withdrawFromGoal: (id: string, amount: number) => void;
   updateGoal: (id: string, updates: Partial<SavingsGoal>) => void;
   deleteGoal: (id: string) => void;
+  syncFromSupabase: () => Promise<void>;
+  saveToSupabase: () => Promise<void>;
 }
 
 const DEFAULT_GOALS: SavingsGoal[] = [
@@ -56,44 +62,78 @@ const DEFAULT_GOALS: SavingsGoal[] = [
 
 export const useSavingsGoalsStore = create<SavingsGoalsState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       goals: DEFAULT_GOALS,
 
-      addGoal: (goalData) =>
-        set((state) => ({
-          goals: [
-            ...state.goals,
-            {
-              ...goalData,
-              id: `goal-${Date.now()}`,
-              createdAt: new Date().toISOString().split('T')[0],
-            },
-          ],
-        })),
+      addGoal: (goalData) => {
+        const newGoal: SavingsGoal = {
+          ...goalData,
+          id: `goal-${Date.now()}`,
+          createdAt: new Date().toISOString().split('T')[0],
+        };
+        set((state) => {
+          const updated = [...state.goals, newGoal];
+          saveSavingsGoalsToSupabase(updated).catch(() => {});
+          return { goals: updated };
+        });
+      },
 
-      depositToGoal: (id, amount) =>
-        set((state) => ({
-          goals: state.goals.map((g) =>
+      depositToGoal: (id, amount) => {
+        set((state) => {
+          const updated = state.goals.map((g) =>
             g.id === id ? { ...g, currentAmount: Math.max(0, g.currentAmount + amount) } : g
-          ),
-        })),
+          );
+          saveSavingsGoalsToSupabase(updated).catch(() => {});
+          return { goals: updated };
+        });
+      },
 
-      withdrawFromGoal: (id, amount) =>
-        set((state) => ({
-          goals: state.goals.map((g) =>
+      withdrawFromGoal: (id, amount) => {
+        set((state) => {
+          const updated = state.goals.map((g) =>
             g.id === id ? { ...g, currentAmount: Math.max(0, g.currentAmount - amount) } : g
-          ),
-        })),
+          );
+          saveSavingsGoalsToSupabase(updated).catch(() => {});
+          return { goals: updated };
+        });
+      },
 
-      updateGoal: (id, updates) =>
-        set((state) => ({
-          goals: state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g)),
-        })),
+      updateGoal: (id, updates) => {
+        set((state) => {
+          const updated = state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g));
+          saveSavingsGoalsToSupabase(updated).catch(() => {});
+          return { goals: updated };
+        });
+      },
 
-      deleteGoal: (id) =>
-        set((state) => ({
-          goals: state.goals.filter((g) => g.id !== id),
-        })),
+      deleteGoal: (id) => {
+        set((state) => {
+          const updated = state.goals.filter((g) => g.id !== id);
+          saveSavingsGoalsToSupabase(updated).catch(() => {});
+          return { goals: updated };
+        });
+      },
+
+      syncFromSupabase: async () => {
+        try {
+          const remote = await fetchSavingsGoalsFromSupabase();
+          if (remote && Array.isArray(remote) && remote.length > 0) {
+            set({ goals: remote });
+          } else {
+            const currentGoals = get().goals;
+            if (currentGoals && currentGoals.length > 0) {
+              saveSavingsGoalsToSupabase(currentGoals).catch(() => {});
+            }
+          }
+        } catch (err) {
+          console.warn('syncFromSupabase savings goals error:', err);
+        }
+      },
+
+      saveToSupabase: async () => {
+        const { goals } = get();
+        await saveSavingsGoalsToSupabase(goals);
+      },
     }),
     {
       name: 'finper_savings_goals',

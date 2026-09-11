@@ -19,6 +19,7 @@ import {
   RefreshCw,
   Database,
   Search,
+  X,
 } from "lucide-react";
 import { useFinanceStore } from "./store/financeStore";
 import { usePendingPaymentsStore } from "./store/pendingPaymentsStore";
@@ -137,28 +138,43 @@ function PageLoader() {
 
 // 🔔 NOTIFICACIONES GLOBALES
 function Notifications() {
-  const { notificaciones } = useAppStore();
+  const { notificaciones, eliminarNotificacion } = useAppStore();
 
   return (
-    <div className="fixed top-20 md:top-20 right-4 z-50 space-y-2 max-w-sm">
+    <div className="fixed top-20 md:top-20 right-4 z-50 space-y-2 max-w-sm pointer-events-none">
       {notificaciones.map((notif) => (
         <div
           key={notif.id}
-          className={`px-4 py-3 rounded-2xl shadow-lg border backdrop-blur-md flex items-center gap-3 animate-in slide-in-from-top-4 duration-300 ${
+          onClick={() => eliminarNotificacion(notif.id)}
+          className={`pointer-events-auto px-4 py-3 rounded-2xl shadow-xl border backdrop-blur-md flex items-center justify-between gap-3 animate-in slide-in-from-top-4 duration-300 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 ${
             notif.tipo === "success"
-              ? "bg-emerald-50 border-emerald-200 text-emerald-900 dark:bg-emerald-950/80 dark:border-emerald-800 dark:text-emerald-200"
+              ? "bg-emerald-50/95 border-emerald-200 text-emerald-900 dark:bg-emerald-950/90 dark:border-emerald-800 dark:text-emerald-200"
               : notif.tipo === "error"
-              ? "bg-rose-50 border-rose-200 text-rose-800 dark:bg-rose-950/80 dark:border-rose-800 dark:text-rose-200"
+              ? "bg-rose-50/95 border-rose-200 text-rose-800 dark:bg-rose-950/90 dark:border-rose-800 dark:text-rose-200"
               : notif.tipo === "warning"
-              ? "bg-amber-50 border-amber-200 text-amber-800 dark:bg-amber-950/80 dark:border-amber-800 dark:text-amber-200"
-              : "bg-slate-50 border-slate-200 text-slate-800 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200"
+              ? "bg-amber-50/95 border-amber-200 text-amber-800 dark:bg-amber-950/90 dark:border-amber-800 dark:text-amber-200"
+              : "bg-slate-50/95 border-slate-200 text-slate-800 dark:bg-slate-800/90 dark:border-slate-700 dark:text-slate-200"
           }`}
+          title="Haz clic para descartar"
         >
-          {notif.tipo === "success" && <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />}
-          {notif.tipo === "error" && <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />}
-          {notif.tipo === "warning" && <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />}
-          {notif.tipo === "info" && <Info size={18} className="text-blue-600 dark:text-blue-400 shrink-0" />}
-          <span className="text-xs font-semibold">{notif.mensaje}</span>
+          <div className="flex items-center gap-2.5 min-w-0">
+            {notif.tipo === "success" && <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0" />}
+            {notif.tipo === "error" && <AlertCircle size={18} className="text-rose-600 dark:text-rose-400 shrink-0" />}
+            {notif.tipo === "warning" && <AlertCircle size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />}
+            {notif.tipo === "info" && <Info size={18} className="text-blue-600 dark:text-blue-400 shrink-0" />}
+            <span className="text-xs font-semibold leading-snug">{notif.mensaje}</span>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              eliminarNotificacion(notif.id);
+            }}
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-black/5 dark:hover:bg-white/5 transition shrink-0"
+            title="Cerrar notificación"
+          >
+            <X size={14} />
+          </button>
         </div>
       ))}
     </div>

@@ -8,6 +8,8 @@ export interface Transaction {
   Entidad: string;
   Mes: string;
   estado?: 'confirmado' | 'pendiente' | 'provisional';
+  isBridgedFromPrevMonth?: boolean;
+  bridgedTargetMonth?: string;
 }
 
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';
