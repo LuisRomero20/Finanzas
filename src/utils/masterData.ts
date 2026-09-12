@@ -10,6 +10,7 @@ export interface Transaction {
   estado?: 'confirmado' | 'pendiente' | 'provisional';
   isBridgedFromPrevMonth?: boolean;
   bridgedTargetMonth?: string;
+  createdAt?: string;
 }
 
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';

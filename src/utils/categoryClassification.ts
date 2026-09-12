@@ -22,6 +22,7 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Chifa": "🍔 Comida & Restaurantes",
   "Comida": "🍔 Comida & Restaurantes",
   "Empanada": "🍔 Comida & Restaurantes",
+  "Enchilada": "🍔 Comida & Restaurantes",
   "Fridays": "🍔 Comida & Restaurantes",
   "Hamburguesa": "🍔 Comida & Restaurantes",
   "KFC": "🍔 Comida & Restaurantes",
@@ -211,7 +212,7 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     bg: 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800/60',
     border: 'border-amber-300 dark:border-amber-800',
     tipo: 'Egreso',
-    keywords: ['broaster', 'cafe', 'café', 'ceviche', 'chicharron', 'chifa', 'comida', 'empanada', 'fridays', 'hamburguesa', 'makis', 'menu', 'menú', 'papa rellena', 'pizza', 'planet chicken', 'pollo', 'brasa', 'shawarma', 'taco', 'almuerzo', 'desayuno', 'cena', 'sushi', 'anticucho', 'lomo', 'restaurante'],
+    keywords: ['broaster', 'cafe', 'café', 'ceviche', 'chicharron', 'chifa', 'comida', 'empanada', 'enchilada', 'enchiladas', 'fridays', 'hamburguesa', 'makis', 'menu', 'menú', 'papa rellena', 'pizza', 'planet chicken', 'pollo', 'brasa', 'shawarma', 'taco', 'almuerzo', 'desayuno', 'cena', 'sushi', 'anticucho', 'lomo', 'restaurante'],
   },
   {
     id: 'supermercado',
