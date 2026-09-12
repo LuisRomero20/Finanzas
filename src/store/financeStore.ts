@@ -110,6 +110,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       Entidad: txData.Entidad,
       Mes: mes,
       estado: txData.estado || 'confirmado',
+      createdAt: (txData as any).createdAt || new Date().toISOString(),
     };
 
     set((state) => {

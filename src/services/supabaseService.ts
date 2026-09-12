@@ -72,6 +72,9 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
     if (tx.estado) {
       payload.estado = tx.estado;
     }
+    if (tx.createdAt) {
+      payload.created_at = tx.createdAt;
+    }
 
     let { data, error } = await supabase
       .from('transacciones')
@@ -150,6 +153,7 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
         Monto: Number(row.monto),
         Mes: row.mes,
         estado: isProvisional ? 'provisional' : (row.estado || 'confirmado'),
+        createdAt: row.created_at,
       };
     });
   } catch {

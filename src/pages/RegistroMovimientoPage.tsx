@@ -42,16 +42,39 @@ const ENTIDADES_LIST = [
   { id: 'Efectivo', label: 'Efectivo', desc: 'Billetera física', icon: DollarSign, color: 'bg-slate-600' },
 ];
 
-const CATEGORIAS_LIST = [
-  { id: 'Sueldo', label: 'Sueldo', icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40' },
-  { id: 'Servicio', label: 'Servicio', icon: Zap, color: 'text-amber-500 bg-amber-50 dark:bg-amber-950/40' },
-  { id: 'Gasto', label: 'Gasto', icon: ShoppingBag, color: 'text-rose-500 bg-rose-50 dark:bg-rose-950/40' },
-  { id: 'Ahorro', label: 'Ahorro', icon: PiggyBank, color: 'text-teal-500 bg-teal-50 dark:bg-teal-950/40' },
-  { id: 'Deuda', label: 'Deuda', icon: CreditCard, color: 'text-indigo-500 bg-indigo-50 dark:bg-indigo-950/40' },
-  { id: 'Negocio', label: 'Negocio', icon: Briefcase, color: 'text-violet-500 bg-violet-50 dark:bg-violet-950/40' },
-  { id: 'Otro Ing', label: 'Otro Ing', icon: DollarSign, color: 'text-blue-500 bg-blue-50 dark:bg-blue-950/40' },
-  { id: 'Otro Egre', label: 'Otro Egre', icon: TrendingDown, color: 'text-slate-500 bg-slate-100 dark:bg-slate-800' },
-];
+import {
+  CATEGORIAS_PERSONALES,
+  autoClassify,
+  getEffectiveCategory,
+} from '../utils/categoryClassification';
+import type { Transaction } from '../utils/masterData';
+
+export function getRegistrationTimestamp(t: Transaction): number {
+  if (t.createdAt) {
+    const ts = new Date(t.createdAt).getTime();
+    if (!isNaN(ts) && ts > 0) return ts;
+  }
+  // Check if id contains a 13-digit millisecond timestamp (e.g. custom-1789236257058-mffr or proy-1789...)
+  const match = t.id?.match(/(\d{13})/);
+  if (match) {
+    const parsed = parseInt(match[1], 10);
+    if (!isNaN(parsed) && parsed > 1000000000000) return parsed;
+  }
+  // If it's a numeric master id like tx-632
+  const txMatch = t.id?.match(/^tx-(\d+)$/);
+  if (txMatch) {
+    return parseInt(txMatch[1], 10);
+  }
+  return 0;
+}
+
+const EGRESO_CATEGORIAS = CATEGORIAS_PERSONALES.filter(
+  (c) => c.tipo === 'Egreso' || c.tipo === 'Ambos'
+);
+
+const INGRESO_CATEGORIAS = CATEGORIAS_PERSONALES.filter(
+  (c) => c.tipo === 'Ingreso' || c.tipo === 'Ambos'
+);
 
 const DEFAULT_QUICK_EGRESOS = [
   'Futbol',
@@ -88,8 +111,12 @@ export const RegistroMovimientoPage: React.FC = () => {
   const [monto, setMonto] = useState<string>('');
   const [concepto, setConcepto] = useState<string>('');
   const [entidad, setEntidad] = useState<string>('Interbank');
-  const [categoria, setCategoria] = useState<string>('Gasto');
+  const [categoria, setCategoria] = useState<string>('Comida & Restaurantes');
   const [fecha, setFecha] = useState<string>(() => new Date().toLocaleDateString('en-CA'));
+
+  const activeCategorias = useMemo(() => {
+    return tipo === 'Egreso' ? EGRESO_CATEGORIAS : INGRESO_CATEGORIAS;
+  }, [tipo]);
 
   // Estados de la nube y migración
   const [cloudHealth, setCloudHealth] = useState<SupabaseHealth | null>(null);
@@ -137,11 +164,27 @@ export const RegistroMovimientoPage: React.FC = () => {
 
   const handleSelectQuickConcept = (c: string) => {
     setConcepto(c);
-    const lower = c.toLowerCase();
-    if (lower.includes('sueldo')) {
-      setCategoria('Sueldo');
-    } else if (lower.includes('luz') || lower.includes('agua') || lower.includes('gas') || lower.includes('internet')) {
-      setCategoria('Servicio');
+    const mockTx: any = { Concepto: c, Tipo: tipo, Fecha: fecha, Entidad: entidad };
+    const autoCatId = autoClassify(mockTx);
+    if (autoCatId) {
+      const found = CATEGORIAS_PERSONALES.find(cat => cat.id === autoCatId);
+      if (found) {
+        setCategoria(found.nombre);
+      }
+    }
+  };
+
+  const handleConceptoChange = (val: string) => {
+    setConcepto(val);
+    if (val.trim().length >= 2) {
+      const mockTx: any = { Concepto: val.trim(), Tipo: tipo, Fecha: fecha, Entidad: entidad };
+      const autoCatId = autoClassify(mockTx);
+      if (autoCatId) {
+        const found = CATEGORIAS_PERSONALES.find(cat => cat.id === autoCatId);
+        if (found && (found.tipo === tipo || found.tipo === 'Ambos')) {
+          setCategoria(found.nombre);
+        }
+      }
     }
   };
 
@@ -201,9 +244,16 @@ export const RegistroMovimientoPage: React.FC = () => {
     }
   };
 
-  // Últimos 10 movimientos ordenados del más reciente al más antiguo
+  // Últimos 10 movimientos ordenados por fecha real de REGISTRO (del más recientemente registrado al más antiguo)
   const recentTransactions = useMemo(() => {
-    return [...transactions].sort((a, b) => b.Fecha.localeCompare(a.Fecha)).slice(0, 10);
+    return [...transactions]
+      .sort((a, b) => {
+        const tsB = getRegistrationTimestamp(b);
+        const tsA = getRegistrationTimestamp(a);
+        if (tsB !== tsA) return tsB - tsA;
+        return (b.id || '').localeCompare(a.id || '');
+      })
+      .slice(0, 10);
   }, [transactions]);
 
   return (
@@ -338,9 +388,7 @@ export const RegistroMovimientoPage: React.FC = () => {
             type="button"
             onClick={() => {
               setTipo('Egreso');
-              if (categoria === 'Sueldo' || categoria === 'Otro Ing') {
-                setCategoria('Gasto');
-              }
+              setCategoria('Comida & Restaurantes');
             }}
             className={`py-3.5 px-4 rounded-2xl border flex items-center justify-center gap-2 font-black text-sm sm:text-base transition cursor-pointer ${
               tipo === 'Egreso'
@@ -356,9 +404,7 @@ export const RegistroMovimientoPage: React.FC = () => {
             type="button"
             onClick={() => {
               setTipo('Ingreso');
-              if (categoria === 'Gasto' || categoria === 'Servicio' || categoria === 'Deuda' || categoria === 'Otro Egre') {
-                setCategoria('Sueldo');
-              }
+              setCategoria('Sueldos & Beneficios Laborales');
             }}
             className={`py-3.5 px-4 rounded-2xl border flex items-center justify-center gap-2 font-black text-sm sm:text-base transition cursor-pointer ${
               tipo === 'Ingreso'
@@ -447,30 +493,37 @@ export const RegistroMovimientoPage: React.FC = () => {
         </div>
 
         {/* 4. Selector de Categoría con Chips */}
-        <div className="space-y-2">
-          <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
-            <Tag size={15} className="text-indigo-600" />
-            <span>Categoría</span>
-          </label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            {CATEGORIAS_LIST.map((cat) => {
-              const IconComp = cat.icon;
-              const isSelected = categoria === cat.id;
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between">
+            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Tag size={15} className="text-indigo-600" />
+              <span>Categoría ({activeCategorias.length})</span>
+            </label>
+            <span className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 truncate max-w-[220px] sm:max-w-none">
+              Seleccionada: {categoria}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            {activeCategorias.map((cat) => {
+              const isSelected =
+                categoria === cat.nombre ||
+                categoria === cat.id ||
+                categoria === cat.fullLabel;
               return (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setCategoria(cat.id)}
-                  className={`p-2.5 rounded-xl border text-left flex items-center gap-2 transition cursor-pointer text-xs font-bold ${
+                  onClick={() => setCategoria(cat.nombre)}
+                  className={`p-2.5 rounded-2xl border text-left flex items-center gap-2.5 transition cursor-pointer text-xs font-bold ${
                     isSelected
-                      ? 'bg-emerald-700 border-emerald-700 text-white shadow-sm ring-2 ring-emerald-500/20'
+                      ? 'bg-emerald-700 border-emerald-600 text-white shadow-md ring-2 ring-emerald-500/30'
                       : 'bg-white dark:bg-[#11191D] border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800/60'
                   }`}
+                  title={cat.nombre}
                 >
-                  <div className={`p-1.5 rounded-lg ${isSelected ? 'bg-white/20 text-white' : cat.color}`}>
-                    <IconComp size={14} />
-                  </div>
-                  <span className="truncate">{cat.label}</span>
+                  <span className="text-base shrink-0 select-none">{cat.emoji}</span>
+                  <span className="truncate">{cat.nombre}</span>
                 </button>
               );
             })}
@@ -499,7 +552,7 @@ export const RegistroMovimientoPage: React.FC = () => {
                 : 'Ej: Sueldo Quincena, Freelance, Yape, etc.'
             }
             value={concepto}
-            onChange={(e) => setConcepto(e.target.value)}
+            onChange={(e) => handleConceptoChange(e.target.value)}
             className="w-full bg-white dark:bg-[#11191D] border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3 text-slate-900 dark:text-white font-bold text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 shadow-sm"
           />
 
@@ -581,39 +634,46 @@ export const RegistroMovimientoPage: React.FC = () => {
         </div>
 
         <div className="divide-y divide-slate-100 dark:divide-slate-800">
-          {recentTransactions.map((t) => (
-            <div key={t.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-              <div className="flex items-center gap-3 min-w-0">
-                <Badge variant={t.Tipo === 'Ingreso' ? 'success' : 'default'}>
-                  {t.Tipo}
-                </Badge>
-                <div className="min-w-0">
-                  <p className="font-bold text-slate-900 dark:text-white truncate">{t.Concepto}</p>
-                  <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
-                    {t.Fecha} • {t.Entidad} • {t.Categoria}
-                  </p>
+          {recentTransactions.map((t) => {
+            const catInfo = getEffectiveCategory(t);
+            const catDisplay = catInfo
+              ? `${catInfo.emoji} ${catInfo.nombre}`
+              : t.Categoria;
+
+            return (
+              <div key={t.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Badge variant={t.Tipo === 'Ingreso' ? 'success' : 'default'}>
+                    {t.Tipo}
+                  </Badge>
+                  <div className="min-w-0">
+                    <p className="font-bold text-slate-900 dark:text-white truncate">{t.Concepto}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">
+                      {t.Fecha} • {t.Entidad} • {catDisplay}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 shrink-0">
+                  <span className="font-black text-slate-900 dark:text-white tabular-nums text-sm">
+                    {fmt.format(t.Monto)}
+                  </span>
+                  <button
+                    onClick={() => {
+                      if (confirm(`¿Eliminar "${t.Concepto}"?`)) {
+                        deleteTransaction(t.id);
+                        agregarNotificacion(`Transacción "${t.Concepto}" eliminada.`, 'info');
+                      }
+                    }}
+                    className="p-1 text-slate-400 hover:text-rose-600 transition cursor-pointer"
+                    title="Eliminar"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 shrink-0">
-                <span className="font-black text-slate-900 dark:text-white tabular-nums text-sm">
-                  {fmt.format(t.Monto)}
-                </span>
-                <button
-                  onClick={() => {
-                    if (confirm(`¿Eliminar "${t.Concepto}"?`)) {
-                      deleteTransaction(t.id);
-                      agregarNotificacion(`Transacción "${t.Concepto}" eliminada.`, 'info');
-                    }
-                  }}
-                  className="p-1 text-slate-400 hover:text-rose-600 transition"
-                  title="Eliminar"
-                >
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 
