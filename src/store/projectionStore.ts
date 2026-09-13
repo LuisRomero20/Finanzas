@@ -380,7 +380,7 @@ const INITIAL_PROJECTIONS: ProjectedItem[] = [
     tipo: 'Egreso',
     categoria: 'Deuda',
     concepto: 'Prestamo Yape',
-    monto: 116.65,
+    monto: 116.85,
     entidad: 'Interbank',
     dia: 1,
     mesInicio: '2026-10',
