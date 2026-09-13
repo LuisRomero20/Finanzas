@@ -5,9 +5,20 @@ import { calcularCuota, addMonthsKeepingDay } from '../../utils/debtUtils';
 
 const diaPorAcreedor: Record<string, number> = {
   'iPhone 16': 30,
-  'Prestamo Yape': 28,
+  'Prestamo Yape': 1,
   'Yape Crédito': 28,
   'Prestamo BCP': 15,
+};
+
+const getDayOverride = (acreedor: string): number | undefined => {
+  if (!acreedor) return undefined;
+  if (diaPorAcreedor[acreedor] != null) return diaPorAcreedor[acreedor];
+  const norm = acreedor.toLowerCase().trim();
+  if (norm.includes('iphone')) return 30;
+  if (norm.includes('prestamo yape')) return 1;
+  if (norm.includes('yape cr')) return 28;
+  if (norm.includes('bcp')) return 15;
+  return undefined;
 };
 
 export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
@@ -18,24 +29,58 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
   const cuota = calcularCuota(deuda);
   const schedule = useMemo(() => {
     const pagosSet = new Set<string>((deuda.pagos || []).map((p: string) => {
-      try { const d = new Date(p); return `${d.getFullYear()}-${d.getMonth()+1}`; } catch { return p; }
+      try {
+        const clean = p.slice(0, 10);
+        const parts = clean.split('-');
+        if (parts.length === 3) {
+          return `${parseInt(parts[0], 10)}-${parseInt(parts[1], 10)}`;
+        }
+        const d = new Date(p);
+        return `${d.getFullYear()}-${d.getMonth() + 1}`;
+      } catch { return p; }
     }));
 
-    const items: Array<{ name: string; fecha: string; monto: number; paid: boolean }> = [];
+    const monthNames = ['Ene.', 'Feb.', 'Mar.', 'Abr.', 'May.', 'Jun.', 'Jul.', 'Ago.', 'Set.', 'Oct.', 'Nov.', 'Dic.'];
+    const items: Array<{ name: string; fecha: string; fechaDisplay: string; monto: number; paid: boolean }> = [];
     for (let k = 1; k <= deuda.plazo_meses; k++) {
       const mesesDesdeInicio = k - 1;
-      const dayOverride = diaPorAcreedor[deuda.acreedor] || undefined;
+      const dayOverride = getDayOverride(deuda.acreedor);
       const fecha = addMonthsKeepingDay(deuda.fecha_inicio, mesesDesdeInicio, dayOverride);
-      const key = `${fecha.getFullYear()}-${fecha.getMonth()+1}`;
+      const targetYear = fecha.getFullYear();
+      const targetMonth = fecha.getMonth() + 1;
+      const targetDay = fecha.getDate();
+      const key = `${targetYear}-${targetMonth}`;
       const paid = pagosSet.has(key) || k <= (deuda.meses_pagados || 0);
-      items.push({ name: `${fecha.toLocaleString('es-PE', { month: 'short' })} ${fecha.getFullYear()}`, fecha: fecha.toISOString().slice(0,10), monto: Number(cuota.toFixed(2)), paid });
+
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const isoStr = `${targetYear}-${pad(targetMonth)}-${pad(targetDay)}`;
+      const displayStr = `${targetDay}/${targetMonth}/${targetYear}`;
+      const monthLabel = monthNames[fecha.getMonth()] || '';
+
+      items.push({
+        name: `${monthLabel} ${targetYear}`,
+        fecha: isoStr,
+        fechaDisplay: displayStr,
+        monto: Number(cuota.toFixed(2)),
+        paid,
+      });
     }
     // Special case: for Yape Crédito if there are payments from previous year, show only this year's recorded payments in the detail list
-    if (deuda.acreedor && deuda.acreedor.toLowerCase().includes('yape') && (deuda as any).pagos_anio_anterior && (deuda as any).pagos_anio_anterior > 0) {
+    if (deuda.acreedor && deuda.acreedor.toLowerCase() === 'yape crédito' && (deuda as any).pagos_anio_anterior && (deuda as any).pagos_anio_anterior > 0) {
       // Return only the schedule entries that match explicit recorded pagos (deuda.pagos)
-      const pagosKeys = new Set((deuda.pagos || []).map((p: string) => { try { const d = new Date(p); return `${d.getFullYear()}-${d.getMonth()+1}` } catch { return p } }));
+      const pagosKeys = new Set((deuda.pagos || []).map((p: string) => {
+        try {
+          const parts = p.slice(0, 10).split('-');
+          if (parts.length === 3) return `${parseInt(parts[0], 10)}-${parseInt(parts[1], 10)}`;
+          const d = new Date(p); return `${d.getFullYear()}-${d.getMonth() + 1}`;
+        } catch { return p; }
+      }));
       return items.filter(i => {
-        try { const d = new Date(i.fecha); const key = `${d.getFullYear()}-${d.getMonth()+1}`; return pagosKeys.has(key); } catch { return false }
+        try {
+          const parts = i.fecha.split('-');
+          const key = `${parseInt(parts[0], 10)}-${parseInt(parts[1], 10)}`;
+          return pagosKeys.has(key);
+        } catch { return false; }
       });
     }
     return items;
@@ -105,10 +150,10 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
           <div className="mt-3 text-xs">
             <div className="grid grid-cols-1 gap-2 max-h-52 overflow-y-auto">
               {schedule.filter((s) => {
-                if (deuda.acreedor && deuda.acreedor.toLowerCase().includes('yape')) {
+                if (deuda.acreedor && deuda.acreedor.toLowerCase() === 'yape crédito') {
                   try {
-                    const d = new Date(s.fecha);
-                    const m = d.getMonth() + 1;
+                    const parts = s.fecha.split('-');
+                    const m = parseInt(parts[1], 10);
                     if (!s.paid && m >= 4 && m <= 6) return false;
                   } catch {}
                 }
@@ -117,7 +162,7 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
                 <div key={i} className="flex items-center justify-between p-2.5 rounded-xl border border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-800/40">
                   <div>
                     <div className="text-xs font-bold text-slate-800 dark:text-slate-200">{s.name}</div>
-                    <div className="text-[11px] text-slate-400">{new Date(s.fecha).toLocaleDateString('es-PE')}</div>
+                    <div className="text-[11px] text-slate-400">{s.fechaDisplay}</div>
                   </div>
                   <div className="text-right">
                     <div className="font-bold text-slate-900 dark:text-white">S/ {s.monto.toFixed(2)}</div>

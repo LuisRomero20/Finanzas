@@ -151,7 +151,7 @@ const initialDemoDeudas: Deuda[] = [
     tasa_anual: 0.0,
     plazo_meses: 6,
     meses_pagados: 3,
-    fecha_inicio: '2026-01-07',
+    fecha_inicio: '2026-07-01',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'activa'
@@ -163,7 +163,7 @@ const initialDemoDeudas: Deuda[] = [
     tasa_anual: 0.0,
     plazo_meses: 12,
     meses_pagados: 3,
-    fecha_inicio: '2026-01-15',
+    fecha_inicio: '2026-07-15',
     tipo_tasa: 'efectiva',
     moneda: 'PEN',
     estado: 'activa'
@@ -218,6 +218,19 @@ const initialDemoDeudas: Deuda[] = [
   }
 ];
 
+export const sanitizeDeudaDates = (deudas: Deuda[]): Deuda[] => {
+  return deudas.map(d => {
+    const name = (d.acreedor || '').toLowerCase();
+    if (name.includes('prestamo yape') && (d.fecha_inicio === '2026-01-07' || d.fecha_inicio === '2026-01-28' || d.fecha_inicio === '2026-01-01')) {
+      return { ...d, fecha_inicio: '2026-07-01' };
+    }
+    if (name.includes('prestamo bcp') && (d.fecha_inicio === '2026-01-15' || d.fecha_inicio === '2026-01-14' || d.fecha_inicio === '2026-01-01')) {
+      return { ...d, fecha_inicio: '2026-07-15' };
+    }
+    return d;
+  });
+};
+
 const getStoredDeudas = (): Deuda[] => {
   try {
     const stored = localStorage.getItem('demo_deudas');
@@ -228,11 +241,13 @@ const getStoredDeudas = (): Deuda[] => {
         const name = (d.acreedor || '').toLowerCase();
         return name !== 'madre' && name !== 'visa';
       });
-      if (cleaned.length >= 3) {
-        if (cleaned.length !== parsed.length) {
-          localStorage.setItem('demo_deudas', JSON.stringify(cleaned));
+      const sanitized = sanitizeDeudaDates(cleaned);
+      if (sanitized.length >= 3) {
+        if (JSON.stringify(sanitized) !== stored) {
+          localStorage.setItem('demo_deudas', JSON.stringify(sanitized));
+          saveDeudasToSupabase(sanitized).catch(() => {});
         }
-        return cleaned;
+        return sanitized;
       }
     }
   } catch {}
@@ -496,8 +511,12 @@ export const useAppStore = create<AppStore>((set, get) => {
           // 1. Intentar desde Supabase (prioridad: datos más actualizados)
           const cloudDeudas = await fetchDeudasFromSupabase();
           if (cloudDeudas && cloudDeudas.length >= 3) {
-            localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
-            set({ deudas: cloudDeudas });
+            const sanitized = sanitizeDeudaDates(cloudDeudas);
+            localStorage.setItem('demo_deudas', JSON.stringify(sanitized));
+            set({ deudas: sanitized });
+            if (JSON.stringify(sanitized) !== JSON.stringify(cloudDeudas)) {
+              saveDeudasToSupabase(sanitized).catch(() => {});
+            }
             return;
           }
           // 2. Fallback a localStorage
@@ -509,8 +528,10 @@ export const useAppStore = create<AppStore>((set, get) => {
               return name !== 'visa' && name !== 'madre';
             });
             if (valid && valid.length >= 3) {
-              set({ deudas: valid });
-              saveDeudasToSupabase(valid).catch(() => {});
+              const sanitized = sanitizeDeudaDates(valid);
+              set({ deudas: sanitized });
+              localStorage.setItem('demo_deudas', JSON.stringify(sanitized));
+              saveDeudasToSupabase(sanitized).catch(() => {});
               return;
             }
           }
@@ -603,8 +624,12 @@ export const useAppStore = create<AppStore>((set, get) => {
       try {
         const cloudDeudas = await fetchDeudasFromSupabase();
         if (cloudDeudas && cloudDeudas.length >= 3) {
-          localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
-          set({ deudas: cloudDeudas });
+          const sanitized = sanitizeDeudaDates(cloudDeudas);
+          localStorage.setItem('demo_deudas', JSON.stringify(sanitized));
+          set({ deudas: sanitized });
+          if (JSON.stringify(sanitized) !== JSON.stringify(cloudDeudas)) {
+            saveDeudasToSupabase(sanitized).catch(() => {});
+          }
           return;
         }
         // Si no hay datos suficientes en la nube, asegurar initialDemoDeudas
@@ -612,7 +637,8 @@ export const useAppStore = create<AppStore>((set, get) => {
           const name = (d.acreedor || '').toLowerCase();
           return name !== 'visa' && name !== 'madre';
         });
-        const toSave = current.length >= 3 ? current : initialDemoDeudas;
+        const sanitizedCurrent = sanitizeDeudaDates(current);
+        const toSave = sanitizedCurrent.length >= 3 ? sanitizedCurrent : initialDemoDeudas;
         localStorage.setItem('demo_deudas', JSON.stringify(toSave));
         set({ deudas: toSave });
         saveDeudasToSupabase(toSave).catch(() => {});
@@ -625,17 +651,17 @@ export const useAppStore = create<AppStore>((set, get) => {
         const usuario = get().usuario;
         if (!usuario) throw new Error('No hay usuario autenticado');
 
-        // Filtrar transacciones categorizadas como 'Deuda'
-        const txs = masterTransactions.filter(t => t.Categoria === 'Deuda');
+        // Filtrar transacciones categorizadas como 'Deuda' o 'Pagos de Tarjetas & Deudas'
+        const txs = masterTransactions.filter(t => t.Categoria === 'Deuda' || t.Categoria === 'Pagos de Tarjetas & Deudas');
 
         // Definiciones: coincidencias de concepto -> plazo y día de pago
         // Se pueden añadir overrides como inicio de pagos conocido
         const defs: Array<any> = [
           { acreedor: 'iPhone 16', matches: ['iPhone 16', 'CELULAR'], plazo: 12, dia: 30, inicioOverride: '2026-03-30' },
           // Para Yape Crédito preferimos contar solo las transacciones de S/ 60.36
-          { acreedor: 'Yape Crédito', matches: ['Yape Crédito', 'Yape credito', 'Yape'], plazo: 6, dia: 28, filterMonto: 60.36 },
-          { acreedor: 'Prestamo Yape', matches: ['Prestamo Yape'], plazo: 6, dia: 28 },
-          { acreedor: 'Prestamo BCP', matches: ['Prestamo BCP', 'BCP'], plazo: 12, dia: 15, inicioOverride: '2026-07-15' },
+          { acreedor: 'Yape Crédito', matches: ['Yape Crédito', 'Yape credito'], plazo: 6, dia: 28, filterMonto: 60.36 },
+          { acreedor: 'Prestamo Yape', matches: ['Prestamo Yape'], plazo: 6, dia: 1, inicioOverride: '2026-07-01' },
+          { acreedor: 'Prestamo BCP', matches: ['Prestamo BCP'], plazo: 12, dia: 15, inicioOverride: '2026-07-15' },
           { acreedor: 'Aaron', matches: ['Aaron'], plazo: 1, dia: 1 },
           { acreedor: 'Jacko', matches: ['Jacko'], plazo: 1, dia: 1 },
           { acreedor: 'Padre', matches: ['Padre'], plazo: 1, dia: 1 },
