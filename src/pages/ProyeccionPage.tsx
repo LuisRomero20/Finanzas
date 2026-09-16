@@ -7,6 +7,7 @@ import {
   type CardCycleDueDetail,
   CARD_RULES,
   getCardDueDetailsForMonth,
+  calculateCardInstallmentSchedule,
 } from '../store/projectionStore';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
@@ -1153,8 +1154,8 @@ export const ProyeccionPage: React.FC = () => {
 
               {/* Duración si es temporal */}
               {formRecurrencia === 'temporal' && (
-                <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-2xl p-3.5 animate-in fade-in">
-                  <label className="block font-bold text-indigo-900 dark:text-indigo-300 mb-1">
+                <div className="bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-2xl p-3.5 animate-in fade-in space-y-2">
+                  <label className="block font-bold text-indigo-900 dark:text-indigo-300">
                     Duración en Meses (Cuotas)
                   </label>
                   <input
@@ -1165,8 +1166,13 @@ export const ProyeccionPage: React.FC = () => {
                     onChange={e => setFormMesesDuracion(parseInt(e.target.value, 10) || 1)}
                     className="w-full bg-white dark:bg-slate-800 border border-indigo-300 dark:border-indigo-700 rounded-xl px-3 py-1.5 font-bold text-indigo-950 dark:text-indigo-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                   />
-                  <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80 mt-1">
-                    Se colocará automáticamente a partir de {activeMonthLabel} durante {formMesesDuracion} meses.
+                  <p className="text-[11px] text-indigo-700/80 dark:text-indigo-300/80">
+                    Se proyectará automáticamente durante <strong>{formMesesDuracion} meses</strong>.
+                    {CARD_RULES[formEntidad] && (
+                      <span className="block mt-1 text-slate-600 dark:text-slate-400">
+                        💳 Al ser con {formEntidad}, cada cuota liquidará en el mes correspondiente según su ciclo de facturación.
+                      </span>
+                    )}
                   </p>
                 </div>
               )}
@@ -1286,8 +1292,13 @@ export const ProyeccionPage: React.FC = () => {
                     selectedCardAudit.consumos.map((c, i) => (
                       <div key={c.id || i} className="p-3 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/50 transition">
                         <div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-bold text-slate-900 dark:text-white">{c.concepto}</span>
+                            {c.concepto.includes('(Cuota') && (
+                              <span className="text-[10px] font-black px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 dark:bg-purple-950 dark:text-purple-300 border border-purple-200 dark:border-purple-800/80">
+                                Cuota diferida
+                              </span>
+                            )}
                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                               c.origen === 'Histórico Maestro' 
                                 ? 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300' 

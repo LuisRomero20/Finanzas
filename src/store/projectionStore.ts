@@ -24,6 +24,8 @@ export interface ProjectedItem {
   recurrencia: ProjectedRecurrence;
   mesesDuracion?: number; // Si es temporal (ej. 3 meses)
   excepciones?: Record<string, MonthException>; // Clave: 'YYYY-MM'
+  cuotas?: number;
+  montoTotal?: number;
 }
 
 export interface CardCycleDueDetail {
@@ -145,11 +147,90 @@ export function calculateCardPaymentDate(entity: string, year: number, monthInde
   };
 }
 
+export interface CardInstallmentSchedule {
+  cuotaNumber: number; // 1, 2, ...
+  totalCuotas: number;
+  mesPago: string; // 'YYYY-MM'
+  fechaPago: string; // 'YYYY-MM-DD'
+  montoCuota: number;
+  mesLabel: string; // e.g. 'Noviembre 2026'
+}
+
+/**
+ * Calcula el cronograma completo de cuotas para una compra con tarjeta de crédito,
+ * determinando el primer mes de facturación según el día de corte y proyectando
+ * las cuotas mes a mes con el día de pago respectivo.
+ */
+export function calculateCardInstallmentSchedule(
+  entity: string,
+  purchaseDateStr: string, // 'YYYY-MM-DD'
+  totalAmount: number,
+  cuotas: number
+): CardInstallmentSchedule[] {
+  if (cuotas <= 0 || totalAmount <= 0) return [];
+  const parts = purchaseDateStr.split('-').map(Number);
+  if (parts.length < 3) return [];
+  const [y, m, d] = parts;
+
+  const firstPayInfo = calculateCardPaymentDate(entity, y, m - 1, d);
+  const [startPayY, startPayM] = firstPayInfo.mesPago.split('-').map(Number);
+
+  let rule = CARD_RULES[entity];
+  if (!rule) {
+    try {
+      const found = useCreditCardStore.getState().getCardByEntity(entity);
+      if (found) {
+        rule = { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
+      }
+    } catch {}
+  }
+  const payDay = rule ? rule.pagoDay : 5;
+  const padDay = String(payDay).padStart(2, '0');
+
+  const cuotaBase = Math.round((totalAmount / cuotas) * 100) / 100;
+  const schedule: CardInstallmentSchedule[] = [];
+
+  const MESES_NOMBRES = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
+  ];
+
+  for (let k = 1; k <= cuotas; k++) {
+    let payY = startPayY;
+    let payM = startPayM + (k - 1);
+    while (payM > 12) {
+      payM -= 12;
+      payY++;
+    }
+    const padM = String(payM).padStart(2, '0');
+    const mesPago = `${payY}-${padM}`;
+    const fechaPago = `${payY}-${padM}-${padDay}`;
+    // Ajuste de centavos en la última cuota para que la suma total sea exactamente totalAmount
+    const montoCuota = (k === cuotas)
+      ? Math.round((totalAmount - cuotaBase * (cuotas - 1)) * 100) / 100
+      : cuotaBase;
+
+    const mesLabel = `${MESES_NOMBRES[payM - 1]} ${payY}`;
+
+    schedule.push({
+      cuotaNumber: k,
+      totalCuotas: cuotas,
+      mesPago,
+      fechaPago,
+      montoCuota,
+      mesLabel,
+    });
+  }
+
+  return schedule;
+}
+
 /**
  * Calcula el detalle y la suma total de consumos que vencen para pagarse en targetMonthStr ('YYYY-MM')
  * para una tarjeta de crédito específica (BBVA Bfree, Interbank Amex, Ripley).
  * 
- * Agrega tanto las compras reales del histórico (masterTransactions) como los consumos proyectados.
+ * Agrega tanto las compras reales del histórico (masterTransactions) como los consumos proyectados,
+ * procesando compras al contado y dividiendo compras en cuotas en sus respectivos meses de pago.
  */
 export function getCardDueDetailsForMonth(
   entity: string,
@@ -184,68 +265,122 @@ export function getCardDueDetailsForMonth(
         const y = parts[0];
         const mIndex = parts[1] - 1;
         const d = parts[2];
-        const payInfo = calculateCardPaymentDate(entity, y, mIndex, d);
-        if (payInfo.mesPago === targetMonthStr) {
-          const key = `${t.Fecha}-${t.Concepto}-${t.Monto}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            consumos.push({
-              id: `master-${t.id || key}`,
-              fecha: t.Fecha,
-              concepto: t.Concepto,
-              monto: t.Monto,
-              categoria: t.Categoria,
-              origen: 'Histórico Maestro',
-            });
+
+        // Verificar si la compra se realizó en cuotas
+        let numCuotas = (t.cuotas && t.cuotas > 1) ? t.cuotas : 1;
+        if (numCuotas === 1 && t.Concepto) {
+          const match = t.Concepto.match(/\[(\d+)\s*cuotas?\]|\((\d+)\s*cuotas?\)/i);
+          if (match) numCuotas = parseInt(match[1] || match[2], 10);
+        }
+
+        if (numCuotas > 1) {
+          // Procesamiento de compra en cuotas
+          const schedule = calculateCardInstallmentSchedule(entity, t.Fecha, t.Monto, numCuotas);
+          const activeCuota = schedule.find(s => s.mesPago === targetMonthStr);
+          if (activeCuota) {
+            const cleanConcept = t.Concepto.replace(/\s*\[\d+\s*cuotas?\]|\(\d+\s*cuotas?\)/gi, '').trim();
+            const key = `${t.Fecha}-${cleanConcept}-cuota-${activeCuota.cuotaNumber}-${numCuotas}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              consumos.push({
+                id: `master-${t.id || t.Fecha}-cuota-${activeCuota.cuotaNumber}`,
+                fecha: t.Fecha,
+                concepto: `${cleanConcept} (Cuota ${activeCuota.cuotaNumber}/${numCuotas})`,
+                monto: activeCuota.montoCuota,
+                categoria: t.Categoria,
+                origen: 'Histórico Maestro',
+              });
+            }
+          }
+        } else {
+          // Compra regular al contado (1 cuota)
+          const payInfo = calculateCardPaymentDate(entity, y, mIndex, d);
+          if (payInfo.mesPago === targetMonthStr) {
+            const key = `${t.Fecha}-${t.Concepto}-${t.Monto}`;
+            if (!seenKeys.has(key)) {
+              seenKeys.add(key);
+              consumos.push({
+                id: `master-${t.id || key}`,
+                fecha: t.Fecha,
+                concepto: t.Concepto,
+                monto: t.Monto,
+                categoria: t.Categoria,
+                origen: 'Histórico Maestro',
+              });
+            }
           }
         }
       }
     }
   });
 
-  // 2. Partidas proyectadas para meses que alimentan este mesPago
-  // (mes anterior para consumos < corteDay, o 2 meses antes para consumos >= corteDay)
-  for (let offset = 1; offset <= 2; offset++) {
-    let sourceMonthVal = targetMonth - offset;
-    let sourceYear = targetYear;
-    while (sourceMonthVal < 1) {
-      sourceMonthVal += 12;
-      sourceYear--;
-    }
-    const sourceMonthStr = `${sourceYear}-${String(sourceMonthVal).padStart(2, '0')}`;
-
-    for (const item of projectedItems) {
-      if (item.entidad === entity && item.tipo === 'Egreso') {
+  // 2. Partidas proyectadas
+  for (const item of projectedItems) {
+    if (item.entidad === entity && item.tipo === 'Egreso') {
+      // Partida proyectada en cuotas
+      if (item.cuotas && item.cuotas > 1) {
         const [startYear, startMonth] = item.mesInicio.split('-').map(Number);
-        const startDateVal = startYear * 12 + (startMonth - 1);
-        const sourceDateVal = sourceYear * 12 + (sourceMonthVal - 1);
+        const padD = String(item.dia).padStart(2, '0');
+        const purchaseDateStr = `${startYear}-${String(startMonth).padStart(2, '0')}-${padD}`;
+        const totalAmount = item.montoTotal ?? (item.monto * item.cuotas);
+        const schedule = calculateCardInstallmentSchedule(entity, purchaseDateStr, totalAmount, item.cuotas);
+        const activeCuota = schedule.find(s => s.mesPago === targetMonthStr);
+        if (activeCuota) {
+          const key = `proj-cuota-${item.id}-${activeCuota.cuotaNumber}`;
+          if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            consumos.push({
+              id: key,
+              fecha: activeCuota.fechaPago,
+              concepto: `${item.concepto} (Cuota ${activeCuota.cuotaNumber}/${item.cuotas})`,
+              monto: activeCuota.montoCuota,
+              categoria: item.categoria,
+              origen: 'Proyección',
+            });
+          }
+        }
+      } else {
+        // Partida proyectada regular
+        for (let offset = 1; offset <= 2; offset++) {
+          let sourceMonthVal = targetMonth - offset;
+          let sourceYear = targetYear;
+          while (sourceMonthVal < 1) {
+            sourceMonthVal += 12;
+            sourceYear--;
+          }
+          const sourceMonthStr = `${sourceYear}-${String(sourceMonthVal).padStart(2, '0')}`;
 
-        if (sourceDateVal >= startDateVal) {
-          const monthsDiff = sourceDateVal - startDateVal;
-          if (item.recurrencia === 'unico' && monthsDiff !== 0) continue;
-          if (item.recurrencia === 'temporal' && monthsDiff >= (item.mesesDuracion || 1)) continue;
+          const [startYear, startMonth] = item.mesInicio.split('-').map(Number);
+          const startDateVal = startYear * 12 + (startMonth - 1);
+          const sourceDateVal = sourceYear * 12 + (sourceMonthVal - 1);
 
-          const excepcion = item.excepciones?.[sourceMonthStr];
-          if (excepcion?.suprimido) continue;
+          if (sourceDateVal >= startDateVal) {
+            const monthsDiff = sourceDateVal - startDateVal;
+            if (item.recurrencia === 'unico' && monthsDiff !== 0) continue;
+            if (item.recurrencia === 'temporal' && monthsDiff >= (item.mesesDuracion || 1)) continue;
 
-          const activeDay = excepcion?.diaModificado ?? item.dia;
-          const activeAmount = excepcion?.montoModificado ?? item.monto;
-          const payInfo = calculateCardPaymentDate(entity, sourceYear, sourceMonthVal - 1, activeDay);
+            const excepcion = item.excepciones?.[sourceMonthStr];
+            if (excepcion?.suprimido) continue;
 
-          if (payInfo.mesPago === targetMonthStr) {
-            const padD = String(activeDay).padStart(2, '0');
-            const consDate = `${sourceYear}-${String(sourceMonthVal).padStart(2, '0')}-${padD}`;
-            const key = `${consDate}-${item.concepto}-${activeAmount}`;
-            if (!seenKeys.has(key)) {
-              seenKeys.add(key);
-              consumos.push({
-                id: `proj-${item.id}-${sourceMonthStr}`,
-                fecha: consDate,
-                concepto: item.concepto,
-                monto: activeAmount,
-                categoria: item.categoria,
-                origen: 'Proyección',
-              });
+            const activeDay = excepcion?.diaModificado ?? item.dia;
+            const activeAmount = excepcion?.montoModificado ?? item.monto;
+            const payInfo = calculateCardPaymentDate(entity, sourceYear, sourceMonthVal - 1, activeDay);
+
+            if (payInfo.mesPago === targetMonthStr) {
+              const padD = String(activeDay).padStart(2, '0');
+              const consDate = `${sourceYear}-${String(sourceMonthVal).padStart(2, '0')}-${padD}`;
+              const key = `${consDate}-${item.concepto}-${activeAmount}`;
+              if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                consumos.push({
+                  id: `proj-${item.id}-${sourceMonthStr}`,
+                  fecha: consDate,
+                  concepto: item.concepto,
+                  monto: activeAmount,
+                  categoria: item.categoria,
+                  origen: 'Proyección',
+                });
+              }
             }
           }
         }
@@ -927,6 +1062,54 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         fechaPagoTarjeta: cardPayInfo?.fechaPago,
       });
     }
+
+    // Incorporar cuotas activas de compras con tarjeta registradas
+    const sourceTransactions = useFinanceStore?.getState ? useFinanceStore.getState().transactions : masterTransactions;
+    sourceTransactions.forEach((t) => {
+      if (t.Tipo === 'Egreso' && t.Entidad) {
+        let numCuotas = (t.cuotas && t.cuotas > 1) ? t.cuotas : 1;
+        if (numCuotas === 1 && t.Concepto) {
+          const match = t.Concepto.match(/\[(\d+)\s*cuotas?\]|\((\d+)\s*cuotas?\)/i);
+          if (match) numCuotas = parseInt(match[1] || match[2], 10);
+        }
+
+        if (numCuotas > 1) {
+          const schedule = calculateCardInstallmentSchedule(t.Entidad, t.Fecha, t.Monto, numCuotas);
+          const activeCuota = schedule.find(s => s.mesPago === targetMonthStr);
+          if (activeCuota) {
+            const cleanConcept = t.Concepto.replace(/\s*\[\d+\s*cuotas?\]|\(\d+\s*cuotas?\)/gi, '').trim();
+            const rowId = `tx-installment-${t.id || t.Fecha}-${targetMonthStr}`;
+            let isCreditCard = Boolean(CARD_RULES[t.Entidad]);
+            if (!isCreditCard) {
+              try {
+                isCreditCard = Boolean(useCreditCardStore.getState().getCardByEntity(t.Entidad));
+              } catch {}
+            }
+
+            rows.push({
+              id: rowId,
+              itemId: t.id,
+              tipo: 'Egreso',
+              fecha: activeCuota.fechaPago,
+              categoria: t.Categoria,
+              concepto: `${cleanConcept} (Cuota ${activeCuota.cuotaNumber}/${numCuotas})`,
+              monto: activeCuota.montoCuota,
+              montoOriginal: t.Monto,
+              entidad: t.Entidad,
+              recurrencia: 'temporal',
+              esFijo: false,
+              esTemporal: true,
+              esUnico: false,
+              esModificado: false,
+              esTarjetaCredito: isCreditCard,
+              esPagoLiquidacionTarjeta: false,
+              mesPagoTarjeta: activeCuota.mesPago,
+              fechaPagoTarjeta: activeCuota.fechaPago,
+            });
+          }
+        }
+      }
+    });
 
     // Ordenar por día de fecha ascendente
     rows.sort((a, b) => a.fecha.localeCompare(b.fecha));

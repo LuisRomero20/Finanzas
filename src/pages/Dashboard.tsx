@@ -32,6 +32,7 @@ import { calculateCardLivePosition, getCycles } from '../utils/creditCardCycles'
 import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
 import { PrevMonthDaysConfigModal } from '../components/PrevMonthDaysConfigModal';
 import { AddCardModal } from '../components/AddCardModal';
+import { calculateCardInstallmentSchedule } from '../store/projectionStore';
 import {
   ChevronDown,
   Download,
@@ -367,6 +368,8 @@ export const Dashboard: React.FC = () => {
   const [newRowEntidad, setNewRowEntidad] = useState('Interbank');
   const [newRowFecha, setNewRowFecha] = useState(() => getDefaultDateForMonth(selectedMonth));
   const [newRowEsProyeccion, setNewRowEsProyeccion] = useState(true);
+  const [newRowEsCuotas, setNewRowEsCuotas] = useState(false);
+  const [newRowCuotas, setNewRowCuotas] = useState<number>(3);
 
   // Actualizar fecha por defecto cuando cambia el mes seleccionado
   useEffect(() => {
@@ -381,6 +384,8 @@ export const Dashboard: React.FC = () => {
     setNewRowEntidad(selectedEntity !== 'Todas' ? selectedEntity : 'Interbank');
     setNewRowFecha(getDefaultDateForMonth(selectedMonth));
     setNewRowEsProyeccion(true);
+    setNewRowEsCuotas(false);
+    setNewRowCuotas(3);
     setIsNewRowModalOpen(true);
   };
 
@@ -389,23 +394,41 @@ export const Dashboard: React.FC = () => {
     if (!newRowConcepto.trim()) return;
 
     const mesName = selectedMonth === 'Todos' ? getMonthNameFromDate(newRowFecha) : selectedMonth;
+    const cleanConcepto = newRowConcepto.trim().replace(/\s*\[\d+\s*cuotas?\]|\(\d+\s*cuotas?\)/gi, '').trim();
+    const finalConcepto = (newRowEsCuotas && newRowCuotas > 1)
+      ? `${cleanConcepto} [${newRowCuotas} cuotas]`
+      : cleanConcepto;
+
     addTransaction({
       Tipo: newRowTipo,
       Fecha: newRowFecha,
-      Concepto: newRowConcepto.trim(),
+      Concepto: finalConcepto,
       Categoria: newRowCategoria,
       Entidad: newRowEntidad,
       Monto: Number(newRowMonto),
       Mes: mesName,
       estado: newRowEsProyeccion ? 'provisional' : 'confirmado',
+      cuotas: (newRowEsCuotas && newRowCuotas > 1) ? newRowCuotas : undefined,
+      esCuotas: Boolean(newRowEsCuotas && newRowCuotas > 1),
+      montoTotal: Number(newRowMonto),
+      montoCuota: (newRowEsCuotas && newRowCuotas > 1) ? Math.round((Number(newRowMonto) / newRowCuotas) * 100) / 100 : undefined,
     });
 
-    agregarNotificacion(
-      newRowEsProyeccion
-        ? `✨ Fila proyectada "${newRowConcepto}" agregada en amarillo (pendiente de confirmación).`
-        : `✅ Transacción "${newRowConcepto}" registrada correctamente.`,
-      'success'
-    );
+    if (newRowEsCuotas && newRowCuotas > 1) {
+      const schedule = calculateCardInstallmentSchedule(newRowEntidad, newRowFecha, Number(newRowMonto), newRowCuotas);
+      const primerMes = schedule[0]?.mesLabel || 'el próximo ciclo';
+      agregarNotificacion(
+        `💳 Compra con ${newRowEntidad} registrada por ${formatterPEN.format(Number(newRowMonto))}. Se dividirá en ${newRowCuotas} cuotas de ${formatterPEN.format(Number(newRowMonto) / newRowCuotas)} facturadas a partir de ${primerMes}.`,
+        'success'
+      );
+    } else {
+      agregarNotificacion(
+        newRowEsProyeccion
+          ? `✨ Fila proyectada "${newRowConcepto}" agregada en amarillo (pendiente de confirmación).`
+          : `✅ Transacción "${newRowConcepto}" registrada correctamente.`,
+        'success'
+      );
+    }
 
     setIsNewRowModalOpen(false);
   };
@@ -1682,6 +1705,109 @@ export const Dashboard: React.FC = () => {
                   </select>
                 </div>
               </div>
+
+              {/* 💳 Opción de Compra en Cuotas con Tarjeta */}
+              {newRowTipo === 'Egreso' && (isCreditCardLine(newRowEntidad) || Boolean(useCreditCardStore.getState().getCardByEntity(newRowEntidad))) && (
+                <div className="p-3.5 bg-gradient-to-br from-indigo-50/90 to-blue-50/70 dark:from-indigo-950/40 dark:to-blue-950/30 border border-indigo-200/80 dark:border-indigo-900/60 rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={newRowEsCuotas}
+                        onChange={e => setNewRowEsCuotas(e.target.checked)}
+                        className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                      />
+                      <span className="font-black text-indigo-950 dark:text-indigo-200 text-xs flex items-center gap-1.5">
+                        <CreditCard size={14} className="text-indigo-600 dark:text-indigo-400" />
+                        ¿Deseas pagar esta compra en cuotas?
+                      </span>
+                    </label>
+                    {newRowEsCuotas && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                        {newRowCuotas} cuotas
+                      </span>
+                    )}
+                  </div>
+
+                  {newRowEsCuotas && (
+                    <div className="space-y-3 pt-1 border-t border-indigo-100 dark:border-indigo-900/50">
+                      {/* Botones rápidos de cuotas */}
+                      <div>
+                        <span className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                          Número de Cuotas:
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[2, 3, 4, 6, 12, 18, 24].map(n => (
+                            <button
+                              key={n}
+                              type="button"
+                              onClick={() => setNewRowCuotas(n)}
+                              className={`px-3 py-1.5 rounded-xl font-black text-xs transition ${
+                                newRowCuotas === n
+                                  ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40'
+                                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                              }`}
+                            >
+                              {n}c
+                            </button>
+                          ))}
+                          <input
+                            type="number"
+                            min="2"
+                            max="48"
+                            value={newRowCuotas || ''}
+                            onChange={e => setNewRowCuotas(Math.max(2, parseInt(e.target.value) || 2))}
+                            className="w-16 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2 py-1 text-center font-bold text-slate-900 dark:text-white text-xs"
+                            placeholder="Otro"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Desglose dinámico del cronograma de facturación */}
+                      {Number(newRowMonto) > 0 && newRowFecha && (() => {
+                        const sched = calculateCardInstallmentSchedule(newRowEntidad, newRowFecha, Number(newRowMonto), newRowCuotas);
+                        if (sched.length === 0) return null;
+                        const primeraCuota = sched[0];
+                        return (
+                          <div className="p-3 bg-white/80 dark:bg-slate-900/70 border border-indigo-100 dark:border-indigo-900/40 rounded-xl space-y-2 text-[11px]">
+                            <div className="flex items-center justify-between text-indigo-950 dark:text-indigo-200 font-black">
+                              <span>Monto por cuota:</span>
+                              <span className="text-sm text-emerald-700 dark:text-emerald-400 font-black">
+                                {newRowCuotas} cuotas de {formatterPEN.format(primeraCuota.montoCuota)}
+                              </span>
+                            </div>
+
+                            <div className="text-slate-600 dark:text-slate-300">
+                              <span className="font-semibold">Facturación: </span>
+                              Primera cuota se factura en <strong className="text-indigo-600 dark:text-indigo-400">{primeraCuota.mesLabel}</strong> (pago el {primeraCuota.fechaPago.slice(8, 10)}/{primeraCuota.fechaPago.slice(5, 7)}).
+                            </div>
+
+                            <div>
+                              <span className="block font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                                Meses que afecta en proyecciones:
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {sched.map(s => (
+                                  <span
+                                    key={s.mesPago}
+                                    className="px-2 py-0.5 rounded-lg bg-indigo-100/80 dark:bg-indigo-900/50 text-indigo-800 dark:text-indigo-300 font-bold text-[10px]"
+                                  >
+                                    {s.mesLabel} ({s.cuotaNumber}/{s.totalCuotas})
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+
+                            <p className="text-[10px] text-slate-500 dark:text-slate-400 pt-1 border-t border-slate-100 dark:border-slate-800 leading-relaxed">
+                              💡 El monto completo ({formatterPEN.format(Number(newRowMonto))}) se descontará en la tarjeta {newRowEntidad} hoy afectando tu línea disponible, y la deuda será dividida en las proyecciones de los meses posteriores de manera temporal.
+                            </p>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Modo de Registro */}
               <div className="pt-1">

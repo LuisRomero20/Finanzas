@@ -46,7 +46,9 @@ import {
   CATEGORIAS_PERSONALES,
   autoClassify,
   getEffectiveCategory,
+  isCreditCardLine,
 } from '../utils/categoryClassification';
+import { calculateCardInstallmentSchedule } from '../store/projectionStore';
 import type { Transaction } from '../utils/masterData';
 
 export function getRegistrationTimestamp(t: Transaction): number {
@@ -113,6 +115,8 @@ export const RegistroMovimientoPage: React.FC = () => {
   const [entidad, setEntidad] = useState<string>('Interbank');
   const [categoria, setCategoria] = useState<string>('Comida & Restaurantes');
   const [fecha, setFecha] = useState<string>(() => new Date().toLocaleDateString('en-CA'));
+  const [esCuotas, setEsCuotas] = useState<boolean>(false);
+  const [cuotas, setCuotas] = useState<number>(3);
 
   const activeCategorias = useMemo(() => {
     return tipo === 'Egreso' ? EGRESO_CATEGORIAS : INGRESO_CATEGORIAS;
@@ -202,20 +206,37 @@ export const RegistroMovimientoPage: React.FC = () => {
 
     setIsSubmitting(true);
 
+    const cleanConcept = concepto.trim().replace(/\s*\[\d+\s*cuotas?\]|\(\d+\s*cuotas?\)/gi, '').trim();
+    const finalConcept = (esCuotas && cuotas > 1) ? `${cleanConcept} [${cuotas} cuotas]` : cleanConcept;
+
     const newTx = addTransaction({
       Tipo: tipo,
       Fecha: fecha,
       Categoria: categoria,
-      Concepto: concepto.trim(),
+      Concepto: finalConcept,
       Monto: numMonto,
       Entidad: entidad,
+      cuotas: (esCuotas && cuotas > 1) ? cuotas : undefined,
+      esCuotas: Boolean(esCuotas && cuotas > 1),
+      montoTotal: numMonto,
+      montoCuota: (esCuotas && cuotas > 1) ? Math.round((numMonto / cuotas) * 100) / 100 : undefined,
     });
 
-    agregarNotificacion(`✅ ${tipo} "${newTx.Concepto}" (${fmt.format(numMonto)}) guardado con éxito y sincronizado a la nube.`, 'success');
+    if (esCuotas && cuotas > 1) {
+      const sched = calculateCardInstallmentSchedule(entidad, fecha, numMonto, cuotas);
+      const primerMes = sched[0]?.mesLabel || 'el próximo ciclo';
+      agregarNotificacion(
+        `💳 Compra con ${entidad} registrada por ${fmt.format(numMonto)}. Dividida en ${cuotas} cuotas de ${fmt.format(numMonto / cuotas)} facturadas a partir de ${primerMes}.`,
+        'success'
+      );
+    } else {
+      agregarNotificacion(`✅ ${tipo} "${newTx.Concepto}" (${fmt.format(numMonto)}) guardado con éxito y sincronizado a la nube.`, 'success');
+    }
 
     // Resetear formulario para el siguiente gasto rápido
     setMonto('');
     setConcepto('');
+    setEsCuotas(false);
     setIsSubmitting(false);
   };
 
@@ -491,6 +512,109 @@ export const RegistroMovimientoPage: React.FC = () => {
             })}
           </div>
         </div>
+
+        {/* 💳 Opción de Compra en Cuotas con Tarjeta */}
+        {tipo === 'Egreso' && isCreditCardLine(entidad) && (
+          <div className="p-4 bg-gradient-to-br from-indigo-50/90 to-blue-50/70 dark:from-indigo-950/40 dark:to-blue-950/30 border border-indigo-200/80 dark:border-indigo-900/60 rounded-3xl space-y-3 shadow-sm">
+            <div className="flex items-center justify-between">
+              <label className="flex items-center gap-2.5 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={esCuotas}
+                  onChange={(e) => setEsCuotas(e.target.checked)}
+                  className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 accent-indigo-600 cursor-pointer"
+                />
+                <span className="font-black text-indigo-950 dark:text-indigo-200 text-sm flex items-center gap-2">
+                  <CreditCard size={16} className="text-indigo-600 dark:text-indigo-400" />
+                  ¿Pagar esta compra en cuotas?
+                </span>
+              </label>
+              {esCuotas && (
+                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300">
+                  {cuotas} cuotas
+                </span>
+              )}
+            </div>
+
+            {esCuotas && (
+              <div className="space-y-3 pt-2 border-t border-indigo-100 dark:border-indigo-900/50">
+                <div>
+                  <span className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Número de Cuotas:
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {[2, 3, 4, 6, 12, 18, 24].map((n) => (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setCuotas(n)}
+                        className={`px-3.5 py-2 rounded-xl font-black text-xs transition cursor-pointer ${
+                          cuotas === n
+                            ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/40'
+                            : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100'
+                        }`}
+                      >
+                        {n}c
+                      </button>
+                    ))}
+                    <input
+                      type="number"
+                      min="2"
+                      max="48"
+                      value={cuotas || ''}
+                      onChange={(e) => setCuotas(Math.max(2, parseInt(e.target.value) || 2))}
+                      className="w-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-2.5 py-1.5 text-center font-bold text-slate-900 dark:text-white text-xs"
+                      placeholder="Otro"
+                    />
+                  </div>
+                </div>
+
+                {/* Previsualización del cronograma */}
+                {parseFloat(monto) > 0 && fecha && (() => {
+                  const numMonto = parseFloat(monto);
+                  const sched = calculateCardInstallmentSchedule(entidad, fecha, numMonto, cuotas);
+                  if (sched.length === 0) return null;
+                  const primeraCuota = sched[0];
+                  return (
+                    <div className="p-3.5 bg-white/90 dark:bg-slate-900/80 border border-indigo-100 dark:border-indigo-900/40 rounded-2xl space-y-2 text-xs">
+                      <div className="flex items-center justify-between text-indigo-950 dark:text-indigo-200 font-black">
+                        <span>Monto por cuota:</span>
+                        <span className="text-sm sm:text-base text-emerald-700 dark:text-emerald-400 font-black">
+                          {cuotas} cuotas de {fmt.format(primeraCuota.montoCuota)}
+                        </span>
+                      </div>
+
+                      <div className="text-slate-600 dark:text-slate-300">
+                        <span className="font-semibold">Facturación: </span>
+                        Primera cuota se factura en <strong className="text-indigo-600 dark:text-indigo-400">{primeraCuota.mesLabel}</strong> (pago el {primeraCuota.fechaPago.slice(8, 10)}/{primeraCuota.fechaPago.slice(5, 7)}).
+                      </div>
+
+                      <div>
+                        <span className="block font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                          Meses que afecta en proyecciones:
+                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {sched.map((s) => (
+                            <span
+                              key={s.mesPago}
+                              className="px-2.5 py-1 rounded-xl bg-indigo-100/90 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 font-bold text-[11px]"
+                            >
+                              {s.mesLabel} ({s.cuotaNumber}/{s.totalCuotas})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 pt-1.5 border-t border-slate-100 dark:border-slate-800 leading-relaxed">
+                        💡 El monto completo ({fmt.format(numMonto)}) se descontará en la tarjeta {entidad} hoy consumiendo tu línea disponible, y la deuda será dividida en las proyecciones de los meses posteriores de manera temporal.
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* 4. Selector de Categoría con Chips */}
         <div className="space-y-2.5">

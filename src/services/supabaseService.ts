@@ -143,6 +143,13 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
           (typeof row.concepto === 'string' && /\[proy\]|\(proy\)/i.test(row.concepto))
         ));
 
+      let cuotasVal = row.cuotas ? Number(row.cuotas) : undefined;
+      if (!cuotasVal && typeof row.concepto === 'string') {
+        const match = row.concepto.match(/\[(\d+)\s*cuotas?\]|\((\d+)\s*cuotas?\)/i);
+        if (match) cuotasVal = parseInt(match[1] || match[2], 10);
+      }
+      const montoNum = Number(row.monto);
+
       return {
         id: String(row.id),
         Tipo: row.tipo,
@@ -150,10 +157,14 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
         Concepto: row.concepto,
         Categoria: row.categoria,
         Entidad: row.entidad,
-        Monto: Number(row.monto),
+        Monto: montoNum,
         Mes: row.mes,
         estado: isProvisional ? 'provisional' : (row.estado || 'confirmado'),
         createdAt: row.created_at,
+        cuotas: cuotasVal && cuotasVal > 1 ? cuotasVal : undefined,
+        esCuotas: Boolean(cuotasVal && cuotasVal > 1),
+        montoTotal: montoNum,
+        montoCuota: cuotasVal && cuotasVal > 1 ? Math.round((montoNum / cuotasVal) * 100) / 100 : undefined,
       };
     });
   } catch {

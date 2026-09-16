@@ -100,6 +100,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
         : `custom-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
     );
     const mes = txData.Mes || getMonthNameFromDate(txData.Fecha);
+    // Detección automática de cuotas en concepto si no viene explícito
+    let detectedCuotas = txData.cuotas;
+    if (!detectedCuotas && txData.Concepto) {
+      const match = txData.Concepto.match(/\[(\d+)\s*cuotas?\]|\((\d+)\s*cuotas?\)/i);
+      if (match) {
+        detectedCuotas = parseInt(match[1] || match[2], 10);
+      }
+    }
+
     const newTx: Transaction = {
       id,
       Tipo: txData.Tipo,
@@ -111,6 +120,11 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       Mes: mes,
       estado: txData.estado || 'confirmado',
       createdAt: (txData as any).createdAt || new Date().toISOString(),
+      cuotas: detectedCuotas && detectedCuotas > 1 ? detectedCuotas : undefined,
+      esCuotas: Boolean(detectedCuotas && detectedCuotas > 1),
+      montoTotal: txData.montoTotal ?? (detectedCuotas && detectedCuotas > 1 ? Number(txData.Monto) : undefined),
+      montoCuota: txData.montoCuota ?? (detectedCuotas && detectedCuotas > 1 ? Math.round((Number(txData.Monto) / detectedCuotas) * 100) / 100 : undefined),
+      mesInicioFacturacion: txData.mesInicioFacturacion,
     };
 
     set((state) => {

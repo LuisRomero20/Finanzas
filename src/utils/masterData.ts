@@ -11,6 +11,11 @@ export interface Transaction {
   isBridgedFromPrevMonth?: boolean;
   bridgedTargetMonth?: string;
   createdAt?: string;
+  cuotas?: number;
+  esCuotas?: boolean;
+  montoTotal?: number;
+  montoCuota?: number;
+  mesInicioFacturacion?: string;
 }
 
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';
