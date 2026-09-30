@@ -184,8 +184,8 @@ export const Dashboard: React.FC = () => {
   const entityIngresos: Record<string, number> = {};
   const entityEgresos: Record<string, number> = {};
   entityList.forEach(ent => {
-    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso').reduce((a, t) => a + t.Monto, 0);
-    const egresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso').reduce((a, t) => a + t.Monto, 0);
+    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
+    const egresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     entityIngresos[ent] = ingresos;
     entityEgresos[ent] = egresos;
   });

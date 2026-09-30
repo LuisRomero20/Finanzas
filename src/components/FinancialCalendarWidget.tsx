@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Calendar as CalendarIcon, X, ArrowUpRight, ArrowDownRight, CreditCard, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { Transaction } from '../utils/masterData';
-import { getEffectiveCategoryLabel } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel, isCreditCardLine } from '../utils/categoryClassification';
 import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import { PrevMonthDaysConfigModal } from './PrevMonthDaysConfigModal';
@@ -79,6 +79,9 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
   }
 
   prevMonthTransactions.forEach((t) => {
+    // Las líneas de crédito de tarjeta representan cupos aprobados, NO dinero de ingreso
+    if (isCreditCardLine(t)) return;
+
     const fecha = t.Fecha || (t as any).fecha || '';
     let day = 0;
     if (fecha.includes('-')) {
@@ -136,6 +139,9 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
   }
 
   monthTransactions.forEach((t) => {
+    // Las líneas de crédito de tarjeta representan cupos aprobados, NO dinero de ingreso
+    if (isCreditCardLine(t)) return;
+
     const fecha = t.Fecha || (t as any).fecha || '';
     let day = 0;
     if (fecha) {

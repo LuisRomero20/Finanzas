@@ -725,13 +725,10 @@ export function isCreditCardPayment(t: any): boolean {
   return /pago\s*de\s*tarjeta/i.test(c);
 }
 
-/**
- * Determina si un movimiento es una asignación de línea/cupo de tarjeta de crédito
- */
 export function isCreditCardLine(t: any): boolean {
   if (!t) return false;
-  const c = (t.Concepto || t.concepto || '').trim().toLowerCase();
-  return /linea\s*tarjeta/i.test(c);
+  const c = (typeof t === 'string' ? t : (t.Concepto || t.concepto || '')).trim().toLowerCase();
+  return /l[ií]nea\s*tarjeta|cupo\s*tarjeta/i.test(c);
 }
 
 /**

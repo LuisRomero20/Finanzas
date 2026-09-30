@@ -9,6 +9,7 @@ import { CronogramaPagos } from '../../pages/CronogramaPagos';
 import { HojaDeudas } from '../../pages/HojaDeudas';
 import { ClasificacionPage } from '../../pages/ClasificacionPage';
 import { DashboardsPage } from '../../pages/DashboardsPage';
+import { FinancialCalendarWidget } from '../../components/FinancialCalendarWidget';
 
 describe('Projection store & card due calculation', () => {
   it('calculates card payment dates correctly', () => {
@@ -52,5 +53,36 @@ describe('All Pages Rendering Tests', () => {
     expect(htmlSetiembre).toContain('Interbank Amex');
     expect(htmlSetiembre).toContain('BBVA Bfree');
     expect(htmlSetiembre).toContain('Ripley');
+  });
+
+  it('does not count Linea Tarjeta as income in FinancialCalendarWidget', () => {
+    const txs: any[] = [
+      {
+        id: 't-1',
+        Tipo: 'Ingreso',
+        Fecha: '2026-10-01',
+        Concepto: 'Linea Tarjeta',
+        Monto: 370.99,
+        Entidad: 'BBVA Bfree',
+        Mes: 'Octubre',
+      },
+      {
+        id: 't-2',
+        Tipo: 'Ingreso',
+        Fecha: '2026-10-01',
+        Concepto: 'Sueldo',
+        Monto: 2384.15,
+        Entidad: 'Interbank',
+        Mes: 'Octubre',
+      },
+    ];
+
+    const html = renderToString(
+      <FinancialCalendarWidget transactions={txs} selectedMonth="Octubre" />
+    );
+    // Sueldo is counted (2,384.15 -> 2.4k)
+    expect(html).toContain('2.4k');
+    // Linea Tarjeta is NOT counted, so it won't be 2.8k
+    expect(html).not.toContain('2.8k');
   });
 });

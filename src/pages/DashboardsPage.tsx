@@ -22,7 +22,7 @@ import {
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
-import { getEffectiveCategoryLabel, getAdaptedCategoryLabel } from '../utils/categoryClassification';
+import { getEffectiveCategoryLabel, getAdaptedCategoryLabel, isCreditCardLine } from '../utils/categoryClassification';
 
 const formatterPEN = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 const MESES = ["Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio", "Julio", "Agosto", "Setiembre", "Octubre", "Noviembre", "Diciembre"];
@@ -100,8 +100,8 @@ export const DashboardsPage: React.FC = () => {
     return getEffectiveCategoryLabel(t);
   };
 
-  const ingresosTxs = filteredTxs.filter(t => t.Tipo === 'Ingreso');
-  const egresosTxs = filteredTxs.filter(t => t.Tipo === 'Egreso');
+  const ingresosTxs = filteredTxs.filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t));
+  const egresosTxs = filteredTxs.filter(t => t.Tipo === 'Egreso' && !isCreditCardLine(t));
   
   const totalIngresos = ingresosTxs.reduce((s, t) => s + t.Monto, 0);
   const totalEgresos = egresosTxs.reduce((s, t) => s + t.Monto, 0);
@@ -157,8 +157,8 @@ export const DashboardsPage: React.FC = () => {
     if (view !== 'Anual') return [];
     return MESES.map(mes => {
       const txsMes = transactions.filter(t => t.Mes === mes && t.Fecha.startsWith(selectedYear.toString()));
-      const i = txsMes.filter(t => t.Tipo === 'Ingreso').reduce((s, t) => s + t.Monto, 0);
-      const e = txsMes.filter(t => t.Tipo === 'Egreso').reduce((s, t) => s + t.Monto, 0);
+      const i = txsMes.filter(t => t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((s, t) => s + t.Monto, 0);
+      const e = txsMes.filter(t => t.Tipo === 'Egreso' && !isCreditCardLine(t)).reduce((s, t) => s + t.Monto, 0);
       return { name: mes.substring(0, 3), Ingresos: i, Egresos: e };
     });
   }, [transactions, view, selectedYear]);
