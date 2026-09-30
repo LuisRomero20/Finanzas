@@ -156,14 +156,14 @@ export function calculateCardLivePosition(
   const calculatedPrevTotal = prevTxs.reduce((s, t) => s + t.Monto, 0);
   const currTotal = currTxs.reduce((s, t) => s + t.Monto, 0);
 
-  const hasVerifiedStatement = typeof verifiedStatementFinalDebt === 'number' && verifiedStatementFinalDebt > 0;
+  const hasVerifiedStatement = typeof verifiedStatementFinalDebt === 'number' && verifiedStatementFinalDebt >= 0;
   const prevTotal = hasVerifiedStatement ? verifiedStatementFinalDebt : calculatedPrevTotal;
 
   const paidTxs = getCardPaymentTxs(transactions, card.entity, prev.prevPayDate, prev.payDate);
   const paymentTotal = paidTxs.reduce((s, t) => s + t.Monto, 0);
 
-  // Considerar cancelado si los pagos cubren el monto facturado (tolerancia de S/ 1 por redondeo bancario)
-  const isPaid = (paymentTotal >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && paymentTotal > 0);
+  // Considerar cancelado si los pagos cubren el monto facturado (tolerancia de S/ 1 por redondeo bancario) o regularizado a 0
+  const isPaid = (paymentTotal >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && (paymentTotal > 0 || hasVerifiedStatement));
   const netToPay = isPaid ? 0 : Math.max(0, prevTotal - paymentTotal);
 
   // Deuda viva total: si ya pagó el facturado, solo debe lo que viene acumulando en curso

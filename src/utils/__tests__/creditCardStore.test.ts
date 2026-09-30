@@ -101,4 +101,57 @@ describe('CreditCardStore & Card Operations', () => {
     const canDelete = pos.liveDebt === 0;
     expect(canDelete).toBe(false);
   });
+
+  it('supports regularizing debt and marking card as cancelled with 0 netToPay', () => {
+    const store = useCreditCardStore.getState();
+    const amex = store.cards.find(c => c.entity === 'Interbank Amex')!;
+    const refDate = new Date(2026, 8, 25);
+
+    const activeTxs: Transaction[] = [
+      {
+        id: 'tx-amex-1',
+        Tipo: 'Egreso',
+        Fecha: '2026-08-25',
+        Concepto: 'Cena Familiar',
+        Categoria: 'Comida & Restaurantes',
+        Entidad: 'Interbank Amex',
+        Monto: 300,
+        Mes: 'Agosto',
+      },
+    ];
+
+    // Before regularization: netToPay === 300
+    const initialPos = calculateCardLivePosition(amex, activeTxs, refDate);
+    expect(initialPos.netToPay).toBe(300);
+    expect(initialPos.isPaid).toBe(false);
+
+    // Regularize debt to 150
+    const regularizedPos = calculateCardLivePosition(amex, activeTxs, refDate, 150);
+    expect(regularizedPos.prevTotal).toBe(150);
+    expect(regularizedPos.netToPay).toBe(150);
+
+    // Regularize debt to 0 (mark as cancelled)
+    const cancelledPos = calculateCardLivePosition(amex, activeTxs, refDate, 0);
+    expect(cancelledPos.prevTotal).toBe(0);
+    expect(cancelledPos.netToPay).toBe(0);
+    expect(cancelledPos.isPaid).toBe(true);
+
+    // Or register payment of 300
+    const paidTxs: Transaction[] = [
+      ...activeTxs,
+      {
+        id: 'tx-pay-1',
+        Tipo: 'Egreso',
+        Fecha: '2026-10-01',
+        Concepto: 'Pago de Tarjeta Interbank Amex',
+        Categoria: 'Servicio',
+        Entidad: 'Interbank',
+        Monto: 300,
+        Mes: 'Octubre',
+      },
+    ];
+    const afterPaymentPos = calculateCardLivePosition(amex, paidTxs, refDate);
+    expect(afterPaymentPos.isPaid).toBe(true);
+    expect(afterPaymentPos.netToPay).toBe(0);
+  });
 });

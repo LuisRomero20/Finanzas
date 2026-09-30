@@ -7,19 +7,17 @@ import {
   AlertTriangle,
   Clock,
   CalendarDays,
-  FileText,
   CheckCircle2,
-  Sparkles,
   RotateCcw,
-  UploadCloud,
   FileCheck2,
   Plus,
   Trash2,
   Lock,
+  SlidersHorizontal,
 } from 'lucide-react';
-import { StatementImportModal } from '../components/StatementImportModal';
+import { RegularizarDeudaModal } from '../components/RegularizarDeudaModal';
 import { AddCardModal } from '../components/AddCardModal';
-import { useCardStatementStore } from '../store/cardStatementStore';
+import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import {
   getCycles,
@@ -28,6 +26,7 @@ import {
   daysFromToday,
   parseLocalDate as parseLocal,
   type CardConfig,
+  type Cycle,
 } from '../utils/creditCardCycles';
 
 function formatDate(date: Date): string {
@@ -53,9 +52,18 @@ export const CronogramaPagos: React.FC = () => {
     return d;
   });
 
-  // Modal de importación de estado de cuenta
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [targetCardForModal, setTargetCardForModal] = useState<string>('Interbank Amex');
+  // Modal de regularización de deuda y cancelación
+  const [regularizeModalCard, setRegularizeModalCard] = useState<CardConfig | null>(null);
+  const [regularizeCycleData, setRegularizeCycleData] = useState<{
+    prevCycle: Cycle;
+    calculatedPrevTotal: number;
+    netToPay: number;
+    currTotal: number;
+    liveDebt: number;
+    isPaid: boolean;
+    verifiedStatement?: VerifiedStatement;
+  } | null>(null);
+
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
   const { statements, getVerifiedStatement, removeVerifiedStatement } = useCardStatementStore();
@@ -64,16 +72,6 @@ export const CronogramaPagos: React.FC = () => {
     const d = new Date(refDate);
     d.setDate(d.getDate() + days);
     setRefDate(d);
-  };
-
-  const handleOpenImport = (cardEntity?: string) => {
-    if (cardEntity) setTargetCardForModal(cardEntity);
-    setIsModalOpen(true);
-  };
-
-  const handleDebtUpdated = (cardEntity: string, finalDebt: number) => {
-    setSuccessToast(`¡Deuda de ${cardEntity} actualizada con éxito a ${fmt.format(finalDebt)}!`);
-    setTimeout(() => setSuccessToast(null), 4000);
   };
 
   // Resumen global
@@ -86,11 +84,15 @@ export const CronogramaPagos: React.FC = () => {
       const { current, prev } = getCycles(refDate, card);
       const verifiedStmt = getVerifiedStatement(card.entity, prev.payDate, prev.end);
       
-      const prevTotal = verifiedStmt ? verifiedStmt.finalDebt : getTxs(transactions, card.entity, prev.start, prev.end).reduce((s, t) => s + t.Monto, 0);
+      const calculatedPrev = getTxs(transactions, card.entity, prev.start, prev.end).reduce((s, t) => s + t.Monto, 0);
+      const prevTotal = verifiedStmt && typeof verifiedStmt.finalDebt === 'number'
+        ? verifiedStmt.finalDebt
+        : calculatedPrev;
       const currTotal = getTxs(transactions, card.entity, current.start, current.end).reduce((s, t) => s + t.Monto, 0);
       
       const prevPayments = getPaymentTxs(transactions, card.entity, prev.prevPayDate, prev.payDate).reduce((s, t) => s + t.Monto, 0);
-      const netToPay = Math.max(0, prevTotal - prevPayments);
+      const isPaid = (prevPayments >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && (prevPayments > 0 || verifiedStmt !== undefined));
+      const netToPay = isPaid ? 0 : Math.max(0, prevTotal - prevPayments);
 
       totalPorPagar += netToPay;
       totalAcumulando += currTotal;
@@ -139,15 +141,6 @@ export const CronogramaPagos: React.FC = () => {
           >
             <Plus size={16} />
             <span>Nueva Tarjeta</span>
-          </button>
-
-          {/* Botón Importar Estado de Cuenta General */}
-          <button
-            onClick={() => handleOpenImport()}
-            className="flex items-center gap-2 bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
-          >
-            <UploadCloud size={16} />
-            <span>Importar Estado de Cuenta</span>
           </button>
 
           {/* Selector de fecha de referencia */}
@@ -221,14 +214,16 @@ export const CronogramaPagos: React.FC = () => {
           const calculatedPrevTotal = prevTxs.reduce((s, t) => s + t.Monto, 0);
           const currTotal = currTxs.reduce((s, t) => s + t.Monto, 0);
 
-          // Verificar si hay estado de cuenta confirmado guardado para este ciclo
+          // Verificar si hay regularización guardada para este ciclo
           const verifiedStatement = getVerifiedStatement(card.entity, prev.payDate, prev.end);
-          const prevTotal = verifiedStatement ? verifiedStatement.finalDebt : calculatedPrevTotal;
+          const prevTotal = verifiedStatement && typeof verifiedStatement.finalDebt === 'number'
+            ? verifiedStatement.finalDebt
+            : calculatedPrevTotal;
 
           const pagadoTxs = getPaymentTxs(transactions, card.entity, prev.prevPayDate, prev.payDate);
           const pagadoTotal = pagadoTxs.reduce((s, t) => s + t.Monto, 0);
           
-          const isPaid = (pagadoTotal >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && pagadoTotal > 0);
+          const isPaid = (pagadoTotal >= prevTotal - 1 && prevTotal > 0) || (prevTotal === 0 && (pagadoTotal > 0 || verifiedStatement !== undefined));
           const netToPay = isPaid ? 0 : Math.max(0, prevTotal - pagadoTotal);
           const liveDebt = isPaid ? currTotal : (netToPay + currTotal);
 
@@ -257,21 +252,55 @@ export const CronogramaPagos: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
-                    {/* Botón Cargar Estado de Cuenta */}
+                    {/* Botón Regularizar Deuda */}
                     <button
-                      onClick={() => handleOpenImport(card.entity)}
+                      onClick={() => {
+                        setRegularizeModalCard(card);
+                        setRegularizeCycleData({
+                          prevCycle: prev,
+                          calculatedPrevTotal,
+                          netToPay,
+                          currTotal,
+                          liveDebt,
+                          isPaid,
+                          verifiedStatement,
+                        });
+                      }}
                       className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20 cursor-pointer"
-                      title="Importar estado de cuenta para esta tarjeta"
+                      title="Regularizar monto o saldar deuda de esta tarjeta"
                     >
-                      <UploadCloud size={14} />
-                      <span>Cargar Estado de Cuenta</span>
+                      <SlidersHorizontal size={13} />
+                      <span>Regularizar Deuda</span>
                     </button>
 
-                    {isPaid ? (
+                    {/* Botón Rápido: Poner como Cancelada (si aún no está cancelada) */}
+                    {!isPaid ? (
+                      <button
+                        onClick={() => {
+                          setRegularizeModalCard(card);
+                          setRegularizeCycleData({
+                            prevCycle: prev,
+                            calculatedPrevTotal,
+                            netToPay,
+                            currTotal,
+                            liveDebt,
+                            isPaid,
+                            verifiedStatement,
+                          });
+                        }}
+                        className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition border border-emerald-400/40 cursor-pointer"
+                        title="Poner esta tarjeta como cancelada"
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>Poner como Cancelada</span>
+                      </button>
+                    ) : (
                       <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-500 text-white shadow-sm">
                         ✅ Cancelado
                       </div>
-                    ) : (isOverdue || isUrgent) && prevTotal > 0 ? (
+                    )}
+
+                    {!isPaid && (isOverdue || isUrgent) && prevTotal > 0 ? (
                       <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${
                         isOverdue ? 'bg-red-500 text-white' : 'bg-amber-400 text-amber-900'
                       }`}>
@@ -308,13 +337,13 @@ export const CronogramaPagos: React.FC = () => {
                 </div>
               </div>
 
-              {/* Barra de Estado de Cuenta Verificado si existe */}
+              {/* Barra de Deuda Regularizada si existe */}
               {verifiedStatement && (
-                <div className="bg-blue-50/80 dark:bg-blue-950/40 border-b border-blue-100 dark:border-blue-900/50 px-6 py-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+                <div className="bg-emerald-50/80 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
-                    <FileCheck2 size={15} className="text-blue-600 dark:text-blue-400" />
-                    <span className="font-bold text-blue-900 dark:text-blue-200">Deuda Verificada con Estado de Cuenta:</span>
-                    <span className="bg-blue-200/60 dark:bg-blue-900/60 text-blue-900 dark:text-blue-200 font-bold px-2 py-0.5 rounded text-[11px]">
+                    <FileCheck2 size={15} className="text-emerald-600 dark:text-emerald-400" />
+                    <span className="font-bold text-emerald-900 dark:text-emerald-200">Deuda Regularizada para este Ciclo:</span>
+                    <span className="bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-bold px-2 py-0.5 rounded text-[11px]">
                       {fmt.format(verifiedStatement.finalDebt)}
                     </span>
                     <span className="text-slate-400 dark:text-slate-500 text-[11px] hidden sm:inline">
@@ -324,15 +353,30 @@ export const CronogramaPagos: React.FC = () => {
 
                   <div className="flex items-center gap-3">
                     <button
-                      onClick={() => handleOpenImport(card.entity)}
-                      className="text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-semibold hover:underline text-[11px]"
+                      onClick={() => {
+                        setRegularizeModalCard(card);
+                        setRegularizeCycleData({
+                          prevCycle: prev,
+                          calculatedPrevTotal,
+                          netToPay,
+                          currTotal,
+                          liveDebt,
+                          isPaid,
+                          verifiedStatement,
+                        });
+                      }}
+                      className="text-emerald-700 dark:text-emerald-300 hover:underline font-bold text-[11px] cursor-pointer"
                     >
-                      Ver conciliación
+                      Modificar
                     </button>
                     <button
-                      onClick={() => removeVerifiedStatement(verifiedStatement.cycleKey || card.entity)}
-                      className="text-slate-400 hover:text-red-600 dark:hover:text-rose-400 flex items-center gap-1 text-[11px]"
-                      title="Volver al cálculo automático por transacciones registradas"
+                      onClick={() => {
+                        removeVerifiedStatement(verifiedStatement.cycleKey || card.entity);
+                        setSuccessToast(`Deuda de ${card.name} restablecida al cálculo automático.`);
+                        setTimeout(() => setSuccessToast(null), 3000);
+                      }}
+                      className="text-slate-400 hover:text-red-600 dark:hover:text-rose-400 flex items-center gap-1 text-[11px] cursor-pointer"
+                      title="Volver al cálculo automático por consumos registrados"
                     >
                       <RotateCcw size={11} />
                       <span>Restablecer</span>
@@ -484,12 +528,25 @@ export const CronogramaPagos: React.FC = () => {
         })}
       </div>
 
-      {/* Modal de Importación */}
-      <StatementImportModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        initialCard={targetCardForModal}
-        onDebtUpdated={handleDebtUpdated}
+      {/* Modal para Regularizar Deuda y Cancelación */}
+      <RegularizarDeudaModal
+        isOpen={Boolean(regularizeModalCard && regularizeCycleData)}
+        onClose={() => {
+          setRegularizeModalCard(null);
+          setRegularizeCycleData(null);
+        }}
+        card={regularizeModalCard}
+        prevCycle={regularizeCycleData?.prevCycle ?? null}
+        calculatedPrevTotal={regularizeCycleData?.calculatedPrevTotal ?? 0}
+        netToPay={regularizeCycleData?.netToPay ?? 0}
+        currTotal={regularizeCycleData?.currTotal ?? 0}
+        liveDebt={regularizeCycleData?.liveDebt ?? 0}
+        isPaid={regularizeCycleData?.isPaid ?? false}
+        verifiedStatement={regularizeCycleData?.verifiedStatement}
+        onSuccess={(msg) => {
+          setSuccessToast(msg);
+          setTimeout(() => setSuccessToast(null), 4000);
+        }}
       />
 
       {/* Modal para Agregar Nueva Tarjeta */}
