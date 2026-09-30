@@ -164,10 +164,14 @@ export const Dashboard: React.FC = () => {
     .filter(t => t.Tipo === 'Egreso' && !isDebtTransaction(t) && (selectedEntity !== 'Todas' || !isCreditCardPayment(t)))
     .reduce((acc, t) => acc + t.Monto, 0);
 
+  const { cards, deleteCard } = useCreditCardStore();
+  const isCardEntity = (ent: string) => cards.some(c => c.entity.toLowerCase() === ent.toLowerCase()) || /amex|bfree|ripley/i.test(ent);
+
   const entityList = ENTIDADES && ENTIDADES.length ? ENTIDADES : Array.from(new Set(filtered.map(t => t.Entidad).filter(Boolean)));
   const entityBalances: Record<string, number> = {};
   entityList.forEach(ent => {
-    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
+    const isCard = isCardEntity(ent);
+    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && (isCard || !isCreditCardLine(t))).reduce((a, t) => a + t.Monto, 0);
     const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isDebtTransaction(t) && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     const deudasEnt = filtered.filter(t => t.Entidad === ent && isDebtTransaction(t)).reduce((a, t) => a + t.Monto, 0);
     entityBalances[ent] = ingresosEnt - egresosEnt - deudasEnt;
@@ -184,7 +188,8 @@ export const Dashboard: React.FC = () => {
   const entityIngresos: Record<string, number> = {};
   const entityEgresos: Record<string, number> = {};
   entityList.forEach(ent => {
-    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
+    const isCard = isCardEntity(ent);
+    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && (isCard || !isCreditCardLine(t))).reduce((a, t) => a + t.Monto, 0);
     const egresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     entityIngresos[ent] = ingresos;
     entityEgresos[ent] = egresos;
@@ -192,7 +197,6 @@ export const Dashboard: React.FC = () => {
 
   // ── POSICIÓN VIVA Y EN TIEMPO REAL (INDEPENDIENTE DEL FILTRO DE MES) ──
   // Conectado con la hoja de tarjetas y ciclos de facturación reales
-  const { cards, deleteCard } = useCreditCardStore();
   const { getVerifiedStatement } = useCardStatementStore();
   const liveRefDate = useMemo(() => {
     const d = new Date();

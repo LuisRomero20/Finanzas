@@ -85,4 +85,10 @@ describe('All Pages Rendering Tests', () => {
     // Linea Tarjeta is NOT counted, so it won't be 2.8k
     expect(html).not.toContain('2.8k');
   });
+
+  it('includes Linea Tarjeta in card Ingresos on Dashboard Posición por Tarjeta', () => {
+    const html = renderToString(<Dashboard />);
+    expect(html).toContain('Posición por Cuenta Bancaria y Tarjeta');
+    expect(html).toContain('BBVA Bfree');
+  });
 });

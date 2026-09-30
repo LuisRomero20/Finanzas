@@ -79,9 +79,6 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
   }
 
   prevMonthTransactions.forEach((t) => {
-    // Las líneas de crédito de tarjeta representan cupos aprobados, NO dinero de ingreso
-    if (isCreditCardLine(t)) return;
-
     const fecha = t.Fecha || (t as any).fecha || '';
     let day = 0;
     if (fecha.includes('-')) {
@@ -95,10 +92,15 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
       const tipo = t.Tipo || (t as any).tipo;
       if (tipo === 'Ingreso') {
         prevDayData[day].incomes.push(t);
-        prevDayData[day].totalIncome += amount;
+        // Las líneas de crédito de tarjeta NO se suman al total de ingresos del cálculo del calendario
+        if (!isCreditCardLine(t)) {
+          prevDayData[day].totalIncome += amount;
+        }
       } else {
         prevDayData[day].expenses.push(t);
-        prevDayData[day].totalExpense += amount;
+        if (!isCreditCardLine(t)) {
+          prevDayData[day].totalExpense += amount;
+        }
       }
     }
   });
@@ -139,9 +141,6 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
   }
 
   monthTransactions.forEach((t) => {
-    // Las líneas de crédito de tarjeta representan cupos aprobados, NO dinero de ingreso
-    if (isCreditCardLine(t)) return;
-
     const fecha = t.Fecha || (t as any).fecha || '';
     let day = 0;
     if (fecha) {
@@ -157,10 +156,15 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
       const tipo = t.Tipo || (t as any).tipo;
       if (tipo === 'Ingreso') {
         dayData[day].incomes.push(t);
-        dayData[day].totalIncome += amount;
+        // Las líneas de crédito de tarjeta NO se suman al total de ingresos del cálculo del calendario
+        if (!isCreditCardLine(t)) {
+          dayData[day].totalIncome += amount;
+        }
       } else {
         dayData[day].expenses.push(t);
-        dayData[day].totalExpense += amount;
+        if (!isCreditCardLine(t)) {
+          dayData[day].totalExpense += amount;
+        }
       }
     }
   });
@@ -492,6 +496,7 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
                     const concepto = inc.Concepto || (inc as any).concepto;
                     const entidad = inc.Entidad || (inc as any).entidad || (inc as any).medio;
                     const monto = Number(inc.Monto || (inc as any).monto) || 0;
+                    const isLine = isCreditCardLine(inc);
                     return (
                       <div key={inc.id} className="p-3 rounded-2xl bg-emerald-50/60 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5 min-w-0">
@@ -499,8 +504,17 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
                             <ArrowUpRight size={14} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{concepto}</p>
-                            <p className="text-[10px] text-slate-400">{entidad}</p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className="text-xs font-bold text-slate-900 dark:text-white truncate">{concepto}</p>
+                              {isLine && (
+                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300">
+                                  Línea Tarjeta
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[10px] text-slate-400">
+                              {entidad} {isLine ? '· Informativo (no suma al ingreso del día)' : ''}
+                            </p>
                           </div>
                         </div>
                         <span className="text-xs font-black text-emerald-600 dark:text-emerald-400 shrink-0">
