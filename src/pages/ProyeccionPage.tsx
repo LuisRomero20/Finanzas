@@ -39,6 +39,7 @@ import {
   Send,
   Calculator,
   Cloud,
+  Eraser,
 } from 'lucide-react';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { LaborBenefitsCalculatorWidget, LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
@@ -82,6 +83,8 @@ export const ProyeccionPage: React.FC = () => {
     clearProbabilidadSueldo,
     getMonthlyProjections,
     resetToDefaults,
+    suppressAllInMonth,
+    restoreAllInMonth,
   } = useProjectionStore();
 
   // Modal para auditoría de liquidación de tarjeta de crédito
@@ -109,6 +112,7 @@ export const ProyeccionPage: React.FC = () => {
   const [formMesesDuracion, setFormMesesDuracion] = useState<number>(3);
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [isSyncingCloud, setIsSyncingCloud] = useState(false);
+  const [showClearModal, setShowClearModal] = useState<boolean>(false);
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -142,6 +146,18 @@ export const ProyeccionPage: React.FC = () => {
     } finally {
       setIsSyncingCloud(false);
     }
+  };
+
+  const handleClearCurrentMonth = () => {
+    suppressAllInMonth(activeMonthStr);
+    clearProbabilidadSueldo(activeMonthStr);
+    setShowClearModal(false);
+    showToast(`✨ ${activeMonthLabel} ahora está en blanco (S/ 0.00). Tus consumos con tarjeta se reflejarán en ${MESES_ES[(activeMonthIndex + 1) % 12]}.`);
+  };
+
+  const handleRestoreCurrentMonth = () => {
+    restoreAllInMonth(activeMonthStr);
+    showToast(`✨ Partidas proyectadas de ${activeMonthLabel} restauradas con éxito.`);
   };
 
   // Navegación de meses
@@ -435,7 +451,28 @@ export const ProyeccionPage: React.FC = () => {
             <span>Agregar Partida</span>
           </button>
 
-          {/* Botón Restaurar */}
+          {/* Botón Dejar en Blanco / Restaurar Mes */}
+          {projectedRows.length > 0 ? (
+            <button
+              onClick={() => setShowClearModal(true)}
+              className="flex items-center gap-1.5 bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 border border-rose-300 dark:border-rose-500/30 text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-sm"
+              title={`Dejar en blanco las proyecciones de ${activeMonthLabel} (0 partidas como Setiembre)`}
+            >
+              <Eraser size={15} />
+              <span>Dejar en blanco</span>
+            </button>
+          ) : (
+            <button
+              onClick={handleRestoreCurrentMonth}
+              className="flex items-center gap-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 hover:text-amber-700 dark:hover:text-amber-300 border border-amber-300 dark:border-amber-500/30 text-xs font-bold px-3.5 py-2.5 rounded-xl transition shadow-sm"
+              title={`Restaurar las partidas proyectadas de ${activeMonthLabel}`}
+            >
+              <RotateCcw size={15} />
+              <span>Restaurar {MESES_ES[activeMonthIndex]}</span>
+            </button>
+          )}
+
+          {/* Botón Restaurar Plantilla Inicial */}
           <button
             onClick={() => {
               if (confirm('¿Restaurar las proyecciones a la plantilla base de Octubre 2026?')) {
@@ -444,7 +481,7 @@ export const ProyeccionPage: React.FC = () => {
               }
             }}
             className="p-2.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 rounded-xl transition"
-            title="Restaurar plantilla inicial"
+            title="Restaurar plantilla inicial completa"
           >
             <RotateCcw size={15} />
           </button>
@@ -1326,6 +1363,68 @@ export const ProyeccionPage: React.FC = () => {
                   className="bg-[#0F2A1D] dark:bg-emerald-700 hover:bg-black dark:hover:bg-emerald-600 text-white font-bold px-5 py-2 rounded-xl transition"
                 >
                   Entendido
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── MODAL CONFIRMAR DEJAR EN BLANCO ── */}
+      {showClearModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setShowClearModal(false)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-gradient-to-r from-rose-900 via-slate-900 to-[#11191D] text-white flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Eraser className="text-rose-400" size={18} />
+                <h3 className="font-bold text-sm">Dejar Proyecciones en Blanco</h3>
+              </div>
+              <button onClick={() => setShowClearModal(false)} className="text-slate-400 hover:text-white">
+                <X size={16} />
+              </button>
+            </div>
+            
+            <div className="p-6 space-y-4 text-xs">
+              <p className="text-slate-600 dark:text-slate-300 leading-relaxed text-sm">
+                ¿Deseas dejar las proyecciones de <strong>{activeMonthLabel}</strong> en blanco (0 partidas y montos en S/ 0.00 como en Setiembre)?
+              </p>
+
+              <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700/70 rounded-2xl p-4 space-y-2.5">
+                <div className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 font-bold text-base leading-none">✓</span>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    <strong>Gastos reales de {MESES_ES[activeMonthIndex]}:</strong> La tabla quedará limpia para registrar tus consumos reales del día a día sin partidas duplicadas.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 font-bold text-base leading-none">✓</span>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    <strong>Liquidación en {MESES_ES[(activeMonthIndex + 1) % 12]}:</strong> Todas las compras con tarjeta de crédito que registres este mes se calcularán automáticamente en la proyección del mes siguiente.
+                  </p>
+                </div>
+                <div className="flex items-start gap-2.5">
+                  <span className="text-emerald-500 font-bold text-base leading-none">✓</span>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    <strong>Restaurable:</strong> Puedes volver a restaurar las partidas originales en cualquier momento con el botón "Restaurar {MESES_ES[activeMonthIndex]}".
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowClearModal(false)}
+                  className="px-4 py-2.5 text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 font-bold rounded-xl"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleClearCurrentMonth}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold px-5 py-2.5 rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                >
+                  <Eraser size={14} />
+                  <span>Sí, dejar {MESES_ES[activeMonthIndex]} en blanco</span>
                 </button>
               </div>
             </div>

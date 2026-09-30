@@ -657,6 +657,8 @@ export interface ProjectionState {
   // Manejo de excepciones por mes (suprimir o modificar puntualmente)
   suppressInMonth: (id: string, monthStr: string) => void;
   restoreInMonth: (id: string, monthStr: string) => void;
+  suppressAllInMonth: (monthStr: string) => void;
+  restoreAllInMonth: (monthStr: string) => void;
   modifyAmountInMonth: (id: string, monthStr: string, amount: number) => void;
   modifyDateInMonth: (id: string, monthStr: string, day: number) => void;
   clearMonthException: (id: string, monthStr: string) => void;
@@ -778,20 +780,38 @@ function triggerSaveProjections(items: ProjectedItem[], prob: Record<string, num
   }, 400);
 }
 
+function safeSetStorage(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(key, value);
+    }
+  } catch {}
+}
+
+function safeRemoveStorage(key: string): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(key);
+    }
+  } catch {}
+}
+
 function loadStoredItems(): ProjectedItem[] {
   try {
-    const raw = localStorage.getItem(LS_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        const isStaleDefault = parsed.length === 19 && parsed.some(
-          (i: ProjectedItem) => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido)
-        );
-        if (isStaleDefault) {
-          localStorage.setItem(LS_KEY, JSON.stringify(INITIAL_PROJECTIONS));
-          return INITIAL_PROJECTIONS;
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const isStaleDefault = parsed.length === 19 && parsed.some(
+            (i: ProjectedItem) => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido)
+          );
+          if (isStaleDefault) {
+            safeSetStorage(LS_KEY, JSON.stringify(INITIAL_PROJECTIONS));
+            return INITIAL_PROJECTIONS;
+          }
+          return parsed;
         }
-        return parsed;
       }
     }
   } catch {}
@@ -800,16 +820,18 @@ function loadStoredItems(): ProjectedItem[] {
 
 function loadStoredProb(): Record<string, number> {
   try {
-    const raw = localStorage.getItem(LS_PROB_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        // Limpiar el valor histórico hardcodeado de 2700 para evitar monto agregado artificial
-        if (parsed['2026-10'] === 2700.0) {
-          delete parsed['2026-10'];
-          localStorage.setItem(LS_PROB_KEY, JSON.stringify(parsed));
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(LS_PROB_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === 'object') {
+          // Limpiar el valor histórico hardcodeado de 2700 para evitar monto agregado artificial
+          if (parsed['2026-10'] === 2700.0) {
+            delete parsed['2026-10'];
+            safeSetStorage(LS_PROB_KEY, JSON.stringify(parsed));
+          }
+          return parsed;
         }
-        return parsed;
       }
     }
   } catch {}
@@ -825,7 +847,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     const fullItem: ProjectedItem = { ...newItem, id };
     set((state) => {
       const updated = [...state.items, fullItem];
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -835,7 +857,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   updateItem: (id, updates) => {
     set((state) => {
       const updated = state.items.map((item) => (item.id === id ? { ...item, ...updates } : item));
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -844,7 +866,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   deleteItem: (id) => {
     set((state) => {
       const updated = state.items.filter((item) => item.id !== id);
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -858,7 +880,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         excepciones[monthStr] = { ...(excepciones[monthStr] || {}), suprimido: true };
         return { ...item, excepciones };
       });
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -874,7 +896,41 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         }
         return { ...item, excepciones };
       });
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
+      triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
+      return { items: updated };
+    });
+  },
+
+  suppressAllInMonth: (monthStr) => {
+    set((state) => {
+      const updated = state.items.map((item) => {
+        const excepciones = { ...(item.excepciones || {}) };
+        excepciones[monthStr] = { ...(excepciones[monthStr] || {}), suprimido: true };
+        return { ...item, excepciones };
+      });
+      const updatedProb = { ...state.probabilidadSueldoPorMes };
+      delete updatedProb[monthStr];
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_PROB_KEY, JSON.stringify(updatedProb));
+      triggerSaveProjections(updated, updatedProb);
+      return { items: updated, probabilidadSueldoPorMes: updatedProb };
+    });
+  },
+
+  restoreAllInMonth: (monthStr) => {
+    set((state) => {
+      const updated = state.items.map((item) => {
+        const excepciones = { ...(item.excepciones || {}) };
+        if (excepciones[monthStr]) {
+          delete excepciones[monthStr].suprimido;
+          if (Object.keys(excepciones[monthStr]).length === 0) {
+            delete excepciones[monthStr];
+          }
+        }
+        return { ...item, excepciones };
+      });
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -888,7 +944,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         excepciones[monthStr] = { ...(excepciones[monthStr] || {}), montoModificado: amount };
         return { ...item, excepciones };
       });
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -902,7 +958,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         excepciones[monthStr] = { ...(excepciones[monthStr] || {}), diaModificado: day };
         return { ...item, excepciones };
       });
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -916,7 +972,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         delete excepciones[monthStr];
         return { ...item, excepciones };
       });
-      localStorage.setItem(LS_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_KEY, JSON.stringify(updated));
       triggerSaveProjections(updated, state.probabilidadSueldoPorMes);
       return { items: updated };
     });
@@ -925,7 +981,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   setProbabilidadSueldo: (monthStr, monto) => {
     set((state) => {
       const updated = { ...state.probabilidadSueldoPorMes, [monthStr]: monto };
-      localStorage.setItem(LS_PROB_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_PROB_KEY, JSON.stringify(updated));
       triggerSaveProjections(state.items, updated);
       return { probabilidadSueldoPorMes: updated };
     });
@@ -935,7 +991,7 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     set((state) => {
       const updated = { ...state.probabilidadSueldoPorMes };
       delete updated[monthStr];
-      localStorage.setItem(LS_PROB_KEY, JSON.stringify(updated));
+      safeSetStorage(LS_PROB_KEY, JSON.stringify(updated));
       triggerSaveProjections(state.items, updated);
       return { probabilidadSueldoPorMes: updated };
     });
@@ -949,8 +1005,8 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
           items: remote.items,
           probabilidadSueldoPorMes: remote.probabilidadSueldoPorMes || {},
         });
-        localStorage.setItem(LS_KEY, JSON.stringify(remote.items));
-        localStorage.setItem(LS_PROB_KEY, JSON.stringify(remote.probabilidadSueldoPorMes || {}));
+        safeSetStorage(LS_KEY, JSON.stringify(remote.items));
+        safeSetStorage(LS_PROB_KEY, JSON.stringify(remote.probabilidadSueldoPorMes || {}));
       } else {
         const { items, probabilidadSueldoPorMes } = get();
         const isClean = items && items.length >= 20 && !items.some(
@@ -1117,8 +1173,8 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
   },
 
   resetToDefaults: () => {
-    localStorage.removeItem(LS_KEY);
-    localStorage.removeItem(LS_PROB_KEY);
+    safeRemoveStorage(LS_KEY);
+    safeRemoveStorage(LS_PROB_KEY);
     set({
       items: INITIAL_PROJECTIONS,
       probabilidadSueldoPorMes: {},

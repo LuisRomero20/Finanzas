@@ -190,6 +190,14 @@ export const CONCEPTO_A_CATEGORIA: Record<string, string> = {
   "Prestamo Yape": "💳 Pagos de Tarjetas & Deudas",
   "Yape Crédito": "💳 Pagos de Tarjetas & Deudas",
 
+  // 💼 Negocio
+  "Negocio": "💼 Negocio",
+  "Emprendimiento": "💼 Negocio",
+  "Mercadería": "💼 Negocio",
+  "Mercaderia": "💼 Negocio",
+  "Venta Negocio": "💼 Negocio",
+  "Gasto Negocio": "💼 Negocio",
+
   // 💵 Ingresos
   "AFP": "💵 Sueldos & Beneficios Laborales",
   "Ahorro Diciembre 25": "📈 Otros Ingresos & Ventas",
@@ -431,6 +439,18 @@ export const CATEGORIAS_PERSONALES: CategoriaInfo[] = [
     keywords: ['prestamo bcp', 'préstamo bcp', 'prestamo yape', 'préstamo yape', 'yape credito', 'yape crédito', 'iphone 16', 'cuota', 'amortización', 'prestamo', 'préstamo', 'desvagramen', 'desgravamen'],
   },
   {
+    id: 'negocio',
+    nombre: 'Negocio',
+    emoji: '💼',
+    fullLabel: '💼 Negocio',
+    shortLabel: '💼 Negocio',
+    color: 'text-teal-900 dark:text-teal-300',
+    bg: 'bg-teal-50 border-teal-200 dark:bg-teal-950/40 dark:border-teal-800/60',
+    border: 'border-teal-300 dark:border-teal-800',
+    tipo: 'Ambos',
+    keywords: ['negocio', 'empresa', 'emprendimiento', 'mercaderia', 'mercadería', 'proveedor', 'proveedores', 'cliente', 'clientes', 'stock', 'inventario', 'inversion negocio', 'inversión negocio', 'venta negocio', 'ganancia negocio', 'insumos', 'capital de trabajo'],
+  },
+  {
     id: 'sueldos',
     nombre: 'Sueldos & Beneficios Laborales',
     emoji: '💵',
@@ -659,6 +679,7 @@ export function getAdaptedCategoryLabel(
     if (trimmed === 'Otro Egre') return '📄 Otros Egresos';
     if (trimmed === 'Sueldo') return '💵 Sueldos';
     if (trimmed === 'Otro Ing') return '📈 Otros Ingresos';
+    if (trimmed === 'Negocio') return '💼 Negocio';
 
     return trimmed;
   }
@@ -719,7 +740,7 @@ export function isCreditCardLine(t: any): boolean {
 export function getStandardCategory(t: Transaction | any): string {
   if (!t) return 'Gasto';
   const rawCat = (t.Categoria || t.categoria || '').trim();
-  if (['Deuda', 'Gasto', 'Otro Egre', 'Otro Ing', 'Servicio', 'Sueldo', 'Tarjeta'].includes(rawCat)) {
+  if (['Deuda', 'Gasto', 'Otro Egre', 'Otro Ing', 'Servicio', 'Sueldo', 'Tarjeta', 'Negocio'].includes(rawCat)) {
     return rawCat;
   }
   const concepto = (t.Concepto || t.concepto || '').toLowerCase();

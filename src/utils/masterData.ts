@@ -28,6 +28,7 @@ export const CATEGORIAS = [
   'Servicio',
   'Sueldo',
   'Tarjeta',
+  'Negocio',
 ] as const;
 
 export type CategoriaType = typeof CATEGORIAS[number];

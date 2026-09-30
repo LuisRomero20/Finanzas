@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { usePendingPaymentsStore } from '../../store/pendingPaymentsStore';
 import { useFinanceStore } from '../../store/financeStore';
+import { useProjectionStore, getCardDueDetailsForMonth } from '../../store/projectionStore';
 
 describe('Casual Projections and Return to Pending Workflow', () => {
   beforeEach(() => {
@@ -178,4 +179,63 @@ describe('Casual Projections and Return to Pending Workflow', () => {
     expect(confirmed?.estado).toBe('confirmado');
     expect(confirmed?.Monto).toBe(26.49);
   });
+
+  it('allows leaving a month in blank with suppressAllInMonth and restoring it', () => {
+    const {
+      getMonthlyProjections,
+      suppressAllInMonth,
+      restoreAllInMonth,
+      resetToDefaults,
+    } = useProjectionStore.getState();
+
+    resetToDefaults();
+
+    // Octubre initially has projected rows
+    const octInitial = getMonthlyProjections('2026-10');
+    expect(octInitial.length).toBeGreaterThan(0);
+
+    // Suppress all in Octubre (leaving it in blank)
+    suppressAllInMonth('2026-10');
+    const octBlank = getMonthlyProjections('2026-10');
+    expect(octBlank).toHaveLength(0);
+
+    // Noviembre projections remain intact
+    const novProjected = getMonthlyProjections('2026-11');
+    expect(novProjected.length).toBeGreaterThan(0);
+
+    // Restore Octubre
+    restoreAllInMonth('2026-10');
+    const octRestored = getMonthlyProjections('2026-10');
+    expect(octRestored.length).toBeGreaterThanOrEqual(octInitial.length);
+  });
+
+  it('reflects October registered card expenses in November liquidation when October projections are blanked out', () => {
+    const { suppressAllInMonth, resetToDefaults } = useProjectionStore.getState();
+    resetToDefaults();
+    suppressAllInMonth('2026-10');
+
+    // Register a real card expense in October (Interbank Amex has corte 21, pay 15 of next month)
+    useFinanceStore.getState().addTransaction({
+      Fecha: '2026-10-05',
+      Tipo: 'Egreso',
+      Categoria: 'Gasto',
+      Concepto: 'Compra Supermercado',
+      Monto: 150.0,
+      Entidad: 'Interbank Amex',
+      Mes: 'Octubre',
+    });
+
+    const items = useProjectionStore.getState().items;
+    const novAmexDue = getCardDueDetailsForMonth('Interbank Amex', '2026-11', items);
+
+    // Should include the real October transaction in November's liquidation
+    const realTxFound = novAmexDue.consumos.find(c => c.concepto === 'Compra Supermercado');
+    expect(realTxFound).toBeDefined();
+    expect(realTxFound?.monto).toBe(150.0);
+
+    // And none of the suppressed October projected items should leak into November
+    const projectedFound = novAmexDue.consumos.filter(c => c.origen === 'Proyección' && c.fecha.startsWith('2026-10'));
+    expect(projectedFound).toHaveLength(0);
+  });
 });
+

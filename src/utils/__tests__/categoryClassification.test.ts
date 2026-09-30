@@ -21,6 +21,7 @@ describe('Category Classification Engine', () => {
     expect(CONCEPTO_A_CATEGORIA['Concierto Bad Bunny']).toBe('🎤 Conciertos & Eventos');
     expect(CONCEPTO_A_CATEGORIA['Viaje Argentina']).toBe('✈️ Viajes & Hospedaje');
     expect(CONCEPTO_A_CATEGORIA['Aaron']).toBe('👥 Familia & Transferencias');
+    expect(CONCEPTO_A_CATEGORIA['Negocio']).toBe('💼 Negocio');
   });
 
   it('classifies 100% of master transactions accurately', () => {
