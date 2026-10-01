@@ -101,3 +101,13 @@
 }
 
 html, body, #root { height: 100%; width: 100%; display: block; }
+/* Compact phone summaries; desktop metrics retain their original layout. */
+@media (max-width: 639px) {
+  .projection-metrics > div { padding: 12px; min-width: 0; }
+  .projection-metrics .text-2xl { font-size: 1.15rem; overflow-wrap: anywhere; }
+  .projection-metrics .text-xs { font-size: 10px; }
+  .projection-metrics .tracking-wider { letter-spacing: 0; }
+  .projection-metrics svg { width: 16px; height: 16px; }
+  .projection-metrics .p-2 { padding: 4px; }
+  summary::-webkit-details-marker { display: none; }
+}

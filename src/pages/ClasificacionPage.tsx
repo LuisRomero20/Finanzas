@@ -52,7 +52,12 @@ export const ClasificacionPage: React.FC = () => {
       }
     };
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    const refresh = () => setClasificaciones(getStoredClasificaciones());
+    window.addEventListener('finper-classifications-changed', refresh);
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('finper-classifications-changed', refresh);
+    };
   }, []);
 
   // Base de movimientos según filtro de Tipo

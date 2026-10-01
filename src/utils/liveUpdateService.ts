@@ -19,6 +19,7 @@ import { useAppStore } from '../store';
 import { useProjectionStore } from '../store/projectionStore';
 import { useSavingsGoalsStore } from '../store/savingsGoalsStore';
 import { supabase } from '../lib/supabase';
+import { watchPersonalSettings } from '../services/personalSettingsSync';
 import {
   setRealtimeChannel,
   getRealtimeChannel,
@@ -114,6 +115,9 @@ export async function checkForAppUpdate(): Promise<boolean> {
  * 6. Detección de reconexión de red (online).
  */
 export function initLiveUpdateService(): () => void {
+  const stopSettingsWatcher = watchPersonalSettings();
+  let disposed = false;
+  let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
   // 1. Comprobación y sincronización inmediata al iniciar
   checkForAppUpdate().catch(() => {});
   syncAllStoresFromSupabase(true).catch(() => {});
@@ -182,6 +186,7 @@ export function initLiveUpdateService(): () => void {
 
   // 8. Suscripción Supabase Realtime a cambios en la base de datos (Postgres & Broadcast)
   const setupRealtime = () => {
+    if (disposed) return;
     try {
       const existingChannel = getRealtimeChannel();
       if (existingChannel) {
@@ -212,7 +217,8 @@ export function initLiveUpdateService(): () => void {
             // Canal activo y sincronizando
           } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
             // Reconexión tras pausa de red en móviles
-            setTimeout(() => {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(() => {
               if (document.visibilityState === 'visible') {
                 setupRealtime();
               }
@@ -228,6 +234,10 @@ export function initLiveUpdateService(): () => void {
 
   // Función de limpieza al desmontar
   return () => {
+    disposed = true;
+    clearTimeout(reconnectTimer);
+    stopSettingsWatcher();
+    if (localBus) localBus.onmessage = null;
     document.removeEventListener('visibilitychange', handleActiveEvent);
     window.removeEventListener('focus', handleActiveEvent);
     window.removeEventListener('online', handleActiveEvent);

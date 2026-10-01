@@ -19,6 +19,7 @@ const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' 
 export const BudgetOverviewWidget: React.FC = () => {
   const { budgets, budgetModes, setBudget, applySuggested, resetToDefaults } = useBudgetStore();
   const { transactions, selectedMonth } = useFinanceStore();
+  const [mobilePage, setMobilePage] = useState(0);
   const [editingCatId, setEditingCatId] = useState<string | null>(null);
   const [tempAmount, setTempAmount] = useState<string>('');
   const [soloAlertas, setSoloAlertas] = useState(false);
@@ -76,6 +77,9 @@ export const BudgetOverviewWidget: React.FC = () => {
       .sort((a, b) => b.pct - a.pct);
   }, [expenseCategories, categorySpent, budgets, budgetModes, soloAlertas]);
 
+  const mobilePages = Math.max(1, Math.ceil(budgetList.length / 4));
+  const currentMobilePage = Math.min(mobilePage, mobilePages - 1);
+
   const totalBudget = useMemo(() => {
     return Object.values(budgets).reduce((acc, val) => acc + val, 0);
   }, [budgets]);
@@ -104,7 +108,7 @@ export const BudgetOverviewWidget: React.FC = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-5">
+    <div className="bg-white dark:bg-[#11191D] rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors space-y-5">
       
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
@@ -139,7 +143,7 @@ export const BudgetOverviewWidget: React.FC = () => {
             <input
               type="checkbox"
               checked={soloAlertas}
-              onChange={e => setSoloAlertas(e.target.checked)}
+              onChange={e => { setSoloAlertas(e.target.checked); setMobilePage(0); }}
               className="accent-emerald-600 w-4 h-4 rounded cursor-pointer"
             />
             <span>Solo en alerta (🟡 / 🔴)</span>
@@ -161,7 +165,7 @@ export const BudgetOverviewWidget: React.FC = () => {
 
       {/* Global Month Budget Summary Meter */}
       <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-200/80 dark:border-slate-700/80 space-y-2">
-        <div className="flex items-center justify-between text-xs font-bold">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-bold">
           <div className="flex items-center gap-2">
             <span className="text-slate-700 dark:text-slate-300 flex items-center gap-1.5 font-black">
               <Sparkles size={14} className="text-emerald-600" />
@@ -190,8 +194,8 @@ export const BudgetOverviewWidget: React.FC = () => {
       </div>
 
       {/* Cards Grid de Categorías */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 max-h-[480px] overflow-y-auto pr-1">
-        {budgetList.map(item => {
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3.5 sm:max-h-[480px] sm:overflow-y-auto sm:pr-1">
+        {budgetList.map((item, index) => {
           const isEditing = editingCatId === item.cat.id;
           const isSuggested = item.mode === 'sugerido';
 
@@ -209,7 +213,7 @@ export const BudgetOverviewWidget: React.FC = () => {
           return (
             <div
               key={item.cat.id}
-              className={`p-4 rounded-2xl border ${statusBg} transition-all shadow-xs flex flex-col justify-between space-y-3`}
+              className={`p-3 sm:p-4 rounded-2xl border ${statusBg} transition-all shadow-xs ${Math.floor(index / 4) === currentMobilePage ? "flex" : "hidden sm:flex"} flex-col justify-between space-y-2 sm:space-y-3`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-center gap-2 min-w-0">
@@ -337,6 +341,11 @@ export const BudgetOverviewWidget: React.FC = () => {
         })}
       </div>
 
+      <nav aria-label="Páginas de presupuestos" className="sm:hidden flex items-center justify-between gap-2 text-xs">
+        <button className="min-h-11 disabled:opacity-30" disabled={currentMobilePage === 0} onClick={() => setMobilePage(currentMobilePage - 1)}>← Anterior</button>
+        <span>{currentMobilePage + 1} / {mobilePages} · {budgetList.length} categorías</span>
+        <button className="min-h-11 disabled:opacity-30" disabled={currentMobilePage === mobilePages - 1} onClick={() => setMobilePage(currentMobilePage + 1)}>Siguiente →</button>
+      </nav>
       {/* Modal de Configuración por Cada Presupuesto */}
       <BudgetConfigModal
         isOpen={isConfigModalOpen}

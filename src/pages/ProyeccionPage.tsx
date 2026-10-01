@@ -9,6 +9,9 @@ import {
   getCardDueDetailsForMonth,
 } from '../store/projectionStore';
 import { Card } from '../components/ui/Card';
+import { MobileDisclosure } from '../components/MobileDisclosure';
+import { MobileProjectionList } from '../components/MobileProjectionList';
+import { useSettingsSync } from '../services/personalSettingsSync';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
 import {
@@ -124,20 +127,9 @@ export const ProyeccionPage: React.FC = () => {
     setTimeout(() => setToastMsg(null), 3500);
   };
 
-  // Auto-sincronización inteligente al cargar la vista de proyecciones
+  // Read/compare first; the number of rows cannot identify a desktop or phone.
   React.useEffect(() => {
-    const initSync = async () => {
-      const store = useProjectionStore.getState();
-      const isDefaultOld = store.items.length === 19 && store.items.some(i => i.concepto === 'Titulación' && (!i.excepciones || !i.excepciones['2026-10']?.suprimido));
-      if (!isDefaultOld && store.items.length >= 20) {
-        // En PC/Web con la configuración limpia: respaldar de inmediato en Supabase
-        await store.saveToSupabase();
-      } else {
-        // En celular: descargar de Supabase la configuración limpia
-        await store.syncFromSupabase();
-      }
-    };
-    initSync();
+    void useProjectionStore.getState().syncFromSupabase();
   }, []);
 
   const handleSyncCloud = async () => {
@@ -145,7 +137,8 @@ export const ProyeccionPage: React.FC = () => {
     try {
       const store = useProjectionStore.getState();
       await store.saveToSupabase();
-      showToast('☁️ Proyecciones guardadas en la nube. Tu celular y PC ahora están 100% sincronizados.');
+      const result = useSettingsSync.getState().entries.projections;
+      showToast(result.status === 'synced' ? 'Proyecciones sincronizadas con la nube.' : 'Revisa el panel de sincronización: hay ajustes pendientes o versiones distintas.');
     } catch {
       showToast('⚠️ Error al sincronizar con la nube.');
     } finally {
@@ -345,7 +338,7 @@ export const ProyeccionPage: React.FC = () => {
   };
 
   return (
-    <div className="space-y-8 animate-in fade-in duration-200">
+    <div className="space-y-3 sm:space-y-8 animate-in fade-in duration-200">
       
       {/* Toast Notificación */}
       {toastMsg && (
@@ -356,17 +349,17 @@ export const ProyeccionPage: React.FC = () => {
       )}
 
       {/* ── HEADER EJECUTIVO & NAVEGADOR DE MESES ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Proyecciones & Presupuesto Futuro
+              <span className="sm:hidden">Proyecciones</span><span className="hidden sm:inline">Proyecciones & Presupuesto Futuro</span>
             </h1>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+            <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
               Cashflow Pro
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Planificación financiera por mes, cálculo de ciclos de tarjetas y consolidación por cuenta.
           </p>
         </div>
@@ -406,6 +399,9 @@ export const ProyeccionPage: React.FC = () => {
             </button>
           </div>
 
+          <button onClick={handleOpenNewModal} className="sm:hidden min-h-11 rounded-xl bg-emerald-700 px-3 text-xs font-bold text-white">+ Agregar partida</button>
+          <MobileDisclosure label="Más opciones">
+          <div className="flex flex-wrap items-center gap-2">
           {/* Botón Calculadora Beneficios Laborales (Grati, CTS & Utilidades) */}
           <button
             onClick={() => setShowBenefitsWidget(prev => !prev)}
@@ -492,6 +488,8 @@ export const ProyeccionPage: React.FC = () => {
             <RotateCcw size={15} />
           </button>
 
+          </div>
+          </MobileDisclosure>
         </div>
       </div>
 
@@ -504,7 +502,7 @@ export const ProyeccionPage: React.FC = () => {
 
       {/* Banner / Acceso rápido si el widget está contraído */}
       {!showBenefitsWidget && (
-        <div className="bg-gradient-to-r from-emerald-950/80 via-slate-900 to-[#0F2A1D] border border-emerald-700/40 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
+        <div className="hidden sm:flex bg-gradient-to-r from-emerald-950/80 via-slate-900 to-[#0F2A1D] border border-emerald-700/40 rounded-2xl p-4 flex-col sm:flex-row items-center justify-between gap-3 shadow-lg">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-600 text-white rounded-xl shadow">
               <Calculator size={18} />
@@ -529,7 +527,7 @@ export const ProyeccionPage: React.FC = () => {
       )}
 
       {/* ── KPI METRICS ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="projection-metrics grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
         
         <Card className="bg-gradient-to-br from-white to-emerald-50/40 dark:from-[#11191D] dark:to-emerald-950/20 border-emerald-100 dark:border-slate-800">
           <Metric 
@@ -591,10 +589,10 @@ export const ProyeccionPage: React.FC = () => {
             COLUMNA IZQUIERDA (7 cols): TABLA PRINCIPAL DE PROYECCIÓN MENSUAL
         ══════════════════════════════════════════════════════════════════════════ */}
         <div className="lg:col-span-7 space-y-4">
-          <Card className="p-0 overflow-hidden">
+          <Card className="!p-0 overflow-hidden">
             
             {/* Header de la Tabla */}
-            <div className="p-5 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
+            <div className="p-3 sm:p-5 bg-slate-50/70 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between flex-wrap gap-2">
               <div>
                 <h2 className="text-base font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
                   <CalendarRange size={18} className="text-emerald-700 dark:text-emerald-400" />
@@ -608,7 +606,17 @@ export const ProyeccionPage: React.FC = () => {
             </div>
 
             {/* Tabla de Movimientos */}
-            <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
+            <MobileProjectionList key={activeMonthStr} rows={projectedRows}
+              onCycle={r => { if (r.tarjetaLiquidada) setSelectedCardAudit(getCardDueDetailsForMonth(r.tarjetaLiquidada, activeMonthStr, items)); }}
+              actions={r => <>
+                <button onClick={() => handleOpenEditModal(r)}>Editar</button>
+                <button onClick={() => handleOpenModifyAmount(r)}>Monto del mes</button>
+                {r.esModificado && <button onClick={() => handleRestoreOriginal(r)}>Restaurar monto</button>}
+                <button onClick={() => handleSuppressInMonth(r)}>Omitir este mes</button>
+                <button onClick={() => handleDeleteItem(r)}>Eliminar partida</button>
+              </>}
+            />
+            <div className="hidden sm:block overflow-x-auto max-h-[640px] overflow-y-auto">
               <table className="w-full min-w-[650px] text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                   <tr>
@@ -782,7 +790,7 @@ export const ProyeccionPage: React.FC = () => {
             </div>
 
             {/* Total Footer de la Tabla */}
-            <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
+            <div className="p-3 sm:p-4 bg-slate-50 dark:bg-slate-800/60 border-t border-slate-200 dark:border-slate-800 flex flex-wrap gap-3 items-center justify-between text-xs font-bold text-slate-700 dark:text-slate-300">
               <div className="flex items-center gap-4">
                 <span>Ingresos: <strong className="text-emerald-800 dark:text-emerald-400 font-black">{fmt.format(totalIngresos)}</strong></span>
                 <span>Egresos: <strong className="text-rose-700 dark:text-rose-400 font-black">{fmt.format(totalEgresos)}</strong></span>

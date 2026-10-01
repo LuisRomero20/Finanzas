@@ -2,11 +2,10 @@ import { create } from 'zustand';
 import type { Transaction, CategoriaType } from '../utils/masterData';
 import { masterTransactions, MESES, ENTIDADES, CATEGORIAS } from '../utils/masterData';
 import {
-  insertTransactionToSupabase,
-  deleteTransactionFromSupabase,
   fetchTransactionsFromSupabase,
 } from '../services/supabaseService';
 import { broadcastRealtimeSync } from '../utils/syncBus';
+import { enqueueTransaction, flushTransactions, pendingTransactions, transactionRevision } from '../services/transactionOutbox';
 
 export type { Transaction, CategoriaType };
 export { MESES, ENTIDADES, CATEGORIAS };
@@ -140,7 +139,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     // Enviar asíncronamente a Supabase en segundo plano y notificar en tiempo real
-    insertTransactionToSupabase(newTx).catch(err => console.warn('Cloud sync error:', err));
+    enqueueTransaction(newTx.id, newTx);
     broadcastRealtimeSync('transactions');
 
     return newTx;
@@ -158,7 +157,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       });
       safeSetStorage(LS_TX_KEY, JSON.stringify(updated));
       if (updatedTx) {
-        insertTransactionToSupabase(updatedTx).catch(err => console.warn('Cloud sync update error:', err));
+        enqueueTransaction(id, updatedTx);
       }
       return { transactions: updated };
     });
@@ -187,9 +186,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     if (isProyId) {
-      deleteTransactionFromSupabase(id).catch((err) => console.warn('Cloud delete proy error:', err));
+      enqueueTransaction(id);
     }
-    insertTransactionToSupabase(confirmedTx).catch((err) => console.warn('Cloud sync confirmed error:', err));
+    enqueueTransaction(confirmedTx.id, confirmedTx);
     broadcastRealtimeSync('transactions');
   },
 
@@ -201,7 +200,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     });
 
     // Eliminar de Supabase en segundo plano y notificar
-    deleteTransactionFromSupabase(id).catch(err => console.warn('Cloud delete error:', err));
+    enqueueTransaction(id);
     broadcastRealtimeSync('transactions');
   },
 
@@ -220,26 +219,24 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   syncFromSupabase: async () => {
     set({ isSyncingCloud: true });
     try {
+      await flushTransactions();
+      const beforeRead = transactionRevision();
       const cloudData = await fetchTransactionsFromSupabase();
-      if (cloudData && cloudData.length > 0) {
-        const currentLocal = get().transactions;
-        const localProvisionalMap = new Map<string, 'provisional' | 'confirmado' | 'pendiente'>();
-        currentLocal.forEach((t) => {
-          if (t.estado) localProvisionalMap.set(t.id, t.estado);
-        });
-
-        const merged = cloudData.map((remoteTx) => {
-          const localEstado = localProvisionalMap.get(remoteTx.id);
-          // Si localmente estaba marcado como provisional y en la nube vino confirmado por defecto (fallback), preservar provisional
-          if (localEstado === 'provisional' && remoteTx.estado === 'confirmado' && !remoteTx.id.startsWith('custom-conf-')) {
-            return { ...remoteTx, estado: 'provisional' as const };
-          }
-          return remoteTx;
-        });
-
-        set({ transactions: merged, isSyncingCloud: false });
-        safeSetStorage(LS_TX_KEY, JSON.stringify(merged));
-        return merged.length;
+      // An edit made during the request will be read again on the next sync.
+      if (cloudData !== null && beforeRead === transactionRevision()) {
+        const merged = new Map(cloudData.map(tx => [tx.id, tx]));
+        for (const operation of pendingTransactions()) {
+          if (operation.transaction) merged.set(operation.id, operation.transaction);
+          else merged.delete(operation.id);
+        }
+        const transactions = [...merged.values()];
+        // Preserve pre-migration local data before the first cloud replacement.
+        if (!safeGetStorage('finper_transactions_before_sync_v2')) {
+          safeSetStorage('finper_transactions_before_sync_v2', JSON.stringify(get().transactions));
+        }
+        safeSetStorage(LS_TX_KEY, JSON.stringify(transactions));
+        set({ transactions, isSyncingCloud: false });
+        return transactions.length;
       }
     } catch (e) {
       console.error('Error syncing from Supabase', e);

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { RegularizarDeudaModal } from '../components/RegularizarDeudaModal';
 import { AddCardModal } from '../components/AddCardModal';
+import { MobileDisclosure } from '../components/MobileDisclosure';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import {
@@ -44,6 +45,8 @@ const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' 
 export const CronogramaPagos: React.FC = () => {
   const { transactions } = useFinanceStore();
   const { cards, deleteCard } = useCreditCardStore();
+  const [mobileCard, setMobileCard] = useState('');
+  const selectedMobileCard = cards.some(c => c.entity === mobileCard) ? mobileCard : cards[0]?.entity;
   const [isAddCardModalOpen, setIsAddCardModalOpen] = useState(false);
   const [refDate, setRefDate] = useState(() => {
     const d = new Date();
@@ -103,7 +106,7 @@ export const CronogramaPagos: React.FC = () => {
   }, [cards, transactions, refDate, statements, getVerifiedStatement]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-3 sm:space-y-8">
       
       {/* Toast de Éxito */}
       {successToast && (
@@ -116,17 +119,17 @@ export const CronogramaPagos: React.FC = () => {
       )}
 
       {/* ── HEADER EJECUTIVO ── */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-3xl p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white dark:bg-[#11191D] rounded-2xl sm:rounded-3xl p-3 sm:p-6 border border-slate-200/80 dark:border-slate-800 shadow-sm transition-colors">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight">
-              Gestión de Tarjetas & Facturación
+              <span className="sm:hidden">Tarjetas</span><span className="hidden sm:inline">Gestión de Tarjetas & Facturación</span>
             </h1>
-            <span className="text-[10px] font-bold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
+            <span className="hidden sm:inline text-[10px] font-bold uppercase tracking-widest bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 px-2.5 py-0.5 rounded-full">
               Ciclos Activos
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+          <p className="hidden sm:block text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
             Control de periodos de corte, fechas límite de pago y conciliación con estados de cuenta.
           </p>
         </div>
@@ -171,7 +174,7 @@ export const CronogramaPagos: React.FC = () => {
       </div>
 
       {/* ── Resumen global ── */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div className="projection-metrics grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-4 mb-4 sm:mb-8">
         <div className="bg-white dark:bg-[#11191D] rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm px-6 py-5">
           <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">Total por Pagar Ahora</p>
           <p className="text-3xl font-black text-rose-600 dark:text-rose-400 mt-2 tracking-tight">{fmt.format(summary.totalPorPagar)}</p>
@@ -205,6 +208,9 @@ export const CronogramaPagos: React.FC = () => {
       </div>
 
       {/* ── Tarjetas individuales ── */}
+      <nav aria-label="Seleccionar tarjeta" className="sm:hidden flex flex-wrap gap-2">
+        {cards.map(card => <button key={card.entity} aria-pressed={card.entity === selectedMobileCard} onClick={() => setMobileCard(card.entity)} className={`min-h-11 rounded-xl px-3 text-xs font-bold ${card.entity === selectedMobileCard ? 'bg-emerald-700 text-white' : 'bg-slate-200 dark:bg-slate-800'}`}>{card.name}</button>)}
+      </nav>
       <div className="space-y-6">
         {cards.map(card => {
           const { current, prev } = getCycles(refDate, card);
@@ -231,7 +237,7 @@ export const CronogramaPagos: React.FC = () => {
           const isUrgent = daysLeft >= 0 && daysLeft <= 7 && !isPaid && netToPay > 0;
 
           return (
-            <div key={card.entity} className="bg-white dark:bg-[#11191D] rounded-2xl shadow-sm overflow-hidden border border-slate-200/80 dark:border-slate-800 transition-colors">
+            <div key={card.entity} className={`${card.entity === selectedMobileCard ? 'block' : 'hidden sm:block'} bg-white dark:bg-[#11191D] rounded-2xl shadow-sm overflow-hidden border border-slate-200/80 dark:border-slate-800 transition-colors`}>
 
               {/* Header de la tarjeta */}
               <div className={`bg-gradient-to-r ${card.headerBg} px-6 py-4`}>
@@ -388,7 +394,7 @@ export const CronogramaPagos: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100 dark:divide-slate-800">
 
                 {/* ── Columna 1: Por Pagar (ciclo anterior) ── */}
-                <div className="p-6">
+                <div className="p-3 sm:p-6">
                   <div className="flex items-start justify-between mb-5">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Por Pagar</p>
@@ -454,6 +460,7 @@ export const CronogramaPagos: React.FC = () => {
                   {prevTxs.length === 0 ? (
                     <p className="text-slate-400 dark:text-slate-500 text-sm italic py-4 text-center">Sin transacciones en este período</p>
                   ) : (
+                    <MobileDisclosure label={`Ver ${prevTxs.length} consumos por pagar`}>
                     <div className="overflow-y-auto max-h-52 space-y-0">
                       <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">
                         {prevTxs.length} transacción{prevTxs.length !== 1 ? 'es' : ''} en FinPer
@@ -470,11 +477,12 @@ export const CronogramaPagos: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                    </MobileDisclosure>
                   )}
                 </div>
 
                 {/* ── Columna 2: Acumulando (ciclo actual) ── */}
-                <div className="p-6 bg-slate-50/30 dark:bg-slate-800/20">
+                <div className="p-3 sm:p-6 bg-slate-50/30 dark:bg-slate-800/20">
                   <div className="flex items-start justify-between mb-5">
                     <div>
                       <p className="text-xs font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-1">Acumulando</p>
@@ -503,6 +511,7 @@ export const CronogramaPagos: React.FC = () => {
                   {currTxs.length === 0 ? (
                     <p className="text-slate-400 dark:text-slate-500 text-sm italic py-4 text-center">Sin consumos aún en este ciclo</p>
                   ) : (
+                    <MobileDisclosure label={`Ver ${currTxs.length} consumos acumulados`}>
                     <div className="overflow-y-auto max-h-52 space-y-0">
                       <div className="text-xs text-slate-400 dark:text-slate-500 font-semibold uppercase tracking-wider mb-2 border-b border-slate-200 dark:border-slate-800 pb-1">
                         {currTxs.length} transacción{currTxs.length !== 1 ? 'es' : ''}
@@ -519,6 +528,7 @@ export const CronogramaPagos: React.FC = () => {
                         </div>
                       ))}
                     </div>
+                    </MobileDisclosure>
                   )}
                 </div>
               </div>

@@ -1,0 +1,41 @@
+import { beforeEach, expect, it, vi } from 'vitest';
+import type { Transaction } from '../masterData';
+const mocks = vi.hoisted(() => ({ insert: vi.fn(), remove: vi.fn(), broadcast: vi.fn() }));
+vi.mock('../../services/supabaseService', () => ({ insertTransactionToSupabase: mocks.insert, deleteTransactionFromSupabase: mocks.remove }));
+vi.mock('../syncBus', () => ({ broadcastRealtimeSync: mocks.broadcast }));
+const tx = (amount: number) => ({ id: 'test-local', Tipo: 'Egreso', Fecha: '2026-10-01', Concepto: 'Prueba aislada', Categoria: 'Gasto', Monto: amount, Entidad: 'Efectivo', Mes: 'Octubre' } as Transaction);
+beforeEach(() => { localStorage.clear(); vi.resetModules(); vi.clearAllMocks(); mocks.insert.mockResolvedValue({ success: true }); mocks.remove.mockResolvedValue(true); });
+it('retains a failed save across reload and broadcasts only after success', async () => {
+  mocks.insert.mockResolvedValue({ success: false });
+  let outbox = await import('../../services/transactionOutbox');
+  outbox.enqueueTransaction('test-local', tx(10));
+  await outbox.flushTransactions();
+  expect(outbox.pendingTransactions()).toHaveLength(1);
+  expect(mocks.broadcast).not.toHaveBeenCalled();
+  vi.resetModules();
+  outbox = await import('../../services/transactionOutbox');
+  mocks.insert.mockResolvedValue({ success: true });
+  await outbox.flushTransactions();
+  expect(outbox.pendingTransactions()).toHaveLength(0);
+  expect(mocks.broadcast).toHaveBeenCalled();
+});
+it('does not discard a newer edit when an older write finishes', async () => {
+  let finish!: (result: { success: boolean }) => void;
+  mocks.insert.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const outbox = await import('../../services/transactionOutbox');
+  outbox.enqueueTransaction('test-local', tx(10));
+  outbox.enqueueTransaction('test-local', tx(20));
+  finish({ success: true });
+  await outbox.flushTransactions();
+  expect(mocks.insert).toHaveBeenLastCalledWith(tx(20));
+  expect(outbox.pendingTransactions()).toHaveLength(0);
+});
+it('keeps an offline deletion pending until acknowledged', async () => {
+  mocks.remove.mockResolvedValueOnce(false);
+  const outbox = await import('../../services/transactionOutbox');
+  outbox.enqueueTransaction('test-local');
+  await outbox.flushTransactions();
+  expect(outbox.pendingTransactions()[0].transaction).toBeUndefined();
+  await outbox.flushTransactions();
+  expect(outbox.pendingTransactions()).toHaveLength(0);
+});

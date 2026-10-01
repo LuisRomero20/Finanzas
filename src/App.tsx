@@ -25,6 +25,7 @@ import { initLiveUpdateService } from "./utils/liveUpdateService";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
+import { SettingsSyncPanel } from './components/SettingsSyncPanel';
 
 // Lazy-loaded routes for high-performance code-splitting
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -87,6 +88,7 @@ export default function App() {
         />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
+          <SettingsSyncPanel />
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -205,7 +207,7 @@ function Navbar({
               <span className="font-heading font-black text-base sm:text-xl tracking-tight text-white">
                 FINPER
               </span>
-              <span className="text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
+              <span className="hidden min-[380px]:inline text-[9px] sm:text-[10px] font-bold uppercase tracking-widest bg-emerald-800/80 dark:bg-emerald-900/90 text-emerald-200 border border-emerald-700/50 px-2 py-0.5 rounded-full">
                 Cost Analysis
               </span>
             </div>

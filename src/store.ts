@@ -629,25 +629,12 @@ export const useAppStore = create<AppStore>((set, get) => {
     syncDeudasFromSupabase: async () => {
       try {
         const cloudDeudas = await fetchDeudasFromSupabase();
-        if (cloudDeudas && cloudDeudas.length >= 3) {
-          const sanitized = sanitizeDeudaDates(cloudDeudas);
-          localStorage.setItem('demo_deudas', JSON.stringify(sanitized));
-          set({ deudas: sanitized });
-          if (JSON.stringify(sanitized) !== JSON.stringify(cloudDeudas)) {
-            saveDeudasToSupabase(sanitized).catch(() => {});
-          }
+        if (cloudDeudas && cloudDeudas.length > 0) {
+          localStorage.setItem('demo_deudas', JSON.stringify(cloudDeudas));
+          set({ deudas: cloudDeudas });
           return;
         }
-        // Si no hay datos suficientes en la nube, asegurar initialDemoDeudas
-        const current = get().deudas.filter(d => {
-          const name = (d.acreedor || '').toLowerCase();
-          return name !== 'visa' && name !== 'madre';
-        });
-        const sanitizedCurrent = sanitizeDeudaDates(current);
-        const toSave = sanitizedCurrent.length >= 3 ? sanitizedCurrent : initialDemoDeudas;
-        localStorage.setItem('demo_deudas', JSON.stringify(toSave));
-        set({ deudas: toSave });
-        saveDeudasToSupabase(toSave).catch(() => {});
+        // A failed/empty read must never publish demo data or remove local debts.
       } catch (e) {
         console.warn('Error syncing deudas from Supabase:', e);
       }
