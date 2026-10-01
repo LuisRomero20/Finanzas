@@ -6,7 +6,6 @@ import {
   Zap,
   CheckCircle2,
   TrendingDown,
-  HelpCircle,
   ChevronDown,
   ChevronUp,
   Sparkles,

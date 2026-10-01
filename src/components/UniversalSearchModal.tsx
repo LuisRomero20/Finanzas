@@ -76,27 +76,43 @@ export const UniversalSearchModal: React.FC<Props> = ({ isOpen, onClose, onSelec
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-12 sm:pt-20 p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#0D1518] rounded-3xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[80vh]">
+    <div
+      className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-start justify-center pt-8 sm:pt-20 p-3 sm:p-4 animate-in fade-in duration-150 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white dark:bg-[#0D1518] rounded-3xl max-w-2xl w-full border border-slate-200 dark:border-slate-800 shadow-2xl overflow-hidden flex flex-col max-h-[88vh] sm:max-h-[80vh] my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Barra de Búsqueda Input */}
-        <div className="p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-3">
+        <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center gap-2 sm:gap-3 shrink-0">
           <Search size={20} className="text-emerald-500 shrink-0" />
           <input
             ref={inputRef}
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Buscar por concepto (ej. Makis, Sueldo), monto (120), tarjeta o mes..."
+            placeholder="Buscar por concepto, monto, tarjeta o mes..."
             className="w-full bg-transparent text-sm sm:text-base font-bold text-slate-900 dark:text-white placeholder-slate-400 outline-none"
           />
-          {query && (
+          {query ? (
             <button
               type="button"
               onClick={() => setQuery('')}
               className="p-1 text-slate-400 hover:text-slate-600 transition"
             >
               <X size={16} />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 text-slate-400 hover:text-slate-600 transition sm:hidden"
+            >
+              <X size={18} />
             </button>
           )}
           <kbd className="hidden sm:inline-block px-2 py-0.5 text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-400 rounded-md border border-slate-200 dark:border-slate-700">

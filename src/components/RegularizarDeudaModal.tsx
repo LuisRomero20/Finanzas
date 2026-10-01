@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, CheckCircle2, SlidersHorizontal, CreditCard, RotateCcw, AlertCircle, ArrowRight, Wallet } from 'lucide-react';
+import { X, CheckCircle2, SlidersHorizontal, CreditCard, RotateCcw, Wallet } from 'lucide-react';
 import { useFinanceStore } from '../store/financeStore';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
 import type { CardConfig, Cycle } from '../utils/creditCardCycles';
@@ -27,9 +27,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   prevCycle,
   calculatedPrevTotal,
   netToPay,
-  currTotal,
   liveDebt,
-  isPaid,
   verifiedStatement,
   onSuccess,
 }) => {

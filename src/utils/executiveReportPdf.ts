@@ -83,7 +83,7 @@ export function generateExecutiveReportHTML(data: ReportData): string {
   const categoryTotals: Record<string, { total: number; count: number }> = {};
   currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (tipo === 'Egreso' || tipo === 'Gasto') && !isDebtTransaction(t) && !isCreditCardPayment(t) && !isCreditCardLine(t);
     })
     .forEach((t) => {

@@ -6,7 +6,6 @@ import {
   Sparkles,
   Edit3,
   Check,
-  RotateCcw,
   SlidersHorizontal,
   Search,
   CheckCircle2,

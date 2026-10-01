@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from './lib/supabase';
 import { masterTransactions } from './utils/masterData';
+import { broadcastRealtimeSync } from './utils/syncBus';
 
 // Helpers Supabase para persistir deudas entre dispositivos (Vercel/iPhone/PC)
 async function saveDeudasToSupabase(deudas: any[]): Promise<boolean> {
@@ -22,8 +23,12 @@ async function saveDeudasToSupabase(deudas: any[]): Promise<boolean> {
         mes: 'Config',
       }));
       const { error } = await supabase.from('transacciones').upsert(rows);
+      if (!error) {
+        broadcastRealtimeSync('deudas');
+      }
       return !error;
     }
+    broadcastRealtimeSync('deudas');
     return true;
   } catch {
     return false;
@@ -82,6 +87,7 @@ export interface Deuda {
   fecha_inicio: string;
   pagos?: string[];
   pagos_este_ano?: number;
+  pagos_anio_anterior?: number;
   tipo_tasa: 'nominal' | 'efectiva';
   moneda: string;
   estado: 'activa' | 'pagada' | 'proximo_vencer';
@@ -695,12 +701,6 @@ export const useAppStore = create<AppStore>((set, get) => {
           const meses_pagados = Object.keys(pagosPorMes).length;
           const pagos = Object.values(pagosPorMes).sort();
 
-          // conteo de pagos en el año actual (útil para mostrar cuántos se pagaron este año vs año anterior)
-          const currentYear = new Date().getFullYear();
-          const pagosEsteAno = Object.values(pagosPorMes).filter(dstr => {
-            try { const d = new Date(dstr); return d.getFullYear() === currentYear; } catch { return false; }
-          }).length;
-
           // sumar montos por mes (usar primera transacción del mes)
           const suma = Object.values(pagosPorMes).reduce((s, keyDate) => {
             const d = new Date(keyDate);
@@ -721,7 +721,6 @@ export const useAppStore = create<AppStore>((set, get) => {
 
           // fecha_inicio: preferir override cuando exista en la definición (por ejemplo iPhone Marzo)
           const fecha_inicio = def.inicioOverride ? def.inicioOverride : (pagos.length > 0 ? pagos[0].slice(0,10) : new Date().toISOString().slice(0,10));
-          const estado = meses_pagados >= plazo ? 'pagada' : 'activa';
 
           // Ajuste especial para Yape Crédito: mostrar solo pagos de este año (ene-mar) en el listado,
           // pero ajustar `meses_pagados` para reflejar únicamente los pagos de este año (opción B del usuario).

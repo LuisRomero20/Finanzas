@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
-import { useFinanceStore, getMonthNameFromDate } from '../store/financeStore';
+import { getMonthNameFromDate } from '../store/financeStore';
 import { useAppStore } from '../store';
 import { CATEGORIAS_PERSONALES } from '../utils/categoryClassification';
 import {
@@ -11,8 +11,6 @@ import {
   DollarSign,
   Tag,
   Building2,
-  CheckCircle2,
-  Zap,
 } from 'lucide-react';
 
 interface CasualProjectionsModalProps {
@@ -51,7 +49,6 @@ export const CasualProjectionsModal: React.FC<CasualProjectionsModalProps> = ({
   defaultDate,
   onSuccess,
 }) => {
-  const { selectedMonth } = useFinanceStore();
   const { addPendingItem } = usePendingPaymentsStore();
   const { agregarNotificacion } = useAppStore();
 

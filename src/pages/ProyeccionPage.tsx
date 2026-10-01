@@ -7,7 +7,6 @@ import {
   type CardCycleDueDetail,
   CARD_RULES,
   getCardDueDetailsForMonth,
-  calculateCardInstallmentSchedule,
 } from '../store/projectionStore';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
@@ -23,7 +22,6 @@ import {
   CreditCard,
   Building2,
   Calendar,
-  Layers,
   Sparkles,
   Edit2,
   Trash2,
@@ -31,9 +29,6 @@ import {
   RotateCcw,
   CheckCircle2,
   X,
-  AlertCircle,
-  HelpCircle,
-  Clock,
   ArrowRight,
   FileSpreadsheet,
   Send,
@@ -42,7 +37,7 @@ import {
   Eraser,
 } from 'lucide-react';
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
-import { LaborBenefitsCalculatorWidget, LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
+import { LaborBenefitsCalculatorWidget } from '../components/LaborBenefitsCalculatorWidget';
 import { CATEGORIAS_PERSONALES } from '../utils/categoryClassification';
 
 const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
@@ -62,10 +57,20 @@ const MESES_ES = [
   'Julio', 'Agosto', 'Setiembre', 'Octubre', 'Noviembre', 'Diciembre'
 ];
 
+const getInitialProjectionPeriod = () => {
+  const now = new Date();
+  // El mes proyectado inicial siempre es el mes siguiente al actual (ej: en Octubre -> Noviembre, en Noviembre -> Diciembre)
+  const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return {
+    year: nextMonthDate.getFullYear(),
+    monthIndex: nextMonthDate.getMonth(), // 0-indexed (10 = Noviembre para Octubre)
+  };
+};
+
 export const ProyeccionPage: React.FC = () => {
-  // Mes activo para proyección (default: Octubre 2026)
-  const [activeYear, setActiveYear] = useState<number>(2026);
-  const [activeMonthIndex, setActiveMonthIndex] = useState<number>(9); // 9 = Octubre (0-indexed)
+  const defaultPeriod = useMemo(() => getInitialProjectionPeriod(), []);
+  const [activeYear, setActiveYear] = useState<number>(() => defaultPeriod.year);
+  const [activeMonthIndex, setActiveMonthIndex] = useState<number>(() => defaultPeriod.monthIndex);
 
   const activeMonthStr = `${activeYear}-${String(activeMonthIndex + 1).padStart(2, '0')}`;
   const activeMonthLabel = `${MESES_ES[activeMonthIndex]} ${activeYear}`;
@@ -391,12 +396,13 @@ export const ProyeccionPage: React.FC = () => {
             </button>
             <button
               onClick={() => {
-                setActiveYear(2026);
-                setActiveMonthIndex(9); // Octubre
+                setActiveYear(defaultPeriod.year);
+                setActiveMonthIndex(defaultPeriod.monthIndex);
               }}
               className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 hover:underline pl-1 border-l border-slate-200 dark:border-slate-700"
+              title={`Ir a la proyección de ${MESES_ES[defaultPeriod.monthIndex]} ${defaultPeriod.year}`}
             >
-              Oct 2026
+              {MESES_ES[defaultPeriod.monthIndex].slice(0, 3)} {defaultPeriod.year}
             </button>
           </div>
 
@@ -603,7 +609,7 @@ export const ProyeccionPage: React.FC = () => {
 
             {/* Tabla de Movimientos */}
             <div className="overflow-x-auto max-h-[640px] overflow-y-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <table className="w-full min-w-[650px] text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="px-4 py-3">Tipo</th>
@@ -1042,10 +1048,10 @@ export const ProyeccionPage: React.FC = () => {
 
       {/* ── MODAL AGREGAR / EDITAR PARTIDA ── */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsModalOpen(false)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={() => setIsModalOpen(false)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
             
-            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
+            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <PlusCircle className="text-emerald-400" size={20} />
                 <h3 className="text-base font-bold text-white">
@@ -1057,7 +1063,7 @@ export const ProyeccionPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveForm} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveForm} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1 overscroll-contain">
               
               {/* Tipo */}
               <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
@@ -1239,8 +1245,8 @@ export const ProyeccionPage: React.FC = () => {
 
       {/* ── MODAL MODIFICAR MONTO SOLO EN ESTE MES ── */}
       {modifyModalData && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setModifyModalData(null)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={() => setModifyModalData(null)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150 my-auto" onClick={e => e.stopPropagation()}>
             <div className="px-5 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
               <h3 className="font-bold text-sm">Ajustar Monto para {activeMonthLabel}</h3>
               <button onClick={() => setModifyModalData(null)} className="text-emerald-300 hover:text-white">
@@ -1282,9 +1288,9 @@ export const ProyeccionPage: React.FC = () => {
 
       {/* ── MODAL AUDITORÍA DE LIQUIDACIÓN DE TARJETA ── */}
       {selectedCardAudit && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedCardAudit(null)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSelectedCardAudit(null)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col my-auto" onClick={e => e.stopPropagation()}>
+            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <CreditCard size={20} className="text-emerald-400" />
                 <div>
@@ -1299,7 +1305,7 @@ export const ProyeccionPage: React.FC = () => {
               </button>
             </div>
 
-            <div className="p-6 space-y-4 text-xs">
+            <div className="p-6 space-y-4 text-xs overflow-y-auto flex-1">
               <div className="flex items-center justify-between p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60">
                 <div>
                   <p className="text-emerald-900 dark:text-emerald-300 font-bold uppercase tracking-wider text-[10px]">

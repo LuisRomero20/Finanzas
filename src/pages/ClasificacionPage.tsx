@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useFinanceStore } from '../store/financeStore';
 import type { Transaction } from '../store/financeStore';
 import { Card } from '../components/ui/Card';
@@ -19,10 +19,10 @@ import {
   CATEGORIAS_PERSONALES,
   CONCEPTO_A_CATEGORIA,
   autoClassify,
-  getCategoryByIdOrLabel,
   getEffectiveCategory,
   getStoredClasificaciones,
   saveStoredClasificaciones,
+  CLASIFICACIONES_STORAGE_KEY,
   type CategoriaInfo,
 } from '../utils/categoryClassification';
 
@@ -34,7 +34,7 @@ const MESES_ORDER = [
 ];
 
 export const ClasificacionPage: React.FC = () => {
-  const { transactions, updateTransaction, setAllTransactions } = useFinanceStore();
+  const { transactions } = useFinanceStore();
   const [clasificaciones, setClasificaciones] = useState<Record<string, string>>(getStoredClasificaciones);
   const [filtroTipo, setFiltroTipo] = useState<'Todos' | 'Egreso' | 'Ingreso'>('Todos');
   const [filtroMes, setFiltroMes] = useState('Todos');
@@ -42,6 +42,18 @@ export const ClasificacionPage: React.FC = () => {
   const [busqueda, setBusqueda] = useState('');
   const [soloSinClasificar, setSoloSinClasificar] = useState(false);
   const [vista, setVista] = useState<'tabla' | 'resumen'>('tabla');
+
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === CLASIFICACIONES_STORAGE_KEY && e.newValue) {
+        try {
+          setClasificaciones(JSON.parse(e.newValue));
+        } catch {}
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
 
   // Base de movimientos según filtro de Tipo
   const movimientosBase = useMemo(() => {
@@ -375,7 +387,7 @@ export const ClasificacionPage: React.FC = () => {
           {/* Tabla de Movimientos */}
           <Card className="p-0 overflow-hidden">
             <div className="overflow-x-auto max-h-[580px] overflow-y-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <table className="w-full min-w-[750px] text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200 dark:border-slate-700">
                   <tr>
                     <th className="px-4 py-3">Tipo</th>

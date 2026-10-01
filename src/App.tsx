@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Suspense, lazy } from "react";
+import { useState, useEffect, Suspense, lazy } from "react";
 import { useAppStore } from "./store";
 import { useThemeStore, applyThemeClass } from "./store/themeStore";
 import {
@@ -21,12 +21,6 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useFinanceStore } from "./store/financeStore";
-import { usePendingPaymentsStore } from "./store/pendingPaymentsStore";
-import { usePrevMonthBridgeStore } from "./store/prevMonthBridgeStore";
-import { useCreditCardStore } from "./store/creditCardStore";
-import { useCreditLineStore } from "./store/creditLineStore";
-import { useProjectionStore } from "./store/projectionStore";
 import { initLiveUpdateService } from "./utils/liveUpdateService";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
@@ -57,7 +51,6 @@ export default function App() {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const { theme } = useThemeStore();
-  const { syncFromSupabase } = useFinanceStore();
 
   // Inicializar servicio de actualización instantánea (Vercel) y sincronización en tiempo real (Supabase)
   // Mantiene el smartphone siempre al día al desbloquear la pantalla, cambiar de app o recibir cambios desde PC

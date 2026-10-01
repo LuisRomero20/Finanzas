@@ -182,11 +182,19 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#11191D] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden transition-colors">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        className="bg-white dark:bg-[#11191D] rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 w-full max-w-lg overflow-hidden transition-colors max-h-[92vh] flex flex-col my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
         
         {/* Header */}
-        <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white px-6 py-4 flex items-center justify-between border-b border-emerald-950">
+        <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white px-6 py-4 flex items-center justify-between border-b border-emerald-950 shrink-0">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-emerald-500/20 rounded-xl border border-emerald-400/30">
               <Database className="text-emerald-400" size={20} />
@@ -205,7 +213,7 @@ export const BackupRestoreModal: React.FC<Props> = ({ isOpen, onClose }) => {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 overflow-y-auto flex-1">
           
           {/* Opción 1: Exportar */}
           <div className="space-y-3">

@@ -1,6 +1,6 @@
 import React from 'react';
-import { X, Calendar, ArrowUpRight, ArrowDownRight, Check, SlidersHorizontal, Sparkles, AlertCircle } from 'lucide-react';
-import { usePrevMonthBridgeStore, type BridgeMovementType } from '../store/prevMonthBridgeStore';
+import { X, Calendar, Check, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { usePrevMonthBridgeStore, getCurrentMonthName, type BridgeMovementType } from '../store/prevMonthBridgeStore';
 import type { Transaction } from '../store/financeStore';
 
 interface Props {
@@ -33,7 +33,7 @@ export const PrevMonthDaysConfigModal: React.FC<Props> = ({
 
   if (!isOpen) return null;
 
-  const activeMonth = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+  const activeMonth = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
   const prevMonthName = getPreviousMonthName(activeMonth);
   const config = getConfig(activeMonth);
 

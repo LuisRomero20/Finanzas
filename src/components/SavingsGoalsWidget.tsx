@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Target, Plus, PiggyBank, ArrowUpRight, ArrowDownRight, Trash2, CheckCircle2, Clock } from 'lucide-react';
+import { Plus, PiggyBank, ArrowUpRight, Trash2, CheckCircle2, Clock } from 'lucide-react';
 import { useSavingsGoalsStore, type SavingsGoal } from '../store/savingsGoalsStore';
 
 interface Props {
@@ -7,7 +7,7 @@ interface Props {
 }
 
 export const SavingsGoalsWidget: React.FC<Props> = ({ monthlySavingsCapacity = 600 }) => {
-  const { goals, addGoal, depositToGoal, withdrawFromGoal, deleteGoal } = useSavingsGoalsStore();
+  const { goals, addGoal, depositToGoal, deleteGoal } = useSavingsGoalsStore();
   const [isNewGoalModalOpen, setIsNewGoalModalOpen] = useState(false);
   const [activeDepositGoal, setActiveDepositGoal] = useState<SavingsGoal | null>(null);
   const [depositAmount, setDepositAmount] = useState<string>('');

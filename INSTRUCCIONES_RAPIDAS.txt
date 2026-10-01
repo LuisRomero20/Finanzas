@@ -1,0 +1,74 @@
+====================================================================
+ GUÍA RÁPIDA DE INICIO - GESTOR DE FINANZAS PERSONALES (FINPER)
+====================================================================
+
+¡Hola! Sigue estos sencillos pasos para poner a funcionar tu sistema
+de finanzas personales en tu propia computadora:
+
+--------------------------------------------------------------------
+PASO 1: REQUISITO PREVIO (Node.js)
+--------------------------------------------------------------------
+Para ejecutar la aplicación necesitas tener instalado Node.js (versión 18 o superior).
+Si aún no lo tienes instalado:
+1. Ve a: https://nodejs.org
+2. Descarga la versión que dice "LTS" (Recomendada para la mayoría).
+3. Instálala dando clic en Siguiente > Siguiente > Finalizar.
+
+--------------------------------------------------------------------
+PASO 2: ABRIR LA TERMINAL EN ESTA CARPETA
+--------------------------------------------------------------------
+1. Abre el Explorador de Archivos de Windows en esta misma carpeta.
+2. Haz clic arriba en la barra de direcciones (donde se ve la ruta de la carpeta).
+3. Escribe las tres letras: cmd
+4. Presiona la tecla ENTER.
+   (Se abrirá automáticamente una ventana de terminal negra en esta carpeta).
+
+--------------------------------------------------------------------
+PASO 3: INSTALAR LAS LIBRERÍAS
+--------------------------------------------------------------------
+En esa ventana negra, escribe el siguiente comando y presiona ENTER:
+
+npm install
+
+* Espera unos segundos a que termine de descargar las librerías necesarias.
+  Verás que se crea una carpeta llamada 'node_modules'.
+
+--------------------------------------------------------------------
+PASO 4: INICIAR LA APLICACIÓN
+--------------------------------------------------------------------
+Una vez terminada la instalación, escribe este comando y presiona ENTER:
+
+npm run dev
+
+Verás un mensaje que dice algo como:
+  VITE v5.4.21 ready in ... ms
+  ➜ Local: http://localhost:5173/
+
+--------------------------------------------------------------------
+PASO 5: ABRIR EN TU NAVEGADOR
+--------------------------------------------------------------------
+Abre tu navegador de internet favorito (Google Chrome, Edge, Brave, etc.)
+e ingresa a la siguiente dirección:
+
+http://localhost:5173
+
+¡Listo! Ya tienes tu panel financiero limpio y listo para usar.
+
+====================================================================
+DATOS IMPORTANTES Y PRIVACIDAD
+====================================================================
+• 100% PRIVADO Y LOCAL: 
+  No requieres crear cuentas ni contratar servidores. Todos tus datos
+  se guardan de forma segura en el almacenamiento local de tu propio
+  navegador (localStorage).
+
+• RESPALDOS EN EXCEL Y JSON:
+  En cualquier momento puedes hacer clic en el botón de respaldo (ícono de
+  disco en la barra superior) para descargar todas tus transacciones en un
+  archivo Excel (.xlsx) o JSON, o restaurarlas cuando cambies de equipo.
+
+• CÓMO APAGAR LA APLICACIÓN:
+  Cuando termines de usarla, simplemente ve a la ventana de la terminal
+  negra y presiona Ctrl + C (y confirma escribiendo 's' o 'y'). Para volver
+  a abrirla otro día, solo repites el Paso 4 (npm run dev).
+====================================================================

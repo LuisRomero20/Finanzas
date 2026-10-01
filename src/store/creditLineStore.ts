@@ -5,6 +5,7 @@ import {
   saveCreditLinesConfigToSupabase,
   fetchCreditLinesConfigFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 interface CreditLineState {
   lines: Record<string, number>;
@@ -28,6 +29,7 @@ export const useCreditLineStore = create<CreditLineState>()(
           } catch {}
           // Sincronizar con Supabase para otros dispositivos
           saveCreditLinesConfigToSupabase(updated, get().labels).catch(() => {});
+          broadcastRealtimeSync('credit_lines');
           return { lines: updated };
         }),
       setAccountLabel: (entity, label) =>
@@ -38,6 +40,7 @@ export const useCreditLineStore = create<CreditLineState>()(
           } catch {}
           // Sincronizar con Supabase para otros dispositivos
           saveCreditLinesConfigToSupabase(get().lines, updated).catch(() => {});
+          broadcastRealtimeSync('credit_lines');
           return { labels: updated };
         }),
       resetDefaults: () =>

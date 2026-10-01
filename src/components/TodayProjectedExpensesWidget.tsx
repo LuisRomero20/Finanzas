@@ -1,21 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
-import { useFinanceStore, getMonthNameFromDate } from '../store/financeStore';
+import { useFinanceStore } from '../store/financeStore';
 import { useAppStore } from '../store';
 import type { Transaction } from '../utils/masterData';
 import {
   Calendar,
-  Sparkles,
   CheckCircle2,
   RotateCcw,
   Plus,
-  ArrowRight,
   Zap,
   Clock,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
-  HelpCircle,
 } from 'lucide-react';
 import { CasualProjectionsModal } from './CasualProjectionsModal';
 
@@ -25,11 +21,9 @@ interface TodayProjectedExpensesWidgetProps {
   onOpenCasualModal?: () => void;
 }
 
-export const TodayProjectedExpensesWidget: React.FC<TodayProjectedExpensesWidgetProps> = ({
-  onOpenCasualModal,
-}) => {
+export const TodayProjectedExpensesWidget: React.FC<TodayProjectedExpensesWidgetProps> = () => {
   const { items: pendingItems, executePendingPayment, addPendingItem } = usePendingPaymentsStore();
-  const { transactions, addTransaction, deleteTransaction } = useFinanceStore();
+  const { transactions, deleteTransaction } = useFinanceStore();
   const { agregarNotificacion } = useAppStore();
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(false);

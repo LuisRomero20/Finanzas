@@ -6,6 +6,7 @@ import {
   deleteTransactionFromSupabase,
   fetchTransactionsFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export type { Transaction, CategoriaType };
 export { MESES, ENTIDADES, CATEGORIAS };
@@ -23,7 +24,12 @@ export function getMonthNameFromDate(dateStr: string): string {
     const m = parts[1];
     if (m >= 1 && m <= 12) return MONTH_NAMES[m - 1];
   }
-  return 'Octubre';
+  return getCurrentMonthName();
+}
+
+export function getCurrentMonthName(): string {
+  const currentMonthIdx = new Date().getMonth();
+  return MONTH_NAMES[currentMonthIdx] || 'Octubre';
 }
 
 function safeGetStorage(key: string): string | null {
@@ -85,7 +91,7 @@ interface FinanceState {
 
 export const useFinanceStore = create<FinanceState>((set, get) => ({
   transactions: loadInitialTransactions(),
-  selectedMonth: 'Setiembre', // Default to active operational month with records
+  selectedMonth: getCurrentMonthName(),
   selectedEntity: 'Todas',
   isSyncingCloud: false,
 
@@ -133,8 +139,9 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return { transactions: updated };
     });
 
-    // Enviar asíncronamente a Supabase en segundo plano
+    // Enviar asíncronamente a Supabase en segundo plano y notificar en tiempo real
     insertTransactionToSupabase(newTx).catch(err => console.warn('Cloud sync error:', err));
+    broadcastRealtimeSync('transactions');
 
     return newTx;
   },
@@ -155,6 +162,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       }
       return { transactions: updated };
     });
+    broadcastRealtimeSync('transactions');
   },
 
   confirmTransaction: (id: string) => {
@@ -182,6 +190,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       deleteTransactionFromSupabase(id).catch((err) => console.warn('Cloud delete proy error:', err));
     }
     insertTransactionToSupabase(confirmedTx).catch((err) => console.warn('Cloud sync confirmed error:', err));
+    broadcastRealtimeSync('transactions');
   },
 
   deleteTransaction: (id: string) => {
@@ -191,13 +200,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       return { transactions: updated };
     });
 
-    // Eliminar de Supabase en segundo plano
+    // Eliminar de Supabase en segundo plano y notificar
     deleteTransactionFromSupabase(id).catch(err => console.warn('Cloud delete error:', err));
+    broadcastRealtimeSync('transactions');
   },
 
   getFilteredTransactions: () => {
     const { transactions, selectedMonth, selectedEntity } = get();
-    return transactions
+    const list = Array.isArray(transactions) ? transactions : masterTransactions;
+    return list
       .filter(t => {
         const matchMonth = selectedMonth === 'Todos' || t.Mes === selectedMonth;
         const matchEntity = selectedEntity === 'Todas' || t.Entidad === selectedEntity;
@@ -240,6 +251,7 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
   setAllTransactions: (list: Transaction[]) => {
     safeSetStorage(LS_TX_KEY, JSON.stringify(list));
     set({ transactions: list });
+    broadcastRealtimeSync('transactions');
   },
 
   resetToMasterData: () => {

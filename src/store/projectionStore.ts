@@ -3,6 +3,7 @@ import { masterTransactions } from '../utils/masterData';
 import { useFinanceStore } from './financeStore';
 import { useCreditCardStore } from './creditCardStore';
 import { supabase } from '../lib/supabase';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export type ProjectedRecurrence = 'fijo' | 'temporal' | 'unico';
 
@@ -257,7 +258,8 @@ export function getCardDueDetailsForMonth(
   const seenKeys = new Set<string>();
 
   // 1. Transacciones reales registradas en lista maestra (Supabase / local)
-  const sourceTransactions = useFinanceStore?.getState ? useFinanceStore.getState().transactions : masterTransactions;
+  const rawTxs = useFinanceStore?.getState?.()?.transactions;
+  const sourceTransactions = Array.isArray(rawTxs) ? rawTxs : masterTransactions;
   sourceTransactions.forEach((t) => {
     if (t.Entidad === entity && t.Tipo === 'Egreso') {
       const parts = t.Fecha.split('-').map(Number);
@@ -776,7 +778,9 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 function triggerSaveProjections(items: ProjectedItem[], prob: Record<string, number>) {
   if (saveDebounceTimer) clearTimeout(saveDebounceTimer);
   saveDebounceTimer = setTimeout(() => {
-    saveProjectionsToSupabase(items, prob).catch(console.warn);
+    saveProjectionsToSupabase(items, prob)
+      .then(() => broadcastRealtimeSync('projections'))
+      .catch(console.warn);
   }, 400);
 }
 

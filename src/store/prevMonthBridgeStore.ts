@@ -4,6 +4,7 @@ import {
   saveBridgeConfigToSupabase,
   fetchBridgeConfigFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export type BridgeMovementType = 'Ambos' | 'Ingresos' | 'Egresos';
 
@@ -42,6 +43,11 @@ export function getPreviousMonth(currentMonth: string): string {
   return MESES_ORDENADOS[idx - 1];
 }
 
+export function getCurrentMonthName(): string {
+  const currentMonthIdx = new Date().getMonth();
+  return MESES_ORDENADOS[currentMonthIdx] || 'Octubre';
+}
+
 const DEFAULT_CONFIG: MonthBridgeConfig = {
   enabled: false,
   includedDays: [31],
@@ -76,14 +82,17 @@ function saveConfigs(configs: Record<string, MonthBridgeConfig>) {
   } catch (e) {
     console.warn('Error saving prev_month_bridge configs:', e);
   }
-  saveBridgeConfigToSupabase(configs).catch(() => {});
+  saveBridgeConfigToSupabase(configs)
+    .then(() => broadcastRealtimeSync('prev_month_bridge'))
+    .catch(() => {});
+  broadcastRealtimeSync('prev_month_bridge');
 }
 
 export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) => ({
   configs: loadStoredConfigs(),
 
   getConfig: (currentMonth: string) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     const found = get().configs[active];
     return {
       ...DEFAULT_CONFIG,
@@ -93,7 +102,7 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   setEnabled: (currentMonth: string, enabled: boolean) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     set((state) => {
       const current = state.configs[active] || { ...DEFAULT_CONFIG };
       const updated = {
@@ -106,7 +115,7 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   setMovementType: (currentMonth: string, movementType: BridgeMovementType) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     set((state) => {
       const current = state.configs[active] || { ...DEFAULT_CONFIG };
       const updated = {
@@ -119,7 +128,7 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   setIncludeInDashboardTotals: (currentMonth: string, includeInDashboardTotals: boolean) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     set((state) => {
       const current = state.configs[active] || { ...DEFAULT_CONFIG };
       const updated = {
@@ -132,7 +141,7 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   setIncludedDays: (currentMonth: string, days: number[]) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     set((state) => {
       const current = state.configs[active] || { ...DEFAULT_CONFIG };
       const updated = {
@@ -145,7 +154,7 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   toggleDay: (currentMonth: string, day: number) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     set((state) => {
       const current = state.configs[active] || { ...DEFAULT_CONFIG };
       const exists = current.includedDays.includes(day);
@@ -166,12 +175,12 @@ export const usePrevMonthBridgeStore = create<PrevMonthBridgeState>((set, get) =
   },
 
   getPreviousMonthName: (currentMonth: string) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     return getPreviousMonth(active);
   },
 
   getBridgedTransactions: (currentMonth: string, allTransactions: Transaction[]) => {
-    const active = currentMonth === 'Todos' ? 'Setiembre' : currentMonth;
+    const active = currentMonth === 'Todos' ? getCurrentMonthName() : currentMonth;
     const config = get().configs[active];
     if (!config || !config.enabled || config.includedDays.length === 0) {
       return [];

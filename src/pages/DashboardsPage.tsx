@@ -177,7 +177,11 @@ export const DashboardsPage: React.FC = () => {
   // Tendencia de Sueldo
   const sueldoTrendData = useMemo(() => {
     return MESES.map(mes => {
-      const txs = transactions.filter(t => t.Mes === mes && t.Fecha.startsWith(selectedYear.toString()) && t.Concepto.toLowerCase() === 'sueldo');
+      const txs = transactions.filter(t => 
+        t.Mes === mes && 
+        t.Fecha.startsWith(selectedYear.toString()) && 
+        (t.Concepto.toLowerCase() === 'sueldo' || (t.Tipo === 'Ingreso' && (t.Concepto.toLowerCase().includes('sueldo') || t.Categoria.toLowerCase().includes('sueldo'))))
+      );
       const total = txs.reduce((s, t) => s + t.Monto, 0);
       return { name: mes.substring(0, 3), Monto: total, value: total };
     });
@@ -544,7 +548,7 @@ export const DashboardsPage: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Top 5 Gastos */}
-        <Card className="h-84 flex flex-col justify-between">
+        <Card className="h-96 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Top 5 Gastos Más Significativos</h3>
@@ -552,74 +556,80 @@ export const DashboardsPage: React.FC = () => {
             </div>
             <Badge variant="warning">Top 5</Badge>
           </div>
-          <div className="flex-1 mt-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={top5Gastos} layout="vertical" margin={{ top: 5, right: 90, left: 10, bottom: 0 }}>
-                <defs>
-                  {TOP5_GRADIENTS.map((g) => (
-                    <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="1" y2="0">
-                      <stop offset="0%" stopColor={g.from} />
-                      <stop offset="100%" stopColor={g.to} />
-                    </linearGradient>
-                  ))}
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.15)" />
-                <XAxis type="number" hide />
-                <YAxis
-                  dataKey="name"
-                  type="category"
-                  width={145}
-                  tickLine={false}
-                  axisLine={false}
-                  tick={({ x, y, payload }) => {
-                    const label = payload.value || '';
-                    const shortLabel = label.length > 20 ? label.substring(0, 18) + '...' : label;
-                    return (
-                      <text
-                        x={x}
-                        y={y}
-                        dy={4}
-                        textAnchor="end"
-                        className="fill-slate-700 dark:fill-slate-200 text-[11px] font-bold"
-                      >
-                        {shortLabel}
-                      </text>
-                    );
-                  }}
-                />
-                <RechartsTooltip 
-                  formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Desembolso']}
-                  contentStyle={{
-                    backgroundColor: 'rgba(15, 23, 42, 0.95)',
-                    backdropFilter: 'blur(8px)',
-                    borderRadius: '12px',
-                    color: '#fff',
-                    fontSize: '12px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)',
-                  }}
-                />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
-                  {top5Gastos.map((_, index) => (
-                    <Cell
-                      key={`cell-bar-${index}`}
-                      fill={`url(#top5-grad-${index % TOP5_GRADIENTS.length})`}
-                    />
-                  ))}
-                  <LabelList
-                    dataKey="value"
-                    position="right"
-                    formatter={(v: any) => formatterPEN.format(Number(v) || 0)}
-                    className="fill-slate-700 dark:fill-slate-200 text-[11px] font-black"
+          <div className="flex-1 relative mt-2 min-h-[280px]">
+            {top5Gastos.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top5Gastos} layout="vertical" margin={{ top: 5, right: 90, left: 10, bottom: 0 }}>
+                  <defs>
+                    {TOP5_GRADIENTS.map((g) => (
+                      <linearGradient key={g.id} id={g.id} x1="0" y1="0" x2="1" y2="0">
+                        <stop offset="0%" stopColor={g.from} />
+                        <stop offset="100%" stopColor={g.to} />
+                      </linearGradient>
+                    ))}
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="rgba(148, 163, 184, 0.15)" />
+                  <XAxis type="number" hide />
+                  <YAxis
+                    dataKey="name"
+                    type="category"
+                    width={145}
+                    tickLine={false}
+                    axisLine={false}
+                    tick={({ x, y, payload }) => {
+                      const label = payload.value || '';
+                      const shortLabel = label.length > 20 ? label.substring(0, 18) + '...' : label;
+                      return (
+                        <text
+                          x={x}
+                          y={y}
+                          dy={4}
+                          textAnchor="end"
+                          className="fill-slate-700 dark:fill-slate-200 text-[11px] font-bold"
+                        >
+                          {shortLabel}
+                        </text>
+                      );
+                    }}
                   />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+                  <RechartsTooltip 
+                    formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Desembolso']}
+                    contentStyle={{
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                      backdropFilter: 'blur(8px)',
+                      borderRadius: '12px',
+                      color: '#fff',
+                      fontSize: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      boxShadow: '0 8px 20px -4px rgba(0, 0, 0, 0.4)',
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[0, 8, 8, 0]} barSize={22}>
+                    {top5Gastos.map((_, index) => (
+                      <Cell
+                        key={`cell-bar-${index}`}
+                        fill={`url(#top5-grad-${index % TOP5_GRADIENTS.length})`}
+                      />
+                    ))}
+                    <LabelList
+                      dataKey="value"
+                      position="right"
+                      formatter={(v: any) => formatterPEN.format(Number(v) || 0)}
+                      className="fill-slate-700 dark:fill-slate-200 text-[11px] font-black"
+                    />
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-xs">
+                Sin egresos registrados en este periodo
+              </div>
+            )}
           </div>
         </Card>
 
         {/* Evolución de Sueldo */}
-        <Card className="h-84 flex flex-col justify-between">
+        <Card className="h-96 flex flex-col justify-between">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Evolución Histórica de Sueldo</h3>
@@ -627,8 +637,9 @@ export const DashboardsPage: React.FC = () => {
             </div>
             <Badge variant="success">Ingreso Fijo</Badge>
           </div>
-          <div className="flex-1 mt-2">
-            <ResponsiveContainer width="100%" height="100%">
+          <div className="flex-1 relative mt-2 min-h-[280px]">
+            {sueldoTrendData.some(d => d.Monto > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={sueldoTrendData} margin={{ top: 10, right: 15, left: 0, bottom: 0 }}>
                 <defs>
                   <linearGradient id="sueldoAreaGrad" x1="0" y1="0" x2="0" y2="1">
@@ -674,6 +685,11 @@ export const DashboardsPage: React.FC = () => {
                 />
               </AreaChart>
             </ResponsiveContainer>
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-slate-400 text-xs">
+                Sin percepción de sueldo registrada en {selectedYear}
+              </div>
+            )}
           </div>
         </Card>
       </div>
@@ -804,11 +820,11 @@ export const DashboardsPage: React.FC = () => {
 
       {/* ── MODAL DE COMPORTAMIENTO & TENDENCIA HISTÓRICA ── */}
       {selectedConcept && conceptTrendStats && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedConcept(null)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto" onClick={() => setSelectedConcept(null)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150 max-h-[92vh] flex flex-col my-auto" onClick={e => e.stopPropagation()}>
             
             {/* Header Modal */}
-            <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white p-5 flex items-center justify-between">
+            <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white p-5 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 bg-emerald-500/20 rounded-xl">
                   <Sparkles className="text-emerald-400" size={18} />
@@ -830,54 +846,56 @@ export const DashboardsPage: React.FC = () => {
               </button>
             </div>
 
-            {/* KPIs del Concepto */}
-            <div className="grid grid-cols-3 gap-3 p-5 bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800 text-xs">
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
-                <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Total Anual</p>
-                <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
-                  {formatterPEN.format(conceptTrendStats.totalAnual)}
-                </p>
+            <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800">
+              {/* KPIs del Concepto */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 p-4 sm:p-5 bg-slate-50 dark:bg-slate-800/50 text-xs">
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Total Anual</p>
+                  <p className="text-lg font-black text-slate-900 dark:text-white mt-0.5 tabular-nums">
+                    {formatterPEN.format(conceptTrendStats.totalAnual)}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Promedio Mensual</p>
+                  <p className="text-lg font-black text-emerald-800 dark:text-emerald-400 mt-0.5 tabular-nums">
+                    {formatterPEN.format(conceptTrendStats.avgMonthly)}
+                  </p>
+                </div>
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
+                  <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Mes Pico</p>
+                  <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
+                    {conceptTrendStats.maxMonthName} ({formatterPEN.format(conceptTrendStats.maxMonthAmount)})
+                  </p>
+                </div>
               </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
-                <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Promedio Mensual</p>
-                <p className="text-lg font-black text-emerald-800 dark:text-emerald-400 mt-0.5 tabular-nums">
-                  {formatterPEN.format(conceptTrendStats.avgMonthly)}
-                </p>
-              </div>
-              <div className="bg-white dark:bg-slate-800 p-3 rounded-2xl border border-slate-200/80 dark:border-slate-700 shadow-xs">
-                <p className="text-[11px] font-bold uppercase text-slate-400 dark:text-slate-500">Mes Pico</p>
-                <p className="text-sm font-bold text-slate-800 dark:text-slate-200 mt-1 truncate">
-                  {conceptTrendStats.maxMonthName} ({formatterPEN.format(conceptTrendStats.maxMonthAmount)})
-                </p>
-              </div>
-            </div>
 
-            {/* Gráfico de Línea */}
-            <div className="p-6 h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={conceptTrendStats.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={8} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `S/ ${v/1000}k`} />
-                  <RechartsTooltip 
-                    cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} 
-                    formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Monto']}
-                    contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
-                  />
-                  <Line 
-                    type="monotone" 
-                    dataKey="Monto" 
-                    stroke="#10B981" 
-                    strokeWidth={3} 
-                    dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} 
-                    activeDot={{ r: 6, fill: '#0F2A1D' }} 
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {/* Gráfico de Línea */}
+              <div className="p-4 sm:p-6 h-60 sm:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={conceptTrendStats.monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} dy={8} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `S/ ${v/1000}k`} />
+                    <RechartsTooltip 
+                      cursor={{ stroke: '#94a3b8', strokeWidth: 1 }} 
+                      formatter={(value: any) => [formatterPEN.format(Number(value) || 0), 'Monto']}
+                      contentStyle={{ backgroundColor: '#0f172a', borderRadius: '12px', color: '#fff', fontSize: '12px', border: 'none' }}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="Monto" 
+                      stroke="#10B981" 
+                      strokeWidth={3} 
+                      dot={{ r: 4, fill: '#10B981', strokeWidth: 2, stroke: '#fff' }} 
+                      activeDot={{ r: 6, fill: '#0F2A1D' }} 
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
             {/* Footer Modal */}
-            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+            <div className="px-6 py-3 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 shrink-0">
               <span className="flex items-center gap-1">
                 <Info size={13} className="text-slate-400" />
                 Registrado en {conceptTrendStats.activeMonthsCount} meses del año.

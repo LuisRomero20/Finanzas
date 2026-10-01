@@ -5,7 +5,7 @@ import DebtCard from '../components/ui/DebtCard';
 import { Card } from '../components/ui/Card';
 import { Metric } from '../components/ui/Metric';
 import { Badge } from '../components/ui/Badge';
-import { calcularCuota as calcUtil, addMonthsKeepingDay } from '../utils/debtUtils';
+import { calcularCuota as calcUtil } from '../utils/debtUtils';
 import { DebtPayoffSimulatorWidget } from '../components/DebtPayoffSimulatorWidget';
 import {
   Landmark,
@@ -14,11 +14,7 @@ import {
   DollarSign,
   Calendar,
   CheckCircle2,
-  HelpCircle,
   Clock,
-  ArrowRight,
-  TrendingDown,
-  Layers,
 } from 'lucide-react';
 
 function fmtMoney(moneda: string, v: number | null | undefined) {
@@ -27,10 +23,6 @@ function fmtMoney(moneda: string, v: number | null | undefined) {
   } catch {
     return `${moneda} ${Number(v || 0).toFixed(2)}`;
   }
-}
-
-function calcularCuota(deuda: any) {
-  return calcUtil(deuda);
 }
 
 export const HojaDeudas: React.FC = () => {

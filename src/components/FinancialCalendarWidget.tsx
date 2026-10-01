@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Calendar as CalendarIcon, X, ArrowUpRight, ArrowDownRight, CreditCard, SlidersHorizontal, Sparkles } from 'lucide-react';
 import type { Transaction } from '../utils/masterData';
 import { getEffectiveCategoryLabel, isCreditCardLine } from '../utils/categoryClassification';
-import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
+import { usePrevMonthBridgeStore, getCurrentMonthName } from '../store/prevMonthBridgeStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import { PrevMonthDaysConfigModal } from './PrevMonthDaysConfigModal';
 
@@ -26,7 +26,7 @@ const MONTH_MAP: Record<string, number> = {
   Diciembre: 11,
 };
 
-export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], selectedMonth = 'Setiembre' }) => {
+export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], selectedMonth = getCurrentMonthName() }) => {
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [selectedDayDetail, setSelectedDayDetail] = useState<{
     dayNumber: number;
@@ -39,7 +39,7 @@ export const FinancialCalendarWidget: React.FC<Props> = ({ transactions = [], se
   } | null>(null);
 
   const { getConfig, getPreviousMonthName, toggleDay } = usePrevMonthBridgeStore();
-  const activeMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+  const activeMonth = selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth;
   const bridgeConfig = getConfig(activeMonth);
   const prevMonthName = getPreviousMonthName(activeMonth);
 

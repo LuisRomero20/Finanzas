@@ -7,6 +7,7 @@ import {
   deletePendingPaymentFromSupabase,
   fetchPendingPaymentsFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export interface PendingPaymentItem {
   id: string;
@@ -236,6 +237,7 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       removeDeletedPendingKey(getPendingBusinessKey(it), it.id);
       savePendingPaymentToSupabase(it).catch(() => {});
     });
+    broadcastRealtimeSync('pending_payments');
 
     return { added, updated, alreadyExisting };
   },
@@ -278,6 +280,7 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
 
     // Guardar en Supabase para sincronización móvil
     savePendingPaymentToSupabase(newItem).catch((err) => console.warn('Cloud pending add error:', err));
+    broadcastRealtimeSync('pending_payments');
 
     removeDeletedPendingKey(getPendingBusinessKey(newItem), newItem.id);
 
@@ -300,6 +303,7 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
 
     if (updatedItem) {
       savePendingPaymentToSupabase(updatedItem).catch((err) => console.warn('Cloud pending update error:', err));
+      broadcastRealtimeSync('pending_payments');
     }
   },
 
@@ -327,6 +331,7 @@ export const usePendingPaymentsStore = create<PendingPaymentsState>((set, get) =
       entidad: target.entidad,
       monto: target.monto,
     } : undefined).catch((err) => console.warn('Cloud pending delete error:', err));
+    broadcastRealtimeSync('pending_payments');
   },
 
   syncFromSupabase: async () => {

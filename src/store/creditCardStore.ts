@@ -4,6 +4,7 @@ import {
   saveCardsConfigToSupabase,
   fetchCardsConfigFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export interface CardConfig {
   id: string;
@@ -99,7 +100,10 @@ function persistCards(cards: CardConfig[]): void {
     console.warn('Error persistiendo tarjetas:', e);
   }
   // Sincronizar en la nube para que otros dispositivos (Vercel/iPhone) accedan a la config actualizada
-  saveCardsConfigToSupabase(cards).catch(() => {});
+  saveCardsConfigToSupabase(cards)
+    .then(() => broadcastRealtimeSync('cards'))
+    .catch(() => {});
+  broadcastRealtimeSync('cards');
 }
 
 interface CreditCardStoreState {

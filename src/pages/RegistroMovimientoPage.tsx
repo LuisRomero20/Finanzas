@@ -26,11 +26,8 @@ import {
   Database,
   Trash2,
   History,
-  ShoppingBag,
   DollarSign,
   Zap,
-  Briefcase,
-  PiggyBank,
 } from 'lucide-react';
 
 const ENTIDADES_LIST = [

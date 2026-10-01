@@ -128,7 +128,8 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
       .select('*')
       .not('id', 'like', 'pending-%')
       .not('id', 'like', 'config-%')
-      .order('fecha', { ascending: false });
+      .order('fecha', { ascending: false })
+      .limit(50000);
 
     if (error || !data) {
       return null;
@@ -182,7 +183,8 @@ export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> 
       .from('transacciones')
       .select('*')
       .like('id', 'pending-%')
-      .order('fecha', { ascending: true });
+      .order('fecha', { ascending: true })
+      .limit(50000);
 
     if (error || !data) return null;
 

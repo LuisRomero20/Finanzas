@@ -4,6 +4,7 @@ import {
   saveSavingsGoalsToSupabase,
   fetchSavingsGoalsFromSupabase,
 } from '../services/supabaseService';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export interface SavingsGoal {
   id: string;
@@ -74,6 +75,7 @@ export const useSavingsGoalsStore = create<SavingsGoalsState>()(
         set((state) => {
           const updated = [...state.goals, newGoal];
           saveSavingsGoalsToSupabase(updated).catch(() => {});
+          broadcastRealtimeSync('savings_goals');
           return { goals: updated };
         });
       },
@@ -84,6 +86,7 @@ export const useSavingsGoalsStore = create<SavingsGoalsState>()(
             g.id === id ? { ...g, currentAmount: Math.max(0, g.currentAmount + amount) } : g
           );
           saveSavingsGoalsToSupabase(updated).catch(() => {});
+          broadcastRealtimeSync('savings_goals');
           return { goals: updated };
         });
       },
@@ -94,6 +97,7 @@ export const useSavingsGoalsStore = create<SavingsGoalsState>()(
             g.id === id ? { ...g, currentAmount: Math.max(0, g.currentAmount - amount) } : g
           );
           saveSavingsGoalsToSupabase(updated).catch(() => {});
+          broadcastRealtimeSync('savings_goals');
           return { goals: updated };
         });
       },
@@ -102,6 +106,7 @@ export const useSavingsGoalsStore = create<SavingsGoalsState>()(
         set((state) => {
           const updated = state.goals.map((g) => (g.id === id ? { ...g, ...updates } : g));
           saveSavingsGoalsToSupabase(updated).catch(() => {});
+          broadcastRealtimeSync('savings_goals');
           return { goals: updated };
         });
       },
@@ -110,6 +115,7 @@ export const useSavingsGoalsStore = create<SavingsGoalsState>()(
         set((state) => {
           const updated = state.goals.filter((g) => g.id !== id);
           saveSavingsGoalsToSupabase(updated).catch(() => {});
+          broadcastRealtimeSync('savings_goals');
           return { goals: updated };
         });
       },

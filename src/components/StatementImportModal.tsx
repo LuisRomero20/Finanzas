@@ -12,9 +12,7 @@ import {
   ArrowRight,
   RefreshCw,
   Search,
-  SlidersHorizontal,
   CreditCard,
-  TrendingDown,
   Sparkles,
   HelpCircle
 } from 'lucide-react';
@@ -23,7 +21,6 @@ import {
   extractTextFromExcel,
   parseStatementText,
   reconcileStatement,
-  type StatementData,
   type ReconciliationReport,
 } from '../utils/statementParser';
 import { masterTransactions } from '../utils/masterData';

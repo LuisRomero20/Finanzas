@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useMemo } from 'react';
-import { useFinanceStore, MESES, ENTIDADES, getMonthNameFromDate } from '../store/financeStore';
+import { useEffect, useState, useMemo } from 'react';
+import { useFinanceStore, MESES, ENTIDADES, getMonthNameFromDate, getCurrentMonthName } from '../store/financeStore';
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
 import type { Transaction } from '../utils/masterData';
@@ -26,9 +26,7 @@ import { openExecutiveReportPrintWindow } from '../utils/executiveReportPdf';
 import { useBudgetStore } from '../store/budgetStore';
 import { useCreditLineStore } from '../store/creditLineStore';
 import { usePrevMonthBridgeStore } from '../store/prevMonthBridgeStore';
-import { useCardStatementStore } from '../store/cardStatementStore';
 import { useCreditCardStore } from '../store/creditCardStore';
-import { calculateCardLivePosition, getCycles } from '../utils/creditCardCycles';
 import { CreditLineConfigModal } from '../components/CreditLineConfigModal';
 import { PrevMonthDaysConfigModal } from '../components/PrevMonthDaysConfigModal';
 import { AddCardModal } from '../components/AddCardModal';
@@ -119,7 +117,7 @@ export const Dashboard: React.FC = () => {
   const baseFiltered = getFilteredTransactions();
 
   const { getConfig, getBridgedTransactions, getPreviousMonthName } = usePrevMonthBridgeStore();
-  const activeMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+  const activeMonth = selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth;
   const bridgeConfig = getConfig(activeMonth);
   const prevMonthName = getPreviousMonthName(activeMonth);
 
@@ -197,30 +195,9 @@ export const Dashboard: React.FC = () => {
 
   // ── POSICIÓN VIVA Y EN TIEMPO REAL (INDEPENDIENTE DEL FILTRO DE MES) ──
   // Conectado con la hoja de tarjetas y ciclos de facturación reales
-  const { getVerifiedStatement } = useCardStatementStore();
-  const liveRefDate = useMemo(() => {
-    const d = new Date();
-    d.setHours(12, 0, 0, 0);
-    return d;
-  }, []);
-
-  const liveCardPositions = useMemo(() => {
-    const map: Record<string, ReturnType<typeof calculateCardLivePosition>> = {};
-    cards.forEach(card => {
-      const { prev } = getCycles(liveRefDate, card);
-      const verified = getVerifiedStatement(card.entity, prev.payDate, prev.end);
-      map[card.entity] = calculateCardLivePosition(
-        card,
-        rawTransactions,
-        liveRefDate,
-        verified?.finalDebt
-      );
-    });
-    return map;
-  }, [cards, rawTransactions, liveRefDate, getVerifiedStatement]);
 
   const liveAccountPositions = useMemo(() => {
-    const opMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+    const opMonth = selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth;
     const monthTxs = rawTransactions.filter(t => t.Mes === opMonth);
 
     const ibkIngresos = monthTxs
@@ -267,7 +244,7 @@ export const Dashboard: React.FC = () => {
   }, [rawTransactions, selectedMonth, budgetLimits, interbankBalance]);
 
   const handleExportPDF = () => {
-    const activeMonth = selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth;
+    const activeMonth = selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth;
     openExecutiveReportPrintWindow({
       selectedMonth: activeMonth,
       transactions: rawTransactions,
@@ -537,7 +514,7 @@ export const Dashboard: React.FC = () => {
         entidad: pendFormEntidad,
         fecha: pendFormFecha,
         origen: 'Manual',
-        mes: selectedMonth === 'Todos' ? 'Octubre' : selectedMonth,
+        mes: selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth,
         mesStr: pendFormFecha.slice(0, 7),
       });
       agregarNotificacion(`Pago pendiente "${pendFormConcepto}" registrado.`, 'success');
@@ -902,7 +879,7 @@ export const Dashboard: React.FC = () => {
                                   onClick={() => {
                                     if (confirm(`¿Eliminar definitivamente la tarjeta "${matchingCard.name}"? Su saldo en el mes está saldado.`)) {
                                       deleteCard(matchingCard.id);
-                                      agregarNotificacion(`Tarjeta "${matchingCard.name}" eliminada.`);
+                                      agregarNotificacion(`Tarjeta "${matchingCard.name}" eliminada.`, 'info');
                                     }
                                   }}
                                   className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
@@ -992,7 +969,7 @@ export const Dashboard: React.FC = () => {
       {/* ── 📅 CALENDARIO FINANCIERO INTERACTIVO ── */}
       <FinancialCalendarWidget
         transactions={rawTransactions}
-        selectedMonth={selectedMonth === 'Todos' ? 'Setiembre' : selectedMonth}
+        selectedMonth={selectedMonth === 'Todos' ? getCurrentMonthName() : selectedMonth}
       />
 
       {/* ── 🎯 METAS DE AHORRO & FONDOS DE RESERVA ── */}
@@ -1054,7 +1031,7 @@ export const Dashboard: React.FC = () => {
 
         {/* Tabla de Pendientes */}
         <div className="overflow-x-auto max-h-72 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-2xl">
-          <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+          <table className="w-full min-w-[650px] text-left text-xs text-slate-600 dark:text-slate-300">
             <thead className="bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase font-bold tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700">
               <tr>
                 <th className="px-4 py-2.5">Tipo</th>
@@ -1181,7 +1158,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="overflow-x-auto max-h-[440px] overflow-y-auto">
-              <table className="w-full text-left text-xs text-slate-600 dark:text-slate-300">
+              <table className="w-full min-w-[680px] text-left text-xs text-slate-600 dark:text-slate-300">
                 <thead className="bg-slate-100 dark:bg-slate-800/90 text-slate-500 dark:text-slate-400 uppercase font-bold text-[11px] tracking-wider sticky top-0 border-b border-slate-200 dark:border-slate-700 z-10">
                   <tr>
                     <th className="px-2.5 py-2.5">Tipo</th>
@@ -1458,10 +1435,10 @@ export const Dashboard: React.FC = () => {
 
       {/* ── MODAL AGREGAR / EDITAR PAGO PENDIENTE ── */}
       {isPendingModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsPendingModalOpen(false)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={() => setIsPendingModalOpen(false)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
             
-            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
+            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Clock size={18} className="text-amber-400" />
                 <h3 className="font-bold text-sm">
@@ -1473,7 +1450,7 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSavePendingModal} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSavePendingModal} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1 overscroll-contain">
               {/* Tipo: Ingreso / Egreso */}
               <div>
                 <label className="block font-bold text-slate-700 dark:text-slate-300 mb-1">Tipo de Flujo</label>
@@ -1592,10 +1569,10 @@ export const Dashboard: React.FC = () => {
 
       {/* ── MODAL AGREGAR NUEVA FILA / PROYECCIÓN EN TABLA ── */}
       {isNewRowModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setIsNewRowModalOpen(false)}>
-          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 dark:border-slate-800 animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto" onClick={() => setIsNewRowModalOpen(false)}>
+          <div className="bg-white dark:bg-[#11191D] text-slate-900 dark:text-slate-100 rounded-3xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 dark:border-slate-800 my-auto animate-in fade-in zoom-in-95 duration-150" onClick={e => e.stopPropagation()}>
             
-            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between">
+            <div className="px-6 py-4 bg-[#0F2A1D] dark:bg-[#07130D] text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2">
                 <Sparkles size={18} className="text-amber-400" />
                 <h3 className="font-bold text-sm">
@@ -1607,7 +1584,7 @@ export const Dashboard: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleSaveNewRowModal} className="p-6 space-y-4 text-xs">
+            <form onSubmit={handleSaveNewRowModal} className="p-4 sm:p-6 space-y-4 text-xs overflow-y-auto flex-1 overscroll-contain">
               <div className="p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200/80 dark:border-amber-900/50 rounded-2xl text-amber-900 dark:text-amber-200 flex items-start gap-2">
                 <Clock size={16} className="shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                 <p className="text-[11px] leading-relaxed">
@@ -1884,7 +1861,8 @@ export const Dashboard: React.FC = () => {
       <PrevMonthDaysConfigModal
         isOpen={isPrevMonthConfigModalOpen}
         onClose={() => setIsPrevMonthConfigModalOpen(false)}
-        targetMonth={activeMonth}
+        currentMonth={activeMonth}
+        allTransactions={rawTransactions}
       />
 
       {/* ── 💳 MODAL PARA REGISTRAR NUEVA TARJETA ── */}

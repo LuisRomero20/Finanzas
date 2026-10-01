@@ -1,4 +1,4 @@
-import type { Transaction } from '../store/financeStore';
+import { getCurrentMonthName, type Transaction } from '../store/financeStore';
 import {
   getEffectiveCategory,
   isDebtTransaction,
@@ -38,7 +38,7 @@ const formatPEN = (val: number): string =>
 
 export function generateFinancialInsights(
   transactions: Transaction[] = [],
-  selectedMonth: string = 'Setiembre',
+  selectedMonth: string = getCurrentMonthName(),
   allMonths: string[] = [],
   budgetLimits: Record<string, number> = {},
   liquidBalance?: number
@@ -65,7 +65,7 @@ export function generateFinancialInsights(
   // 2. Obligaciones y Deudas Fijas Activas (BCP, Yape, iPhone 16 y préstamos)
   const totalDebts = currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (tipo === 'Egreso' || tipo === 'Gasto') && isDebtTransaction(t);
     })
     .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
@@ -74,7 +74,7 @@ export function generateFinancialInsights(
   // Excluye préstamos/deudas, pagos a tarjetas y asignaciones de línea de crédito.
   const totalExpense = currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (
         (tipo === 'Egreso' || tipo === 'Gasto') &&
         !isDebtTransaction(t) &&
@@ -98,7 +98,7 @@ export function generateFinancialInsights(
         const egreLiq = currentMonthTx
           .filter((t) => {
             const ent = t.Entidad || (t as any).entidad || '';
-            const tipo = t.Tipo || (t as any).tipo;
+            const tipo = String(t.Tipo || (t as any).tipo || '');
             return (ent === 'Interbank' || ent === 'BCP') && (tipo === 'Egreso' || tipo === 'Gasto') && !isCreditCardLine(t);
           })
           .reduce((s, t) => s + (Number(t.Monto || (t as any).monto) || 0), 0);
@@ -139,7 +139,7 @@ export function generateFinancialInsights(
   const CREDIT_CARD_ENTITIES = new Set(['BBVA Bfree', 'Interbank Amex', 'Ripley']);
   const cardSpent = currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       const entidad = t.Entidad || (t as any).entidad || '';
       return (
         (tipo === 'Egreso' || tipo === 'Gasto') &&
@@ -153,7 +153,7 @@ export function generateFinancialInsights(
 
   const cardPaid = currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (tipo === 'Egreso' || tipo === 'Gasto') && isCreditCardPayment(t);
     })
     .reduce((acc, t) => acc + (Number(t.Monto || (t as any).monto) || 0), 0);
@@ -178,7 +178,7 @@ export function generateFinancialInsights(
 
   currentMonthTx
     .filter((t) => {
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (
         (tipo === 'Egreso' || tipo === 'Gasto') &&
         !isDebtTransaction(t) &&
@@ -317,7 +317,7 @@ export function generateFinancialInsights(
     const prevMonthName = allMonths[currentMonthIdx - 1];
     const prevMonthTx = safeTxList.filter((t) => {
       const mes = t.Mes || (t as any).mes;
-      const tipo = t.Tipo || (t as any).tipo;
+      const tipo = String(t.Tipo || (t as any).tipo || '');
       return (
         (tipo === 'Egreso' || tipo === 'Gasto') &&
         mes === prevMonthName &&

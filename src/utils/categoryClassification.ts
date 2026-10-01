@@ -1,4 +1,5 @@
 import type { Transaction } from '../store/financeStore';
+import { broadcastRealtimeSync } from './syncBus';
 
 export interface CategoriaInfo {
   id: string;
@@ -518,6 +519,7 @@ export function saveStoredClasificaciones(data: Record<string, string>): void {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
       localStorage.setItem(CLASIFICACIONES_STORAGE_KEY, JSON.stringify(data));
+      broadcastRealtimeSync('clasificaciones');
     }
   } catch {}
 }

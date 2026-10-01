@@ -60,7 +60,7 @@ describe('Casual Projections and Return to Pending Workflow', () => {
   });
 
   it('simulates returning all projections from financeStore to pendingPaymentsStore', () => {
-    const { addTransaction, deleteTransaction, transactions } = useFinanceStore.getState();
+    const { addTransaction, deleteTransaction } = useFinanceStore.getState();
     const { addPendingItem } = usePendingPaymentsStore.getState();
 
     // Add two provisional projection transactions in financeStore
@@ -149,7 +149,7 @@ describe('Casual Projections and Return to Pending Workflow', () => {
   });
 
   it('consolidates a provisional transaction using confirmTransaction', () => {
-    const { addTransaction, confirmTransaction, transactions } = useFinanceStore.getState();
+    const { addTransaction, confirmTransaction } = useFinanceStore.getState();
 
     const tx = addTransaction({
       Tipo: 'Egreso',

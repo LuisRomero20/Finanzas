@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { checkSupabaseHealth, migrateMasterTransactionsToSupabase, fetchTransactionsFromSupabase, deleteTransactionFromSupabase } from '../../services/supabaseService';
+import { checkSupabaseHealth, fetchTransactionsFromSupabase, deleteTransactionFromSupabase } from '../../services/supabaseService';
 import { masterTransactions } from '../../utils/masterData';
 
 describe('Supabase Connectivity & Migration', () => {

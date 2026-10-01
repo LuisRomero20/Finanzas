@@ -9,22 +9,18 @@ import {
   SECTORES_UTILIDADES,
   type SectorUtilidades,
   type LaborBenefitConfig,
-  ASIGNACION_FAMILIAR_MONTO,
 } from '../utils/laborBenefits';
 import { useProjectionStore } from '../store/projectionStore';
 import {
   Calculator,
   TrendingUp,
   Sparkles,
-  Calendar,
   DollarSign,
   ShieldCheck,
   CheckCircle2,
-  HelpCircle,
   ArrowRight,
   Send,
   X,
-  Layers,
   FileSpreadsheet,
   Zap,
   Info,
@@ -58,7 +54,7 @@ export const LaborBenefitsCalculatorWidget: React.FC<LaborBenefitsCalculatorWidg
   const [tipoPension, setTipoPension] = useState<LaborBenefitConfig['tipoPension']>('AFP_USER');
   const [tipoSalud, setTipoSalud] = useState<LaborBenefitConfig['tipoSalud']>('ESSALUD');
   const [tieneAsignacionFamiliar, setTieneAsignacionFamiliar] = useState<boolean>(false);
-  const [mesesTrabajados, setMesesTrabajados] = useState<number>(6);
+  const [mesesTrabajados] = useState<number>(6);
 
   // Pestaña activa: 'simulador' | 'utilidades' | 'excel2026'
   const [activeTab, setActiveTab] = useState<'simulador' | 'utilidades' | 'excel2026'>('simulador');

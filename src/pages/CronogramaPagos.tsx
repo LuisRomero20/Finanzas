@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { useFinanceStore, type Transaction } from '../store/financeStore';
+import { useFinanceStore } from '../store/financeStore';
 import {
   CreditCard,
   ChevronLeft,
@@ -24,7 +24,6 @@ import {
   getCardTxs as getTxs,
   getCardPaymentTxs as getPaymentTxs,
   daysFromToday,
-  parseLocalDate as parseLocal,
   type CardConfig,
   type Cycle,
 } from '../utils/creditCardCycles';
@@ -108,8 +107,8 @@ export const CronogramaPagos: React.FC = () => {
       
       {/* Toast de Éxito */}
       {successToast && (
-        <div className="fixed bottom-6 right-6 z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom duration-200">
-          <div className="p-1.5 bg-green-500/20 text-green-400 rounded-lg">
+        <div className="fixed bottom-24 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-50 bg-slate-900 text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 animate-in fade-in slide-in-from-bottom duration-200">
+          <div className="p-1.5 bg-green-500/20 text-green-400 rounded-lg shrink-0">
             <CheckCircle2 size={18} />
           </div>
           <span className="text-sm font-semibold">{successToast}</span>

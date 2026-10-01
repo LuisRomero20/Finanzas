@@ -12,7 +12,6 @@ import {
   Search,
   X,
   ChevronRight,
-  ShieldCheck,
 } from 'lucide-react';
 
 interface Props {
@@ -146,7 +145,7 @@ export const BottomNavBar: React.FC<Props> = ({ currentTab, setTab, onOpenBackup
             onClick={() => setIsMenuOpen(false)}
           />
 
-          <div className="relative bg-white dark:bg-[#11191D] rounded-t-3xl border-t border-slate-200 dark:border-slate-800 p-6 pb-safe shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-250">
+          <div className="relative bg-white dark:bg-[#11191D] rounded-t-3xl border-t border-slate-200 dark:border-slate-800 p-6 pb-safe shadow-2xl space-y-4 animate-in slide-in-from-bottom duration-250 max-h-[85vh] overflow-y-auto">
             {/* Grabber handle */}
             <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-700 rounded-full mx-auto mb-2" />
 

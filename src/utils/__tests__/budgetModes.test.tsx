@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import React from 'react';
 import { renderToString } from 'react-dom/server';
 import { useBudgetStore, DEFAULT_BUDGETS } from '../../store/budgetStore';
 import { BudgetOverviewWidget } from '../../components/BudgetOverviewWidget';

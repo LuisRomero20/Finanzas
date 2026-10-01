@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CreditCard, X, Save, RotateCcw, Check, Sparkles, Sliders } from 'lucide-react';
+import { CreditCard, X, Save, RotateCcw, Sliders } from 'lucide-react';
 import { useCreditLineStore } from '../store/creditLineStore';
 import { useAppStore } from '../store';
 
@@ -36,19 +36,13 @@ export const CreditLineConfigModal: React.FC<Props> = ({ isOpen, onClose, initia
       setAccountLabel(ent, label);
     });
 
-    agregarNotificacion({
-      tipo: 'success',
-      mensaje: 'Líneas de crédito y etiquetas actualizadas correctamente.',
-    });
+    agregarNotificacion('Líneas de crédito y etiquetas actualizadas correctamente.', 'success');
     onClose();
   };
 
   const handleReset = () => {
     resetDefaults();
-    agregarNotificacion({
-      tipo: 'info',
-      mensaje: 'Líneas de crédito restablecidas a valores de fábrica.',
-    });
+    agregarNotificacion('Líneas de crédito restablecidas a valores de fábrica.', 'info');
     onClose();
   };
 
