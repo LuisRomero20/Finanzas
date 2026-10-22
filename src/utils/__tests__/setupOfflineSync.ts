@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 vi.mock('../../lib/supabase', () => {
   const result = { data: [], error: null };
   const query: Record<string, unknown> = {};
-  for (const method of ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'in', 'not', 'like', 'order', 'limit', 'maybeSingle']) query[method] = () => query;
+  for (const method of ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'in', 'not', 'like', 'ilike', 'order', 'limit', 'range', 'single', 'maybeSingle']) query[method] = () => query;
   query.then = (resolve: (r: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return { supabase: { from: () => query, channel: () => ({ send: vi.fn() }) } };
 });
