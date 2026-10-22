@@ -1,17 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 
-const DEFAULT_SUPABASE_URL = 'https://njgzhjwfcxdxiibkuuqg.supabase.co';
-const DEFAULT_SUPABASE_ANON_KEY =
+const HARDCODED_URL = 'https://njgzhjwfcxdxiibkuuqg.supabase.co';
+const HARDCODED_KEY =
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZ3poandmY3hkeGlpYmt1dXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjg5MjksImV4cCI6MjEwMzYwNDkyOX0.VQSGP9NSUAI1M_BaOtqhxC4hl8o8jAx7HC0rlrnzMNA';
 
-const SUPABASE_URL =
-  import.meta.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-const SUPABASE_PUBLISHABLE_KEY =
-  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-  import.meta.env.VITE_SUPABASE_ANON_KEY ||
-  DEFAULT_SUPABASE_ANON_KEY;
+function sanitizeUrl(raw?: string): string {
+  if (!raw) return HARDCODED_URL;
+  const cleaned = raw.trim().replace(/^["']|["']$/g, '').replace(/\/+$/, '');
+  if (!cleaned.startsWith('http://') && !cleaned.startsWith('https://')) {
+    return HARDCODED_URL;
+  }
+  return cleaned;
+}
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+function sanitizeKey(raw?: string): string {
+  if (!raw) return HARDCODED_KEY;
+  return raw.trim().replace(/^["']|["']$/g, '');
+}
+
+const SUPABASE_URL = sanitizeUrl(import.meta.env.VITE_SUPABASE_URL);
+const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
+  import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
+);
+
+export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+  },
+});
 
 // Tipos para Supabase
 export interface SupabaseUsuario {

@@ -40,7 +40,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
         const result = await signInWithEmail(email, password);
         if (result.error) {
           const msg = result.error.toLowerCase().includes('failed to fetch')
-            ? 'No se pudo conectar con el servidor de Supabase. Verifica tu conexión a internet o desactiva extensiones de bloqueo (AdBlock).'
+            ? 'El navegador no pudo conectar con Supabase. Esto ocurre cuando una extensión (AdBlock, uBlock, Brave Shields) o el antivirus bloquea la conexión externa. Prueba abriendo la aplicación en una Ventana de Incógnito (Ctrl + Shift + N) o pausando AdBlock.'
             : result.error === 'Invalid login credentials'
             ? 'Correo o contraseña incorrectos. Verifica que la contraseña coincida con tu usuario de Supabase.'
             : result.error;
