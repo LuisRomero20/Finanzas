@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Transaction } from '../utils/masterData';
 import { masterTransactions } from '../utils/masterData';
+import { getValidatedSession } from './authService';
 
 export interface CloudMigrationStatus {
   inProgress: boolean;
@@ -29,7 +30,6 @@ export async function checkSupabaseHealth(): Promise<SupabaseHealth> {
       .select('*', { count: 'exact', head: true });
 
     if (error) {
-      // Si la tabla no existe o las credenciales no son válidas
       return {
         connected: false,
         tableExists: false,
@@ -59,6 +59,7 @@ export async function checkSupabaseHealth(): Promise<SupabaseHealth> {
  */
 export async function insertTransactionToSupabase(tx: Transaction): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
+    const session = await getValidatedSession();
     const payload: any = {
       id: tx.id,
       tipo: tx.Tipo,
@@ -69,6 +70,9 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
       monto: tx.Monto,
       mes: tx.Mes,
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
     if (tx.estado) {
       payload.estado = tx.estado;
     }
@@ -81,7 +85,6 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
       .upsert(payload)
       .select();
 
-    // Si la columna 'estado' no existiera aún en el esquema remoto, reintentar sin ella
     if (error && error.message?.toLowerCase().includes('estado')) {
       delete payload.estado;
       const retry = await supabase.from('transacciones').upsert(payload).select();
@@ -175,7 +178,6 @@ export async function fetchTransactionsFromSupabase(): Promise<Transaction[] | n
 
 /**
  * Obtiene todos los pagos pendientes guardados en Supabase para sincronizar entre PC y móvil.
- * Normaliza el campo 'tipo' a formato correcto ('Ingreso' | 'Egreso') independientemente de mayúsculas.
  */
 export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> {
   try {
@@ -189,7 +191,6 @@ export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> 
     if (error || !data) return null;
 
     return data.map((row: any) => {
-      // Normalizar tipo para que siempre sea 'Ingreso' o 'Egreso' (con mayúscula inicial)
       const rawTipo = String(row.tipo || 'Egreso');
       const tipo = rawTipo.charAt(0).toUpperCase() + rawTipo.slice(1).toLowerCase();
       const tipoNorm = tipo === 'Ingreso' ? 'Ingreso' : 'Egreso';
@@ -216,11 +217,12 @@ export async function fetchPendingPaymentsFromSupabase(): Promise<any[] | null> 
 }
 
 /**
- * Guarda la configuración de tarjetas de crédito en Supabase (para sincronizar entre dispositivos).
+ * Guarda la configuración de tarjetas de crédito en Supabase.
  */
 export async function saveCardsConfigToSupabase(cards: any[]): Promise<boolean> {
   try {
-    const payload = {
+    const session = await getValidatedSession();
+    const payload: any = {
       id: 'config-credit-cards-v2',
       tipo: 'Egreso',
       fecha: '2026-01-01',
@@ -230,6 +232,9 @@ export async function saveCardsConfigToSupabase(cards: any[]): Promise<boolean> 
       monto: 0,
       mes: 'Config',
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
     const { error } = await supabase
       .from('transacciones')
       .upsert(payload, { onConflict: 'id' });
@@ -263,7 +268,8 @@ export async function fetchCardsConfigFromSupabase(): Promise<any[] | null> {
  */
 export async function saveCreditLinesConfigToSupabase(lines: Record<string, number>, labels: Record<string, string>): Promise<boolean> {
   try {
-    const payload = {
+    const session = await getValidatedSession();
+    const payload: any = {
       id: 'config-credit-lines-v2',
       tipo: 'Egreso',
       fecha: '2026-01-01',
@@ -273,6 +279,9 @@ export async function saveCreditLinesConfigToSupabase(lines: Record<string, numb
       monto: 0,
       mes: 'Config',
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
     const { error } = await supabase
       .from('transacciones')
       .upsert(payload, { onConflict: 'id' });
@@ -307,8 +316,9 @@ export async function fetchCreditLinesConfigFromSupabase(): Promise<{ lines: Rec
  */
 export async function savePendingPaymentToSupabase(item: any): Promise<boolean> {
   try {
-    const cleanId = String(item.id).replace(/^pending-/, '');
-    const payload = {
+    const session = await getValidatedSession();
+    const cleanId = String(item.id).replace(/^(pending-|pend-)/, '');
+    const payload: any = {
       id: `pending-${cleanId}`,
       tipo: item.tipo,
       fecha: item.fecha,
@@ -318,6 +328,9 @@ export async function savePendingPaymentToSupabase(item: any): Promise<boolean> 
       monto: Number(item.monto),
       mes: item.mes,
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
 
     const { error } = await supabase
       .from('transacciones')
@@ -336,15 +349,13 @@ export async function savePendingPaymentToSupabase(item: any): Promise<boolean> 
 
 /**
  * Elimina un pago pendiente de Supabase.
- * Soporta borrado por ID y opcionalmente por coincidencia exacta de datos comerciales
- * para erradicar cualquier duplicado zombie que haya quedado en la nube.
  */
 export async function deletePendingPaymentFromSupabase(
   id: string,
   matchCriteria?: { fecha?: string; concepto?: string; entidad?: string; monto?: number }
 ): Promise<boolean> {
   try {
-    const cleanId = String(id).replace(/^pending-/, '');
+    const cleanId = String(id).replace(/^(pending-|pend-)/, '');
     const { error } = await supabase
       .from('transacciones')
       .delete()
@@ -354,7 +365,6 @@ export async function deletePendingPaymentFromSupabase(
       console.warn('Error deleting pending payment from Supabase:', error.message);
     }
 
-    // Si tenemos datos comerciales del item, eliminar también cualquier fila pendiente duplicada en Supabase con los mismos datos
     if (matchCriteria?.fecha && matchCriteria?.concepto) {
       const cleanConcepto = matchCriteria.concepto.replace(/\s*-\s*proy/gi, '').trim();
       let query = supabase
@@ -389,7 +399,8 @@ export async function deletePendingPaymentFromSupabase(
  */
 export async function saveBridgeConfigToSupabase(configs: Record<string, any>): Promise<boolean> {
   try {
-    const payload = {
+    const session = await getValidatedSession();
+    const payload: any = {
       id: 'config-prev-month-bridge',
       tipo: 'Egreso',
       fecha: '2026-01-01',
@@ -399,6 +410,9 @@ export async function saveBridgeConfigToSupabase(configs: Record<string, any>): 
       monto: 0,
       mes: 'Config',
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
     const { error } = await supabase
       .from('transacciones')
       .upsert(payload, { onConflict: 'id' });
@@ -431,7 +445,8 @@ export async function fetchBridgeConfigFromSupabase(): Promise<Record<string, an
  */
 export async function saveSavingsGoalsToSupabase(goals: any[]): Promise<boolean> {
   try {
-    const payload = {
+    const session = await getValidatedSession();
+    const payload: any = {
       id: 'config-savings-goals-v1',
       tipo: 'Egreso',
       fecha: '2026-01-01',
@@ -441,6 +456,9 @@ export async function saveSavingsGoalsToSupabase(goals: any[]): Promise<boolean>
       monto: 0,
       mes: 'Config',
     };
+    if (session?.user?.id) {
+      payload.user_id = session.user.id;
+    }
     const { error } = await supabase
       .from('transacciones')
       .upsert(payload, { onConflict: 'id' });
@@ -490,17 +508,24 @@ export async function migrateMasterTransactionsToSupabase(
   });
 
   try {
+    const session = await getValidatedSession();
+    const userId = session?.user?.id;
+
     for (let i = 0; i < total; i += batchSize) {
-      const batch = sourceList.slice(i, i + batchSize).map((t) => ({
-        id: t.id,
-        tipo: t.Tipo,
-        fecha: t.Fecha,
-        concepto: t.Concepto,
-        categoria: t.Categoria,
-        entidad: t.Entidad,
-        monto: t.Monto,
-        mes: t.Mes,
-      }));
+      const batch = sourceList.slice(i, i + batchSize).map((t) => {
+        const item: any = {
+          id: t.id,
+          tipo: t.Tipo,
+          fecha: t.Fecha,
+          concepto: t.Concepto,
+          categoria: t.Categoria,
+          entidad: t.Entidad,
+          monto: t.Monto,
+          mes: t.Mes,
+        };
+        if (userId) item.user_id = userId;
+        return item;
+      });
 
       const { error } = await supabase
         .from('transacciones')

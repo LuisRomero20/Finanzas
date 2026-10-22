@@ -20,6 +20,9 @@ import { useProjectionStore } from '../store/projectionStore';
 import { useSavingsGoalsStore } from '../store/savingsGoalsStore';
 import { supabase } from '../lib/supabase';
 import { watchPersonalSettings } from '../services/personalSettingsSync';
+import { flushTransactions } from '../services/transactionOutbox';
+import { flushPendingPaymentsOutbox } from '../services/pendingPaymentsOutbox';
+import { syncPersonalSettings } from '../services/personalSettingsSync';
 import {
   setRealtimeChannel,
   getRealtimeChannel,
@@ -46,6 +49,13 @@ export async function syncAllStoresFromSupabase(force: boolean = false): Promise
   lastSyncTimestamp = now;
 
   try {
+    // 1. Despachar primero cualquier operación pendiente en las colas de salida locales
+    await Promise.allSettled([
+      flushTransactions(),
+      flushPendingPaymentsOutbox(),
+    ]);
+
+    // 2. Traer la versión autoritativa de la nube para todos los almacenes
     const promises: Promise<any>[] = [];
     if (useFinanceStore?.getState?.()?.syncFromSupabase) promises.push(useFinanceStore.getState().syncFromSupabase());
     if (usePendingPaymentsStore?.getState?.()?.syncFromSupabase) promises.push(usePendingPaymentsStore.getState().syncFromSupabase());
@@ -55,6 +65,7 @@ export async function syncAllStoresFromSupabase(force: boolean = false): Promise
     if (useAppStore?.getState?.()?.syncDeudasFromSupabase) promises.push(useAppStore.getState().syncDeudasFromSupabase());
     if (useProjectionStore?.getState?.()?.syncFromSupabase) promises.push(useProjectionStore.getState().syncFromSupabase());
     if (useSavingsGoalsStore?.getState?.()?.syncFromSupabase) promises.push(useSavingsGoalsStore.getState().syncFromSupabase());
+    promises.push(syncPersonalSettings());
     await Promise.allSettled(promises);
   } catch (err) {
     console.warn('Sync all stores error:', err);
