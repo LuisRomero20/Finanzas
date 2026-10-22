@@ -5,33 +5,17 @@ import { supabase } from '../../lib/supabase';
 const integrationEnabled = process.env.RUN_SUPABASE_INTEGRATION === 'true';
 
 describe.runIf(integrationEnabled)('Supabase read-only integration', () => {
-  it('verifies connectivity and counts without modifying remote data', async () => {
+  it('confirms anonymous clients are now blocked following containment', async () => {
     const health = await checkSupabaseHealth();
-    expect(health.connected).toBe(true);
-    expect(health.tableExists).toBe(true);
-    expect(health.rowCount).toBe(2246);
+    // Following immediate containment, anonymous access is blocked
+    expect(health.connected).toBe(false);
+    expect(health.rowCount).toBe(0);
 
-    const { count: configCount } = await supabase
+    const { error } = await supabase
       .from('transacciones')
-      .select('*', { count: 'exact', head: true })
-      .like('id', 'config-%');
+      .select('*', { count: 'exact', head: true });
 
-    const { count: pendingCount } = await supabase
-      .from('transacciones')
-      .select('*', { count: 'exact', head: true })
-      .like('id', 'pending-%');
-
-    const { count: regularCount } = await supabase
-      .from('transacciones')
-      .select('*', { count: 'exact', head: true })
-      .not('id', 'like', 'config-%')
-      .not('id', 'like', 'pending-%');
-
-    console.log(`[Supabase Audit] Total: ${health.rowCount}`);
-    console.log(`[Supabase Audit] Regular financial transactions: ${regularCount}`);
-    console.log(`[Supabase Audit] Config chunks: ${configCount}`);
-    console.log(`[Supabase Audit] Pending payments: ${pendingCount}`);
-
-    expect((configCount ?? 0) + (pendingCount ?? 0) + (regularCount ?? 0)).toBe(health.rowCount);
+    // Expect permission denied or empty
+    expect(error).not.toBeNull();
   }, 60_000);
 });
