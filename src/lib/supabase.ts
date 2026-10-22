@@ -23,11 +23,45 @@ const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
+function getStoredAccessToken(): string | null {
+  try {
+    if (typeof localStorage === 'undefined') return null;
+    const raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token) {
+        const nowUnix = Math.floor(Date.now() / 1000);
+        if (!parsed.expires_at || parsed.expires_at > nowUnix + 10) {
+          return parsed.access_token;
+        }
+      }
+    }
+  } catch {}
+  return null;
+}
+
+const customFetch: typeof fetch = async (input, init) => {
+  const headers = new Headers(init?.headers);
+  const currentAuth = headers.get('Authorization');
+  const token = getStoredAccessToken();
+
+  // Si existe un token de sesión legítimo en localStorage y la petición no lleva
+  // Authorization o lleva la anon_key por defecto, inyectar el Bearer token del usuario:
+  if (token && (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`)) {
+    headers.set('Authorization', `Bearer ${token}`);
+  }
+
+  return fetch(input, { ...init, headers });
+};
+
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
+  },
+  global: {
+    fetch: customFetch,
   },
 });
 

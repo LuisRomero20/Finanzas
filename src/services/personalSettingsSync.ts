@@ -179,11 +179,13 @@ async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
         lastSync: new Date().toISOString(),
       });
     } catch (error: any) {
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = error instanceof Error 
+        ? error.message 
+        : (error?.message || error?.error_description || error?.details || String(error));
       let userMsg = 'No se pudo sincronizar. Se conserva la copia local.';
       if (msg.includes('JWT') || msg.includes('token') || msg.includes('Sesión no disponible') || msg.includes('expirada')) {
         userMsg = 'Sesión expirada o no válida. Vuelve a iniciar sesión para continuar.';
-      } else if (msg.includes('permission denied')) {
+      } else if (msg.includes('permission denied') || error?.code === '42501') {
         userMsg = 'Acceso no autorizado en Supabase. Verifica que tu sesión sea la del propietario.';
       } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
         userMsg = 'Error de conexión. Se reintentará automáticamente al recuperar red.';
