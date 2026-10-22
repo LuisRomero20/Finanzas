@@ -26,6 +26,7 @@ import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
 import { SettingsSyncPanel } from './components/SettingsSyncPanel';
+import { AuthModal } from './components/AuthModal';
 
 // Lazy-loaded routes for high-performance code-splitting
 const Dashboard = lazy(() => import("./pages/Dashboard").then(m => ({ default: m.Dashboard })));
@@ -51,6 +52,7 @@ export default function App() {
   const [tab, setTab] = useState<string>("Finanzas General");
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAuthOpen, setIsAuthOpen] = useState(false);
   const { theme } = useThemeStore();
 
   // Inicializar servicio de actualización instantánea (Vercel) y sincronización en tiempo real (Supabase)
@@ -85,6 +87,7 @@ export default function App() {
           setTab={setTab} 
           onOpenBackup={() => setIsBackupOpen(true)} 
           onOpenSearch={() => setIsSearchOpen(true)}
+          onOpenAuth={() => setIsAuthOpen(true)}
         />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
@@ -112,6 +115,7 @@ export default function App() {
 
       <BackupRestoreModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
       <UniversalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSelectTab={setTab} />
+      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
     </div>
   );
 }
@@ -182,11 +186,13 @@ function Navbar({
   setTab, 
   onOpenBackup,
   onOpenSearch,
+  onOpenAuth,
 }: { 
   currentTab: string; 
   setTab: (t: string) => void; 
   onOpenBackup: () => void;
   onOpenSearch: () => void;
+  onOpenAuth: () => void;
 }) {
   const { theme, setTheme } = useThemeStore();
 
@@ -266,6 +272,17 @@ function Navbar({
             <span className="hidden xl:inline">Respaldos</span>
           </button>
 
+          {/* 🔐 BOTÓN DE ACCESO & SEGURIDAD */}
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer shrink-0"
+            title="Autenticación & Seguridad de Datos (Supabase Auth)"
+          >
+            <ShieldCheck size={14} className="text-emerald-400" />
+            <span className="hidden xl:inline">Seguridad</span>
+          </button>
+
           {/* ☀️ / 🌙 SELECTOR SEGMENTADO CLARO / OSCURO */}
           <div className="flex items-center bg-black/30 dark:bg-black/50 p-1 rounded-2xl border border-white/10 shadow-inner shrink-0">
             <button
@@ -310,6 +327,16 @@ function Navbar({
             onClick={onOpenBackup}
             className="p-2 rounded-xl bg-black/30 dark:bg-black/50 text-emerald-200 hover:text-white border border-white/10 transition cursor-pointer"
             title="Respaldos y Excel"
+          >
+            <Database size={16} />
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAuth}
+            className="p-2 rounded-xl bg-black/30 dark:bg-black/50 text-emerald-200 hover:text-white border border-white/10 transition cursor-pointer"
+            title="Seguridad y Cuenta"
+          >
+            <ShieldCheck size={16} />
           >
             <Database size={16} />
           </button>
