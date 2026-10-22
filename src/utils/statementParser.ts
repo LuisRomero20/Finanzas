@@ -114,7 +114,7 @@ export function normalizeDate(dateStr: string, defaultYear = new Date().getFullY
   const clean = dateStr.trim();
 
   // Formato: 23-Jul o 23-Jul-2026 o 23/Jul/2026
-  const monthNameMatch = clean.match(/^(\d{1,2})[\/\-\s]([A-Za-z]{3,10})(?:[\/\-\s](\d{2,4}))?$/);
+  const monthNameMatch = clean.match(/^(\d{1,2})[-/\s]([A-Za-z]{3,10})(?:[-/\s](\d{2,4}))?$/);
   if (monthNameMatch) {
     const day = monthNameMatch[1].padStart(2, '0');
     const monthStr = monthNameMatch[2].toLowerCase().slice(0, 3);
@@ -125,7 +125,7 @@ export function normalizeDate(dateStr: string, defaultYear = new Date().getFullY
   }
 
   // Formato: DD/MM/YYYY o DD-MM-YYYY
-  const dmyMatch = clean.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  const dmyMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
   if (dmyMatch) {
     const day = dmyMatch[1].padStart(2, '0');
     const month = dmyMatch[2].padStart(2, '0');
@@ -135,7 +135,7 @@ export function normalizeDate(dateStr: string, defaultYear = new Date().getFullY
   }
 
   // Formato: DD/MM
-  const dmMatch = clean.match(/^(\d{1,2})[\/\-](\d{1,2})$/);
+  const dmMatch = clean.match(/^(\d{1,2})[-/](\d{1,2})$/);
   if (dmMatch) {
     const day = dmMatch[1].padStart(2, '0');
     const month = dmMatch[2].padStart(2, '0');
@@ -254,7 +254,7 @@ export function parseStatementText(text: string, fileName: string): StatementDat
   const detectedEntity = detectBankEntity(cleaned);
 
   let deudaFinal = 0;
-  let deudaFinalUSD = 0;
+  const deudaFinalUSD = 0;
   let pagoMinimo = 0;
   let periodoInicio: string | undefined;
   let periodoFin: string | undefined;
@@ -263,7 +263,7 @@ export function parseStatementText(text: string, fileName: string): StatementDat
   let referenceYear = new Date().getFullYear();
 
   // 1. Extraer Fechas del Ciclo / Periodo / Vencimiento
-  const interbankPeriodMatch = cleaned.match(/del\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})\s*(?:al\s*cierre\s*de|al|a|-)\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i);
+  const interbankPeriodMatch = cleaned.match(/del\s*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})\s*(?:al\s*cierre\s*de|al|a|-)\s*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})/i);
   if (interbankPeriodMatch) {
     periodoInicio = normalizeDate(interbankPeriodMatch[1]);
     periodoFin = normalizeDate(interbankPeriodMatch[2]);
@@ -272,13 +272,13 @@ export function parseStatementText(text: string, fileName: string): StatementDat
     if (yearMatch) referenceYear = parseInt(yearMatch[1], 10);
   }
 
-  const vencMatch = cleaned.match(/(?:[uú]ltimo\s*d[ií]a\s*de\s*pago|fecha\s*l[ií]mite\s*de\s*pago|fecha\s*de\s*pago|vence|vencimiento)\s*[:=]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i);
+  const vencMatch = cleaned.match(/(?:[uú]ltimo\s*d[ií]a\s*de\s*pago|fecha\s*l[ií]mite\s*de\s*pago|fecha\s*de\s*pago|vence|vencimiento)\s*[:=]?\s*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})/i);
   if (vencMatch) {
     fechaVencimiento = normalizeDate(vencMatch[1], referenceYear);
   }
 
   if (!fechaCorte) {
-    const corteMatch = cleaned.match(/(?:fecha\s*de\s*corte|corte\s*al|cierre\s*de)\s*[:=]?\s*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i);
+    const corteMatch = cleaned.match(/(?:fecha\s*de\s*corte|corte\s*al|cierre\s*de)\s*[:=]?\s*(\d{1,2}[-/.]\d{1,2}[-/.]\d{2,4})/i);
     if (corteMatch) {
       fechaCorte = normalizeDate(corteMatch[1], referenceYear);
     }
@@ -300,8 +300,8 @@ export function parseStatementText(text: string, fileName: string): StatementDat
   const movimientos: StatementMovement[] = [];
   const lines = text.split('\n');
 
-  const interbankTxRegex = /^(\d{1,2}\s*[\-\/]\s*[A-Za-z]{3,4})\s+([A-Za-z0-9\.\-\_\s\*\/\&]+?)\s+([\-]?(?:S\/\.?|USD|\$)?\s*[\d,.]+\d{2})(?:\s+([\-]?(?:S\/\.?|USD|\$)?\s*[\d,.]+\d{2}))?$/i;
-  const standardTxRegex = /(?:^|\s)(\d{1,2}[\/\-\.]\d{1,2}(?:[\/\-\.]\d{2,4})?)\s+([A-Za-z0-9\.\-\_\s\*\/\&]{3,45})\s+(?:(S\/\.?|USD|\$)\s*)?([\-]?[0-9,.]+\d{2})([\s\-]*(?:CR|ABONO|\+)?)?/i;
+  const interbankTxRegex = /^(\d{1,2}\s*[-/]\s*[A-Za-z]{3,4})\s+([-A-Za-z0-9._\s*/&]+?)\s+([-]?(?:S\/\.?|USD|\$)?\s*[\d,.]+\d{2})(?:\s+([-]?(?:S\/\.?|USD|\$)?\s*[\d,.]+\d{2}))?$/i;
+  const standardTxRegex = /(?:^|\s)(\d{1,2}[-/.]\d{1,2}(?:[-/.]\d{2,4})?)\s+([-A-Za-z0-9._\s*/&]{3,45})\s+(?:(S\/\.?|USD|\$)\s*)?([-]?[0-9,.]+\d{2})([\s-]*(?:CR|ABONO|\+)?)?/i;
 
   let moveId = 1;
   for (const line of lines) {

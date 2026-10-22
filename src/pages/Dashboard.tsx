@@ -296,7 +296,7 @@ export const Dashboard: React.FC = () => {
   const activeAccountLabels = accountLabels;
 
   Object.keys(entityLineaTotals).forEach(ent => {
-    if (creditLines.hasOwnProperty(ent)) entityLineaTotals[ent] = creditLines[ent];
+    if (Object.prototype.hasOwnProperty.call(creditLines, ent)) entityLineaTotals[ent] = creditLines[ent];
   });
 
   const handleExport = () => {

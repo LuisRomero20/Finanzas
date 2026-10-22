@@ -34,7 +34,9 @@ export function broadcastRealtimeSync(source: string = 'general'): void {
     if (localBroadcastBus) {
       localBroadcastBus.postMessage({ type: 'sync_stores', source, timestamp: Date.now() });
     }
-  } catch {}
+  } catch {
+    /* ignore broadcast error */
+  }
 
   // 2. Notificar remotamente vía Supabase WebSocket a celulares y computadoras (<100ms)
   try {
@@ -45,5 +47,7 @@ export function broadcastRealtimeSync(source: string = 'general'): void {
         payload: { source, timestamp: Date.now() },
       }).catch(() => {});
     }
-  } catch {}
+  } catch {
+    /* ignore broadcast error */
+  }
 }

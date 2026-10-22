@@ -42,8 +42,8 @@ export function calculateDebtPayoff(
   const debtOrder: { name: string; balance: number; monthsToPayoff: number }[] = [];
 
   // Simulación simplificada mes a mes
-  let remainingDebts = sortedDebts.map((d) => ({ ...d, currentBalance: d.balance }));
-  let availableExtra = extraMonthlyPayment;
+  const remainingDebts = sortedDebts.map((d) => ({ ...d, currentBalance: d.balance }));
+  const availableExtra = extraMonthlyPayment;
 
   while (remainingDebts.some((d) => d.currentBalance > 0) && totalMonths < 120) {
     totalMonths++;

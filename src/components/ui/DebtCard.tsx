@@ -155,7 +155,9 @@ export const DebtCard: React.FC<{ deuda: Deuda }> = ({ deuda }) => {
                     const parts = s.fecha.split('-');
                     const m = parseInt(parts[1], 10);
                     if (!s.paid && m >= 4 && m <= 6) return false;
-                  } catch {}
+                  } catch {
+                    /* ignore parsing error */
+                  }
                 }
                 return true;
               }).map((s, i) => (

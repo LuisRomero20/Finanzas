@@ -79,7 +79,7 @@ export const HojaDeudas: React.FC = () => {
 
       setShowForm(false);
       setInput({ acreedor: '', moneda: 'PEN', monto: 0, tasa_anual: 0.085, plazo_meses: 12, tipo_tasa: 'efectiva', fecha_inicio: new Date().toISOString().slice(0, 10) });
-    } catch (err) {
+    } catch {
       // Error handled in store
     }
   };
