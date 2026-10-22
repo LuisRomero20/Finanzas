@@ -60,6 +60,9 @@ export async function checkSupabaseHealth(): Promise<SupabaseHealth> {
 export async function insertTransactionToSupabase(tx: Transaction): Promise<{ success: boolean; data?: any; error?: string }> {
   try {
     const session = await getValidatedSession();
+    if (!session?.user?.id) {
+      return { success: false, error: 'Se requiere sesión activa y validada para sincronizar transacciones' };
+    }
     const payload: any = {
       id: tx.id,
       tipo: tx.Tipo,
@@ -69,10 +72,8 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
       entidad: tx.Entidad,
       monto: tx.Monto,
       mes: tx.Mes,
+      user_id: session.user.id,
     };
-    if (session?.user?.id) {
-      payload.user_id = session.user.id;
-    }
     if (tx.estado) {
       payload.estado = tx.estado;
     }
@@ -109,6 +110,11 @@ export async function insertTransactionToSupabase(tx: Transaction): Promise<{ su
  */
 export async function deleteTransactionFromSupabase(id: string): Promise<boolean> {
   try {
+    const session = await getValidatedSession();
+    if (!session?.user?.id) {
+      console.warn('deleteTransactionFromSupabase: no authenticated session');
+      return false;
+    }
     const { error } = await supabase.from('transacciones').delete().eq('id', id);
     if (error) {
       console.warn('Supabase delete warning:', error.message);

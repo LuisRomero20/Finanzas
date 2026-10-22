@@ -45,9 +45,10 @@ interface SettingsManifest {
 /**
  * Lee una instantánea de configuración con mecanismo de transición bidireccional y control de versiones:
  * 1. Consulta el manifiesto de la fuente tradicional ('transacciones') y de la tabla dedicada ('personal_settings').
- * 2. Compara marcas de tiempo para determinar cuál contiene la versión más reciente.
- * 3. Si la tabla dedicada no existe aún en el esquema remoto, conmuta automáticamente a los fragmentos de 'transacciones'.
- * 4. Si la fuente tradicional es más reciente que la dedicada, lee los fragmentos y sana en segundo plano la tabla dedicada.
+ * 2. Compara marcas de tiempo para determinar cuál contiene la versión más reciente del dato.
+ * 3. El concurrency token ('head') devuelto siempre corresponde exactamente al registro de 'transacciones'
+ *    para garantizar que las comprobaciones de concurrencia optimista no fallen por discrepancias sintéticas.
+ * 4. Si la tabla dedicada no existe aún en el esquema remoto (42P01), conmuta automáticamente a 'transacciones'.
  */
 export async function readSnapshot(name: string): Promise<{ value: string | null; head: string | null }> {
   const session = await getValidatedSession();
@@ -95,7 +96,10 @@ export async function readSnapshot(name: string): Promise<{ value: string | null
     // Si la tabla dedicada no existe o el rol no tiene acceso, se continúa con legacy
   }
 
-  // 3. Decidir cuál fuente es más reciente y autoritativa
+  // El token de concurrencia (head) SIEMPRE debe ser el string exacto de transacciones.concepto
+  const authoritativeHead = (legacyData?.concepto as string) || null;
+
+  // 3. Decidir cuál fuente es más reciente y autoritativa para el VALOR
   // Si la tabla dedicada existe y es más reciente que el manifiesto tradicional:
   if (dedicatedData && dedicatedTimestamp >= legacyTimestamp) {
     const valStr = typeof dedicatedData.data === 'string'
@@ -103,11 +107,7 @@ export async function readSnapshot(name: string): Promise<{ value: string | null
       : canonical(dedicatedData.data);
     return {
       value: valStr,
-      head: JSON.stringify({
-        revision: dedicatedData.version ? String(dedicatedData.version) : 'v1',
-        count: 1,
-        updated_at: dedicatedData.updated_at,
-      }),
+      head: authoritativeHead,
     };
   }
 
@@ -120,11 +120,7 @@ export async function readSnapshot(name: string): Promise<{ value: string | null
         : canonical(dedicatedData.data);
       return {
         value: valStr,
-        head: JSON.stringify({
-          revision: dedicatedData.version ? String(dedicatedData.version) : 'v1',
-          count: 1,
-          updated_at: dedicatedData.updated_at,
-        }),
+        head: authoritativeHead,
       };
     }
     return { value: null, head: null };
@@ -140,21 +136,30 @@ export async function readSnapshot(name: string): Promise<{ value: string | null
 
   if (chunkError) throw chunkError;
   if (!chunks || chunks.length !== legacyManifest.count || chunks.some((chunk, index) => Number(chunk.monto) !== index)) {
+    // Si los fragmentos legacy están dañados/incompletos pero existe la tabla dedicada, recuperar de ella
+    if (dedicatedData) {
+      const valStr = typeof dedicatedData.data === 'string'
+        ? dedicatedData.data
+        : canonical(dedicatedData.data);
+      return {
+        value: valStr,
+        head: authoritativeHead,
+      };
+    }
     throw new Error('No se recibió la configuración completa; se conserva la copia local');
   }
 
   const rawJson = chunks.map(c => c.concepto).join('');
   const canonicalValue = canonical(JSON.parse(rawJson));
-  const headStr = legacyData!.concepto as string;
 
-  return { value: canonicalValue, head: headStr };
+  return { value: canonicalValue, head: authoritativeHead };
 }
 
 /**
  * Guarda una instantánea de configuración asegurando:
  * 1. Control de concurrencia optimista contra previousHead.
  * 2. Escritura íntegra de fragmentos en 'transacciones'.
- * 3. Actualización dual verificada en 'personal_settings' (si la tabla existe).
+ * 3. Actualización dual resiliente en 'personal_settings' (si la tabla existe).
  * 4. Titularidad estricta (user_id) en todos los registros.
  */
 export async function writeSnapshot(name: string, value: string, previousHead: string | null): Promise<void> {
@@ -198,8 +203,19 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
   const head = JSON.stringify(manifestData);
 
   if (previousHead === null) {
-    const result = await supabase.from('transacciones').insert(row(id, head, 0, userId));
-    if (result.error) throw result.error;
+    const { error: insertErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
+    if (insertErr) {
+      // Si la fila ya existía en transacciones (código 23505 unique violation), actualizarla
+      if (insertErr.code === '23505' || insertErr.message?.toLowerCase().includes('duplicate key') || insertErr.message?.toLowerCase().includes('unique')) {
+        const { error: updateErr } = await supabase
+          .from('transacciones')
+          .update({ concepto: head })
+          .eq('id', id);
+        if (updateErr) throw updateErr;
+      } else {
+        throw insertErr;
+      }
+    }
   } else {
     const result = await supabase
       .from('transacciones')
@@ -210,7 +226,19 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
 
     if (result.error) throw result.error;
     if (!result.data?.length) {
-      throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
+      // Verificar si la fila existe con otro manifiesto (conflicto concurrente real) o si aún no existía
+      const { data: currentHeadData } = await supabase
+        .from('transacciones')
+        .select('concepto')
+        .eq('id', id)
+        .maybeSingle();
+
+      if (!currentHeadData) {
+        const { error: insErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
+        if (insErr) throw insErr;
+      } else {
+        throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
+      }
     }
   }
 
@@ -234,7 +262,7 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
           dedicatedErr.details?.toLowerCase().includes('does not exist');
 
         if (!isMissingTable) {
-          console.warn(`[settingsSnapshot] Error al persistir en personal_settings (${name}):`, dedicatedErr.message);
+          console.warn(`[settingsSnapshot] Advertencia no crítica en personal_settings (${name}):`, dedicatedErr.message);
         }
       }
     }

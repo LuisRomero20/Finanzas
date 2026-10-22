@@ -28,7 +28,7 @@ describe('Auth Session Diagnostics & Expiration Logic', () => {
     expect(isSessionExpired({ expires_at: immediateFutureUnix } as any)).toBe(true);
   });
 
-  it('reports diagnostic with accurate remaining seconds', async () => {
+  it('reports diagnostic with accurate remaining seconds and verification state', async () => {
     const futureUnix = Math.floor(Date.now() / 1000) + 1800;
     const sessionData = {
       access_token: 'valid-token',
@@ -40,7 +40,43 @@ describe('Auth Session Diagnostics & Expiration Logic', () => {
 
     const diag = await getAuthDiagnostic();
     expect(diag.status).toBe('authenticated');
+    expect(diag.verificationState).toBe('server_verified');
     expect(diag.email).toBe('test@example.com');
     expect(diag.timeToExpirySeconds).toBeGreaterThan(1700);
+  });
+
+  it('reports unauthenticated status when no session exists', async () => {
+    // Simular que getValidatedSession retorna null
+    const origEnv = process.env.NODE_ENV;
+    try {
+      (process.env as any).NODE_ENV = 'production';
+      const diag = await getAuthDiagnostic();
+      expect(diag.status).toBe('unauthenticated');
+      expect(diag.verificationState).toBe('unauthenticated');
+    } finally {
+      (process.env as any).NODE_ENV = origEnv;
+    }
+  });
+
+  it('reports expired status when cached token is past expiry', async () => {
+    const pastUnix = Math.floor(Date.now() / 1000) - 500;
+    const sessionData = {
+      access_token: 'expired-token',
+      refresh_token: 'expired-refresh',
+      expires_at: pastUnix,
+      user: { id: 'test-user-id', email: 'test@example.com' },
+    };
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionData));
+
+    const origEnv = process.env.NODE_ENV;
+    try {
+      (process.env as any).NODE_ENV = 'production';
+      const diag = await getAuthDiagnostic();
+      expect(diag.status).toBe('expired');
+      expect(diag.verificationState).toBe('expired');
+      expect(diag.error).toContain('expirada');
+    } finally {
+      (process.env as any).NODE_ENV = origEnv;
+    }
   });
 });

@@ -6,7 +6,7 @@ import { getPendingOutboxCount, flushPendingPaymentsOutbox } from '../services/p
 import { pendingTransactions, flushTransactions } from '../services/transactionOutbox';
 import { syncAllStoresFromSupabase } from '../utils/liveUpdateService';
 import type { User } from '@supabase/supabase-js';
-import { ShieldCheck, Lock, RefreshCw, AlertTriangle, CheckCircle, Database, Smartphone, Laptop, Clock, ArrowRight } from 'lucide-react';
+import { ShieldCheck, Lock, RefreshCw, Database, Smartphone, Laptop, Clock } from 'lucide-react';
 
 interface SettingsSyncPanelProps {
   onOpenAuth?: () => void;
@@ -35,7 +35,18 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
       setInternalUser(session?.user ?? null);
       getAuthDiagnostic().then(setAuthDiag);
     });
-    return () => subscription.unsubscribe();
+
+    const handleConnectivity = () => {
+      getAuthDiagnostic().then(setAuthDiag);
+    };
+    window.addEventListener('online', handleConnectivity);
+    window.addEventListener('offline', handleConnectivity);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('online', handleConnectivity);
+      window.removeEventListener('offline', handleConnectivity);
+    };
   }, [propUser]);
 
   const activeUser = propUser !== undefined ? propUser : internalUser;
@@ -53,8 +64,31 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
         syncPersonalSettings(),
       ]);
       setLastSyncTime(new Date().toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
+      getAuthDiagnostic().then(setAuthDiag);
     } finally {
       setIsManualSyncing(false);
+    }
+  };
+
+  const getSessionBadge = () => {
+    switch (authDiag?.verificationState) {
+      case 'server_verified':
+        return { label: 'Validada en Supabase', color: 'text-emerald-600 dark:text-emerald-400' };
+      case 'offline_cached':
+        return { label: 'Offline (Caché local)', color: 'text-amber-600 dark:text-amber-400' };
+      case 'local_recoverable':
+        return { label: 'Sesión local (Verificando…)', color: 'text-sky-600 dark:text-sky-400' };
+      case 'sdk_active':
+        return { label: 'Activa en SDK', color: 'text-emerald-500' };
+      case 'expired':
+        return { label: 'Sesión expirada', color: 'text-rose-600 dark:text-rose-400' };
+      case 'unauthenticated':
+        return { label: 'Sin autenticar', color: 'text-slate-500' };
+      default:
+        return {
+          label: authDiag?.status === 'authenticated' ? 'Sesión activa' : 'Verificando…',
+          color: authDiag?.status === 'authenticated' ? 'text-emerald-600' : 'text-slate-500',
+        };
     }
   };
 
@@ -103,6 +137,8 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
     conflict: { label: 'Versiones distintas', color: 'bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border-amber-400' },
     error: { label: 'Pendiente de reintento', color: 'bg-rose-100 text-rose-800 dark:bg-rose-950/80 dark:text-rose-300 border-rose-400' },
   };
+
+  const sessionBadge = getSessionBadge();
 
   return (
     <section className="mb-4 rounded-2xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs shadow-sm overflow-hidden" aria-label="Sincronización de ajustes financieros">
@@ -178,8 +214,8 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <Clock size={15} className="text-slate-500 shrink-0" />
               <div>
                 <span className="block text-[10px] text-slate-500 font-bold uppercase">Estado de Sesión</span>
-                <span className={`font-semibold ${authDiag?.status === 'authenticated' ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600'}`}>
-                  {authDiag?.status === 'authenticated' ? 'Validada en Supabase' : authDiag?.status === 'expired' ? 'Expirada' : 'Verificando…'}
+                <span className={`font-semibold ${sessionBadge.color}`}>
+                  {sessionBadge.label}
                 </span>
               </div>
             </div>
@@ -208,8 +244,8 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                   </div>
 
                   {entry.message && (
-                    <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 text-[11px]">
-                      {entry.message}
+                    <div className="p-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-200 text-[11px] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span>{entry.message}</span>
                     </div>
                   )}
 
@@ -223,6 +259,25 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                         <span className="font-bold text-slate-500 block">En la nube (Supabase):</span>
                         <span className="text-slate-700 dark:text-slate-300">{entry.remoteSummary}</span>
                       </div>
+                    </div>
+                  )}
+
+                  {entry.status === 'error' && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button
+                        disabled={syncing}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 cursor-pointer"
+                        onClick={() => void resolveSettings(name, 'local')}
+                      >
+                        Compartir este dispositivo a la nube
+                      </button>
+                      <button
+                        disabled={syncing}
+                        className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
+                        onClick={() => void syncPersonalSettings()}
+                      >
+                        Reintentar
+                      </button>
                     </div>
                   )}
 
@@ -260,7 +315,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <span>Descargar copia de seguridad local (JSON)</span>
             </button>
             <span className="text-[11px] text-slate-400">
-              Protocolo de sincronización Finanzas 2.0.1
+              Protocolo de sincronización Finanzas 2.0.2
             </span>
           </div>
         </div>

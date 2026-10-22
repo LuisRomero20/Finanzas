@@ -26,7 +26,16 @@ const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
 function getStoredAccessToken(): string | null {
   try {
     if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
+    let raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
+    if (!raw) {
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
+          raw = localStorage.getItem(k);
+          if (raw) break;
+        }
+      }
+    }
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed?.access_token) {
@@ -45,9 +54,15 @@ const customFetch: typeof fetch = async (input, init) => {
   const currentAuth = headers.get('Authorization');
   const token = getStoredAccessToken();
 
-  // Si existe un token de sesión legítimo en localStorage y la petición no lleva
-  // Authorization o lleva la anon_key por defecto, inyectar el Bearer token del usuario:
-  if (token && (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`)) {
+  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : (input as any)?.toString?.() || '');
+
+  // Inyectar el token Bearer del usuario autenticado en todas las consultas de base de datos
+  // para evitar fallos de permisos RLS (código 42501) cuando el rol 'anon' no tiene privilegios:
+  if (token && urlStr.includes('/rest/v1/')) {
+    if (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}` || currentAuth.includes('anon')) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
+  } else if (token && (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`)) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
