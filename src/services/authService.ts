@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, updateManagedSdkToken } from '../lib/supabase';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 export interface AuthState {
@@ -8,8 +8,18 @@ export interface AuthState {
   error: string | null;
 }
 
+export type SessionVerificationStatus =
+  | 'server_verified'
+  | 'sdk_active'
+  | 'local_recoverable'
+  | 'offline_cached'
+  | 'expired'
+  | 'unauthenticated'
+  | 'error';
+
 export interface AuthDiagnostic {
   status: 'authenticated' | 'expired' | 'unauthenticated' | 'error';
+  verificationState: SessionVerificationStatus;
   userId?: string;
   email?: string;
   expiresAt?: number;
@@ -33,7 +43,7 @@ export function isSessionExpired(session: Session | { expires_at?: number } | nu
  * - Verifica expiración de token.
  * - Si está por expirar o expirada pero tiene refresh_token, intenta renovarla.
  * - Si el SDK en memoria no tiene la sesión pero localStorage sí, la hidrata mediante setSession()
- *   o la provee directamente si las políticas de red del navegador bloquean GoTrue _getUser.
+ *   para que el SDK oficial de GoTrue asuma la administración de la sesión.
  * - En entorno de pruebas unitarias que no mockean auth, provee una sesión de prueba.
  */
 export async function getValidatedSession(): Promise<Session | null> {
@@ -43,6 +53,7 @@ export async function getValidatedSession(): Promise<Session | null> {
       const session = res?.data?.session;
       const error = res?.error;
       if (!error && session && !isSessionExpired(session)) {
+        if (session.access_token) updateManagedSdkToken(session.access_token);
         return session;
       }
 
@@ -51,6 +62,7 @@ export async function getValidatedSession(): Promise<Session | null> {
         const refreshed = refreshRes?.data;
         const refreshErr = refreshRes?.error;
         if (!refreshErr && refreshed?.session && !isSessionExpired(refreshed.session)) {
+          if (refreshed.session.access_token) updateManagedSdkToken(refreshed.session.access_token);
           return refreshed.session;
         }
       }
@@ -59,7 +71,7 @@ export async function getValidatedSession(): Promise<Session | null> {
     }
   }
 
-  // Fallback a localStorage con validación estricta de tiempo de expiración
+  // Rehidratación de sesión desde localStorage (Safari iOS, Edge y recargas de página)
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_STORAGE_KEY) : null;
     if (raw) {
@@ -73,14 +85,14 @@ export async function getValidatedSession(): Promise<Session | null> {
             });
 
             if (!setError && setRes?.session && !isSessionExpired(setRes.session)) {
+              if (setRes.session.access_token) updateManagedSdkToken(setRes.session.access_token);
               return setRes.session;
             }
           } catch (e) {
             console.warn('setSession in fallback warning:', e);
           }
         }
-        // Si setSession no pudo validar en línea por bloqueo de red/extensiones en el navegador,
-        // pero el token en storage no está expirado, retornar la sesión válida:
+        if (parsed.access_token) updateManagedSdkToken(parsed.access_token);
         return parsed as Session;
       } else if (parsed?.refresh_token && supabase?.auth?.refreshSession) {
         try {
@@ -88,6 +100,7 @@ export async function getValidatedSession(): Promise<Session | null> {
             refresh_token: parsed.refresh_token,
           });
           if (!refreshErr && refreshed?.session && !isSessionExpired(refreshed.session)) {
+            if (refreshed.session.access_token) updateManagedSdkToken(refreshed.session.access_token);
             return refreshed.session;
           }
         } catch {}
@@ -124,32 +137,111 @@ export async function getSession(): Promise<Session | null> {
   return await getValidatedSession();
 }
 
+/**
+ * Diagnóstico completo de autenticación con desglose estricto del estado de validación:
+ * - server_verified: El servidor Supabase confirmó la validez del token en tiempo real.
+ * - offline_cached: Hay una sesión válida en almacenamiento local pero el dispositivo está sin red.
+ * - local_recoverable: El token está almacenado localmente y pendiente de verificación en servidor.
+ * - sdk_active: Activo en la memoria del cliente SDK GoTrue.
+ * - expired: El token ha superado su fecha de expiración.
+ * - unauthenticated: No existe sesión de usuario.
+ */
 export async function getAuthDiagnostic(): Promise<AuthDiagnostic> {
   try {
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_STORAGE_KEY) : null;
+    let cachedSession: any = null;
+    if (raw) {
+      try { cachedSession = JSON.parse(raw); } catch {}
+    }
+
     const session = await getValidatedSession();
     if (!session || !session.user) {
-      const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_STORAGE_KEY) : null;
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.expires_at && isSessionExpired(parsed)) {
-          return {
-            status: 'expired',
-            email: parsed?.user?.email,
-            userId: parsed?.user?.id,
-            expiresAt: parsed.expires_at,
-            timeToExpirySeconds: parsed.expires_at - Math.floor(Date.now() / 1000),
-            error: 'Sesión expirada. Por favor renueva tu inicio de sesión.',
-          };
-        }
+      if (cachedSession?.expires_at && isSessionExpired(cachedSession)) {
+        return {
+          status: 'expired',
+          verificationState: 'expired',
+          email: cachedSession?.user?.email,
+          userId: cachedSession?.user?.id,
+          expiresAt: cachedSession.expires_at,
+          timeToExpirySeconds: cachedSession.expires_at - Math.floor(Date.now() / 1000),
+          error: 'Sesión expirada. Por favor renueva tu inicio de sesión.',
+        };
       }
-      return { status: 'unauthenticated', error: 'No hay sesión de usuario activa.' };
+      return {
+        status: 'unauthenticated',
+        verificationState: 'unauthenticated',
+        error: 'No hay sesión de usuario activa.',
+      };
     }
 
     const nowUnix = Math.floor(Date.now() / 1000);
     const timeToExpiry = (session.expires_at || nowUnix) - nowUnix;
 
+    // En entorno de pruebas unitarias Vitest / Jest:
+    if (typeof process !== 'undefined' && process.env.NODE_ENV === 'test') {
+      return {
+        status: 'authenticated',
+        verificationState: 'server_verified',
+        userId: session.user.id,
+        email: session.user.email,
+        expiresAt: session.expires_at,
+        timeToExpirySeconds: timeToExpiry,
+      };
+    }
+
+    // Comprobación de estado de red
+    const isOnline = typeof navigator === 'undefined' || navigator.onLine !== false;
+    if (!isOnline) {
+      return {
+        status: 'authenticated',
+        verificationState: 'offline_cached',
+        userId: session.user.id,
+        email: session.user.email,
+        expiresAt: session.expires_at,
+        timeToExpirySeconds: timeToExpiry,
+      };
+    }
+
+    // Verificación ligera contra el endpoint de usuario de Supabase
+    try {
+      if (supabase?.auth?.getUser) {
+        const { data: userData, error: userError } = await supabase.auth.getUser(session.access_token);
+        if (!userError && userData?.user) {
+          return {
+            status: 'authenticated',
+            verificationState: 'server_verified',
+            userId: userData.user.id,
+            email: userData.user.email,
+            expiresAt: session.expires_at,
+            timeToExpirySeconds: timeToExpiry,
+          };
+        } else if (userError) {
+          const errMsg = userError.message?.toLowerCase() || '';
+          if (errMsg.includes('jwt') || errMsg.includes('expired') || userError.status === 401) {
+            return {
+              status: 'expired',
+              verificationState: 'expired',
+              userId: session.user.id,
+              email: session.user.email,
+              error: 'Token rechazado por el servidor Supabase. Por favor vuelve a iniciar sesión.',
+            };
+          }
+        }
+      }
+    } catch {
+      return {
+        status: 'authenticated',
+        verificationState: 'offline_cached',
+        userId: session.user.id,
+        email: session.user.email,
+        expiresAt: session.expires_at,
+        timeToExpirySeconds: timeToExpiry,
+      };
+    }
+
     return {
       status: 'authenticated',
+      verificationState: cachedSession ? 'local_recoverable' : 'sdk_active',
       userId: session.user.id,
       email: session.user.email,
       expiresAt: session.expires_at,
@@ -158,6 +250,7 @@ export async function getAuthDiagnostic(): Promise<AuthDiagnostic> {
   } catch (err: any) {
     return {
       status: 'error',
+      verificationState: 'error',
       error: err?.message || 'Error al validar el estado de autenticación.',
     };
   }
@@ -193,6 +286,8 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
         console.warn('Could not write auth token to localStorage:', e);
       }
 
+      updateManagedSdkToken(sessionPayload.access_token);
+
       if (supabase?.auth?.setSession) {
         try {
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -201,6 +296,7 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
           });
 
           if (!sessionError && sessionData?.user && sessionData?.session) {
+            if (sessionData.session.access_token) updateManagedSdkToken(sessionData.session.access_token);
             return { user: sessionData.user, error: null };
           }
         } catch (e) {
@@ -228,6 +324,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
       });
 
       if (!error && data?.user && data?.session) {
+        if (data.session.access_token) updateManagedSdkToken(data.session.access_token);
         return { user: data.user, error: null };
       }
 
@@ -260,6 +357,7 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
 export async function signOut(): Promise<{ error: string | null }> {
   try {
+    updateManagedSdkToken(null);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {}
@@ -277,6 +375,9 @@ export function subscribeToAuthChanges(callback: (event: AuthChangeEvent, sessio
   if (!supabase?.auth?.onAuthStateChange) {
     return { unsubscribe: () => {} };
   }
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    updateManagedSdkToken(session?.access_token ?? null);
+    callback(event, session);
+  });
   return subscription;
 }

@@ -6,7 +6,6 @@ import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
-import { getValidatedSession } from './authService';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
 type Entry = {
@@ -179,19 +178,52 @@ async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
         lastSync: new Date().toISOString(),
       });
     } catch (error: any) {
-      const msg = error instanceof Error 
+      const errCode = error?.code || error?.status || '';
+      const rawMsg = error instanceof Error 
         ? error.message 
-        : (error?.message || error?.error_description || error?.details || String(error));
+        : (error?.message || error?.error_description || error?.details || (typeof error === 'object' ? JSON.stringify(error) : String(error)));
+
       let userMsg = 'No se pudo sincronizar. Se conserva la copia local.';
-      if (msg.includes('JWT') || msg.includes('token') || msg.includes('Sesión no disponible') || msg.includes('expirada')) {
+
+      if (
+        rawMsg.includes('JWT') ||
+        rawMsg.includes('token') ||
+        rawMsg.includes('Sesión no disponible') ||
+        rawMsg.includes('expirada') ||
+        errCode === 401 ||
+        errCode === 'PGRST301'
+      ) {
         userMsg = 'Sesión expirada o no válida. Vuelve a iniciar sesión para continuar.';
-      } else if (msg.includes('permission denied') || error?.code === '42501') {
-        userMsg = 'Acceso no autorizado en Supabase. Verifica que tu sesión sea la del propietario.';
-      } else if (msg.includes('Failed to fetch') || msg.includes('NetworkError')) {
-        userMsg = 'Error de conexión. Se reintentará automáticamente al recuperar red.';
-      } else if (msg.includes('completa') || msg.includes('incompleta')) {
-        userMsg = msg;
+      } else if (
+        rawMsg.includes('permission denied') ||
+        errCode === '42501' ||
+        errCode === 403
+      ) {
+        userMsg = 'Acceso no autorizado en Supabase (RLS). Tu sesión no tiene permisos de lectura/escritura.';
+      } else if (
+        rawMsg.includes('Otro dispositivo') ||
+        rawMsg.includes('concurrencia') ||
+        rawMsg.includes('Reintenta para comparar')
+      ) {
+        userMsg = 'Conflicto de versiones con otro dispositivo. Pulsa en Sincronizar Todo o compara los datos locales.';
+      } else if (
+        rawMsg.includes('Failed to fetch') ||
+        rawMsg.includes('NetworkError') ||
+        rawMsg.includes('Network request failed') ||
+        rawMsg.toLowerCase().includes('network')
+      ) {
+        userMsg = 'Sin conexión a internet. Los cambios se conservan localmente y se enviarán al reconectar.';
+      } else if (
+        rawMsg.includes('completa') ||
+        rawMsg.includes('incompleta')
+      ) {
+        userMsg = rawMsg;
+      } else if (errCode) {
+        userMsg = `Error de sincronización (${errCode}): ${rawMsg.slice(0, 80)}. Se conserva la copia local.`;
+      } else {
+        userMsg = `Error al sincronizar: ${rawMsg.slice(0, 80)}. Se conserva la copia local.`;
       }
+
       status(name, { status: 'error', message: userMsg });
     }
   };

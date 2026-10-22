@@ -122,7 +122,7 @@ describe('FINPER 2.0.1 — Sincronización Bidireccional y Resiliencia Multidisp
   it('detecta condición de carrera entre dos dispositivos y rechaza sobrescritura obsoleta', async () => {
     const dbRows = new Map<string, any>();
 
-    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => {
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => {
       let filterId: string | null = null;
       let filterConcepto: string | null = null;
       let likePrefix = '';
@@ -218,15 +218,15 @@ describe('FINPER 2.0.1 — Sincronización Bidireccional y Resiliencia Multidisp
   });
 
   // ============================================================================
-  // ESCENARIO 5: Lectura Dual con Priorización de Marca de Tiempo Más Reciente
+  // ESCENARIO 5: Lectura Autoritativa con Rescate desde personal_settings
   // ============================================================================
-  it('prioriza la tabla dedicada personal_settings cuando tiene timestamp más reciente que transacciones', async () => {
+  it('utiliza la tabla secundaria personal_settings como mecanismo de rescate si transacciones tiene fragmentos incompletos', async () => {
     const memory = new Map<string, any>();
 
-    // Simular que personal_settings tiene una versión más nueva que transacciones
+    // Simular que transacciones tiene un manifiesto de 2 chunks pero solo 1 disponible (corrupción)
     memory.set('config-sync-budgets', {
       id: 'config-sync-budgets',
-      concepto: JSON.stringify({ revision: 'rev-old', count: 1, updated_at: '2026-10-22T10:00:00.000Z' }),
+      concepto: JSON.stringify({ revision: 'rev-corrupt', count: 2, updated_at: '2026-10-22T10:00:00.000Z' }),
     });
 
     vi.spyOn(supabase, 'from').mockImplementation(((table: string) => {
@@ -237,13 +237,20 @@ describe('FINPER 2.0.1 — Sincronización Bidireccional y Resiliencia Multidisp
           if (k === 'name') filterName = v;
           return query;
         },
+        like: () => query,
+        order: () => query,
+        limit: async () => ({
+          // Fragmentos incompletos en transacciones: solo 1 chunk devuelto en vez de 2
+          data: [{ id: 'config-sync-budgets-rev-corrupt-0', concepto: '{"part":1}', monto: 0 }],
+          error: null,
+        }),
         maybeSingle: async () => {
           if (table === 'personal_settings' && filterName === 'budgets') {
             return {
               data: {
-                data: { modo: 'estricto', version_reciente: true },
-                version: 2,
-                updated_at: '2026-10-22T15:00:00.000Z', // 5 horas más reciente que legacy
+                data: { modo: 'estricto', recuperado_mirror: true },
+                version: 1,
+                updated_at: '2026-10-22T15:00:00.000Z',
               },
               error: null,
             };
@@ -258,7 +265,7 @@ describe('FINPER 2.0.1 — Sincronización Bidireccional y Resiliencia Multidisp
     }) as any);
 
     const snapshot = await readSnapshot('budgets');
-    expect(snapshot.value).toBe(canonical({ modo: 'estricto', version_reciente: true }));
+    expect(snapshot.value).toBe(canonical({ modo: 'estricto', recuperado_mirror: true }));
   });
 
   // ============================================================================
@@ -267,7 +274,7 @@ describe('FINPER 2.0.1 — Sincronización Bidireccional y Resiliencia Multidisp
   it('aborta y no actualiza el manifiesto si falla la inserción de fragmentos intermedios', async () => {
     let manifestPublished = false;
 
-    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => {
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => {
       const query: any = {
         insert: async (payload: any) => {
           const rows = Array.isArray(payload) ? payload : [payload];
