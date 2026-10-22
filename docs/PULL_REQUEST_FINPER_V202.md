@@ -36,7 +36,7 @@ Este PR resuelve de manera integral y matemáticamente demostrable las fallas de
 
 ## 2. Resultados de Validación
 
-- **Pruebas Automatizadas:** 147 de 147 pruebas pasadas en 28 suites (100% éxito).
+- **Pruebas Automatizadas:** 148 de 148 pruebas pasadas en 28 suites (100% éxito).
 - **TypeScript (`tsc --noEmit`):** 0 errores de compilación.
 - **ESLint (`eslint .`):** 0 errores (12 advertencias heredadas en páginas legacy documentadas).
 - **Compilación de Producción (`vite build`):** Exitosa en 9.5s.

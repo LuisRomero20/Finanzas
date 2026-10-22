@@ -1,11 +1,16 @@
 import { vi } from 'vitest';
 // Never let a regression test read or modify the user's live Supabase database.
 vi.mock('../../lib/supabase', () => {
+  let mockSdkToken: string | null = null;
   const result = { data: [], error: null };
   const query: Record<string, unknown> = {};
   for (const method of ['select', 'insert', 'upsert', 'update', 'delete', 'eq', 'in', 'not', 'like', 'ilike', 'order', 'limit', 'range', 'single', 'maybeSingle']) query[method] = () => query;
   query.then = (resolve: (r: unknown) => unknown) => Promise.resolve(result).then(resolve);
   return {
+    SUPABASE_URL: 'https://njgzhjwfcxdxiibkuuqg.supabase.co',
+    SUPABASE_PUBLISHABLE_KEY: 'mock-anon-key',
+    updateManagedSdkToken: vi.fn((token: string | null) => { mockSdkToken = token; }),
+    getManagedSdkToken: vi.fn(() => mockSdkToken),
     supabase: {
       from: () => query,
       channel: () => ({ send: vi.fn() }),

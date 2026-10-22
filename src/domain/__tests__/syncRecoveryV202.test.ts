@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { writeSnapshot, canonical, getMirrorSyncStatus, repairMirrorSync } from '../../services/settingsSnapshot';
 import { insertTransactionToSupabase, deleteTransactionFromSupabase } from '../../services/supabaseService';
 import * as authService from '../../services/authService';
-import { supabase } from '../../lib/supabase';
+import { supabase, updateManagedSdkToken, getManagedSdkToken } from '../../lib/supabase';
 import type { Transaction } from '../../utils/masterData';
 
 describe('FINPER 2.0.2 — Pruebas Rigurosas de Sincronización, Concurrencia y Resiliencia RLS', () => {
@@ -186,7 +186,6 @@ describe('FINPER 2.0.2 — Pruebas Rigurosas de Sincronización, Concurrencia y 
 
     vi.spyOn(authService, 'getValidatedSession').mockImplementation(async () => {
       if (tokenExpired) {
-        // Simular que expira pero luego se renueva
         tokenExpired = false;
         return {
           access_token: 'renewed-jwt-token-ok',
@@ -346,5 +345,17 @@ describe('FINPER 2.0.2 — Pruebas Rigurosas de Sincronización, Concurrencia y 
 
     const success = await deleteTransactionFromSupabase('tx-v202-001');
     expect(success).toBe(false);
+  });
+
+  // ============================================================================
+  // REQUISITO 8: Gestión Oficial de Tokens en Memoria y Cierre de Sesión
+  // ============================================================================
+  it('mantiene sincronizado el token administrado en memoria con el ciclo de vida de la sesión', () => {
+    updateManagedSdkToken('token-lifecycle-test');
+    expect(getManagedSdkToken()).toBe('token-lifecycle-test');
+
+    // Cierre de sesión limpia el token administrado
+    updateManagedSdkToken(null);
+    expect(getManagedSdkToken()).toBeNull();
   });
 });

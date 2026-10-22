@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase';
+import { supabase, updateManagedSdkToken } from '../lib/supabase';
 import type { User, Session, AuthChangeEvent } from '@supabase/supabase-js';
 
 export interface AuthState {
@@ -43,7 +43,7 @@ export function isSessionExpired(session: Session | { expires_at?: number } | nu
  * - Verifica expiración de token.
  * - Si está por expirar o expirada pero tiene refresh_token, intenta renovarla.
  * - Si el SDK en memoria no tiene la sesión pero localStorage sí, la hidrata mediante setSession()
- *   o la provee directamente si las políticas de red del navegador bloquean GoTrue _getUser.
+ *   para que el SDK oficial de GoTrue asuma la administración de la sesión.
  * - En entorno de pruebas unitarias que no mockean auth, provee una sesión de prueba.
  */
 export async function getValidatedSession(): Promise<Session | null> {
@@ -53,6 +53,7 @@ export async function getValidatedSession(): Promise<Session | null> {
       const session = res?.data?.session;
       const error = res?.error;
       if (!error && session && !isSessionExpired(session)) {
+        if (session.access_token) updateManagedSdkToken(session.access_token);
         return session;
       }
 
@@ -61,6 +62,7 @@ export async function getValidatedSession(): Promise<Session | null> {
         const refreshed = refreshRes?.data;
         const refreshErr = refreshRes?.error;
         if (!refreshErr && refreshed?.session && !isSessionExpired(refreshed.session)) {
+          if (refreshed.session.access_token) updateManagedSdkToken(refreshed.session.access_token);
           return refreshed.session;
         }
       }
@@ -69,7 +71,7 @@ export async function getValidatedSession(): Promise<Session | null> {
     }
   }
 
-  // Fallback a localStorage con validación estricta de tiempo de expiración
+  // Rehidratación de sesión desde localStorage (Safari iOS, Edge y recargas de página)
   try {
     const raw = typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_STORAGE_KEY) : null;
     if (raw) {
@@ -83,14 +85,14 @@ export async function getValidatedSession(): Promise<Session | null> {
             });
 
             if (!setError && setRes?.session && !isSessionExpired(setRes.session)) {
+              if (setRes.session.access_token) updateManagedSdkToken(setRes.session.access_token);
               return setRes.session;
             }
           } catch (e) {
             console.warn('setSession in fallback warning:', e);
           }
         }
-        // Si setSession no pudo validar en línea por bloqueo de red/extensiones en el navegador,
-        // pero el token en storage no está expirado, retornar la sesión válida:
+        if (parsed.access_token) updateManagedSdkToken(parsed.access_token);
         return parsed as Session;
       } else if (parsed?.refresh_token && supabase?.auth?.refreshSession) {
         try {
@@ -98,6 +100,7 @@ export async function getValidatedSession(): Promise<Session | null> {
             refresh_token: parsed.refresh_token,
           });
           if (!refreshErr && refreshed?.session && !isSessionExpired(refreshed.session)) {
+            if (refreshed.session.access_token) updateManagedSdkToken(refreshed.session.access_token);
             return refreshed.session;
           }
         } catch {}
@@ -283,6 +286,8 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
         console.warn('Could not write auth token to localStorage:', e);
       }
 
+      updateManagedSdkToken(sessionPayload.access_token);
+
       if (supabase?.auth?.setSession) {
         try {
           const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
@@ -291,6 +296,7 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
           });
 
           if (!sessionError && sessionData?.user && sessionData?.session) {
+            if (sessionData.session.access_token) updateManagedSdkToken(sessionData.session.access_token);
             return { user: sessionData.user, error: null };
           }
         } catch (e) {
@@ -318,6 +324,7 @@ export async function signInWithEmail(email: string, password: string): Promise<
       });
 
       if (!error && data?.user && data?.session) {
+        if (data.session.access_token) updateManagedSdkToken(data.session.access_token);
         return { user: data.user, error: null };
       }
 
@@ -350,6 +357,7 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
 export async function signOut(): Promise<{ error: string | null }> {
   try {
+    updateManagedSdkToken(null);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {}
@@ -367,6 +375,9 @@ export function subscribeToAuthChanges(callback: (event: AuthChangeEvent, sessio
   if (!supabase?.auth?.onAuthStateChange) {
     return { unsubscribe: () => {} };
   }
-  const { data: { subscription } } = supabase.auth.onAuthStateChange(callback);
+  const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    updateManagedSdkToken(session?.access_token ?? null);
+    callback(event, session);
+  });
   return subscription;
 }

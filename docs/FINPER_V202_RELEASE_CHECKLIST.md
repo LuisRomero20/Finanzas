@@ -10,7 +10,7 @@
 
 ## 1. Verificaciones Previas a la Fusión (Pre-Merge Checklist)
 
-- [x] **Suite de pruebas completa:** 147 de 147 pruebas automatizadas pasadas en 28 suites.
+- [x] **Suite de pruebas completa:** 148 de 148 pruebas automatizadas pasadas en 28 suites.
 - [x] **Cero sobrescritura ciega:** Eliminado `UPDATE` sin versión en colisiones `23505`; concurrencia optimista real comprobada.
 - [x] **Interceptor HTTP acotado:** Inyección estricta a `/rest/v1/`, sin interferir en auth (`/auth/v1/`) ni almacenamiento.
 - [x] **Fuente autoritativa única:** `public.transacciones` definido formalmente como Single Source of Truth; mirror secundario con estado verificable (`getMirrorSyncStatus()`, `repairMirrorSync()`).

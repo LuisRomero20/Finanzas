@@ -23,7 +23,7 @@ export const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-// Token en memoria administrado en sincronía con el ciclo de vida del SDK GoTrue
+// Token en memoria administrado exclusivamente en sincronía con el SDK GoTrue de Supabase
 let currentSdkToken: string | null = null;
 
 export function updateManagedSdkToken(token: string | null): void {
@@ -34,48 +34,33 @@ export function getManagedSdkToken(): string | null {
   return currentSdkToken;
 }
 
-function getFallbackStorageToken(): string | null {
-  try {
-    if (typeof localStorage === 'undefined') return null;
-    const raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed?.access_token) {
-        const nowUnix = Math.floor(Date.now() / 1000);
-        if (!parsed.expires_at || parsed.expires_at > nowUnix + 15) {
-          return parsed.access_token;
-        }
-      }
-    }
-  } catch {}
-  return null;
-}
-
 /**
- * Interceptor HTTP de protección estricta para solicitudes de base de datos (/rest/v1/).
- * Reglas de diseño:
- * 1. NUNCA intercepta rutas de autenticación (/auth/v1/), storage, ni peticiones externas.
- * 2. Si la petición ya lleva un Bearer token legítimo del SDK, no modifica nada.
- * 3. Utiliza preferentemente la sesión administrada por el SDK oficial de Supabase.
- * 4. Solo inyecta el token de usuario si la solicitud a /rest/v1/ carece de autenticación o
- *    lleva la anon_key por defecto, previniendo denegaciones de RLS (Postgres 42501).
+ * Interceptor HTTP estrictamente acotado para solicitudes de datos a Supabase (/rest/v1/).
+ * 
+ * Reglas de seguridad:
+ * 1. Restringe modificaciones exclusivamente al origen exacto del proyecto (SUPABASE_URL) y a rutas /rest/v1/.
+ * 2. NUNCA intercepta rutas de autenticación (/auth/v1/), storage, ni peticiones a otros dominios.
+ * 3. NUNCA lee directamente de localStorage (la gestión de sesión y renovación corresponde al SDK).
+ * 4. Si la cabecera Authorization ya contiene un Bearer token legítimo del usuario, no se modifica.
+ * 5. Solo suministra el token administrado por el SDK si la cabecera es idéntica a la clave pública anónima o está ausente.
  */
 const customFetch: typeof fetch = async (input, init) => {
   const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
 
-  // Regla 1: Intervenir ÚNICAMENTE peticiones dirigidas a PostgREST (/rest/v1/)
-  if (!urlStr.includes('/rest/v1/')) {
+  // Regla 1: Restringir estrictamente al origen del proyecto y al endpoint PostgREST (/rest/v1/)
+  if (!urlStr.startsWith(SUPABASE_URL) || !urlStr.includes('/rest/v1/')) {
     return fetch(input, init);
   }
 
   const headers = new Headers(init?.headers);
   const currentAuth = headers.get('Authorization');
 
-  // Regla 2: Si ya cuenta con un Bearer token específico distinto a la anon_key, respetar la sesión del SDK
-  const isAnonOrMissing = !currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}` || currentAuth.includes('anon');
+  // Regla 2: Solo intervenir si la petición carece de Authorization o lleva exactamente la clave pública anónima
+  const isAnonymousKey = currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`;
+  const isMissingAuth = !currentAuth;
 
-  if (isAnonOrMissing) {
-    const token = getManagedSdkToken() || getFallbackStorageToken();
+  if (isMissingAuth || isAnonymousKey) {
+    const token = getManagedSdkToken();
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
       return fetch(input, { ...init, headers });
@@ -102,6 +87,17 @@ if (supabase?.auth?.onAuthStateChange) {
     supabase.auth.onAuthStateChange((_event, session) => {
       updateManagedSdkToken(session?.access_token ?? null);
     });
+  } catch {}
+}
+
+// Inicializar el token en memoria si el SDK ya cuenta con sesión al arrancar
+if (supabase?.auth?.getSession) {
+  try {
+    supabase.auth.getSession().then(({ data }) => {
+      if (data?.session?.access_token) {
+        updateManagedSdkToken(data.session.access_token);
+      }
+    }).catch(() => {});
   } catch {}
 }
 

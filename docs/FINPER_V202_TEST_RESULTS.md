@@ -5,7 +5,7 @@
 **Framework de Pruebas:** Vitest 2.1.9 con entorno jsdom  
 **Resultado Global:**  
 - **Archivos de Prueba:** 28 pasados de 28 (100%)  
-- **Pruebas Totales:** 147 pasadas de 147 (100%)  
+- **Pruebas Totales:** 148 pasadas de 148 (100%)  
 - **Fallos en Pruebas:** 0 (Cero)  
 - **TypeScript (`tsc --noEmit`):** 0 errores  
 - **ESLint (`eslint .`):** 0 errores, 12 advertencias heredadas en páginas legacy (detalladas abajo)  
@@ -17,7 +17,7 @@
 
 | Suite de Prueba | Pruebas | Estado | Componente Evaluado |
 | :--- | :---: | :---: | :--- |
-| `src/domain/__tests__/syncRecoveryV202.test.ts` | 9 | **PASÓ** | Rechazo 23505, carrera PC/iPhone, sesión caducada, refresh, fallo parcial, mirror |
+| `src/domain/__tests__/syncRecoveryV202.test.ts` | 10 | **PASÓ** | Rechazo 23505, carrera PC/iPhone, sesión caducada, refresh, fallo parcial, mirror, token lifecycle |
 | `src/domain/__tests__/authDiagnostics.test.ts` | 6 | **PASÓ** | Diagnóstico granular de sesión (`server_verified`, `offline_cached`, etc.) |
 | `src/utils/__tests__/bidirectionalSync.test.ts` | 6 | **PASÓ** | Fallo de red, concurrencia, cancelación local y aislamiento multiusuario |
 | `src/domain/__tests__/personalSettingsMigration.test.ts` | 6 | **PASÓ** | RLS estricto, revocación a anon, aislamiento por tenant |
@@ -28,7 +28,7 @@
 | `src/utils/__tests__/settingsSync.test.tsx` | 9 | **PASÓ** | Reactividad del panel de sincronización y resolución de estados |
 | `src/utils/__tests__/pagesRender.test.tsx` | 6 | **PASÓ** | Renderizado sin regresiones de las 7 vistas principales |
 | *Otras 18 suites de lógica financiera y utilidades* | 80 | **PASÓ** | Tarjetas de crédito, préstamos, CTS, gratificaciones, etc. |
-| **TOTAL** | **147** | **PASÓ** | **100% de la suite de pruebas operativa** |
+| **TOTAL** | **148** | **PASÓ** | **100% de la suite de pruebas operativa** |
 
 ---
 
