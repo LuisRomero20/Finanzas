@@ -19,8 +19,10 @@ import {
   RefreshCw,
   Database,
   Search,
+  Lock,
   X,
 } from "lucide-react";
+import type { User } from "@supabase/supabase-js";
 import { initLiveUpdateService, syncAllStoresFromSupabase } from "./utils/liveUpdateService";
 import { supabase } from "./lib/supabase";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
@@ -54,6 +56,7 @@ export default function App() {
   const [isBackupOpen, setIsBackupOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
   const { theme } = useThemeStore();
 
   // Inicializar servicio de actualización instantánea (Vercel) y sincronización en tiempo real (Supabase)
@@ -61,6 +64,24 @@ export default function App() {
   useEffect(() => {
     const cleanup = initLiveUpdateService();
     return cleanup;
+  }, []);
+
+  // Verificar estado de autenticación inicial y suscribirse a cambios
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      setCurrentUser(data.user);
+      if (!data.user) {
+        setIsAuthOpen(true);
+      }
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setCurrentUser(session?.user ?? null);
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        syncAllStoresFromSupabase(true).catch(() => {});
+      }
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   // Atajo global de teclado Ctrl + K para abrir buscador universal
@@ -80,16 +101,6 @@ export default function App() {
     applyThemeClass(theme);
   }, [theme]);
 
-  // Sincronizar automáticamente datos cuando el usuario inicia sesión o refresca token
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
-        syncAllStoresFromSupabase(true).catch(() => {});
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
   return (
     <div className="min-h-screen w-full bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       <div>
@@ -99,10 +110,11 @@ export default function App() {
           onOpenBackup={() => setIsBackupOpen(true)} 
           onOpenSearch={() => setIsSearchOpen(true)}
           onOpenAuth={() => setIsAuthOpen(true)}
+          currentUser={currentUser}
         />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
-          <SettingsSyncPanel />
+          <SettingsSyncPanel onOpenAuth={() => setIsAuthOpen(true)} />
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -202,12 +214,14 @@ function Navbar({
   onOpenBackup,
   onOpenSearch,
   onOpenAuth,
+  currentUser,
 }: { 
   currentTab: string; 
   setTab: (t: string) => void; 
   onOpenBackup: () => void;
   onOpenSearch: () => void;
   onOpenAuth: () => void;
+  currentUser: User | null;
 }) {
   const { theme, setTheme } = useThemeStore();
 
@@ -291,11 +305,24 @@ function Navbar({
           <button
             type="button"
             onClick={onOpenAuth}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-2xl bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-200 hover:text-white text-xs font-bold border border-white/10 shadow-inner transition cursor-pointer shrink-0"
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-bold border transition cursor-pointer shrink-0 ${
+              currentUser
+                ? 'bg-black/30 dark:bg-black/50 hover:bg-white/10 text-emerald-300 border-emerald-500/30'
+                : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/25 ring-2 ring-emerald-400/40 animate-pulse'
+            }`}
             title="Autenticación & Seguridad de Datos (Supabase Auth)"
           >
-            <ShieldCheck size={14} className="text-emerald-400" />
-            <span className="hidden xl:inline">Seguridad</span>
+            {currentUser ? (
+              <>
+                <ShieldCheck size={14} className="text-emerald-400" />
+                <span className="hidden xl:inline">{currentUser.email?.split('@')[0] || 'Mi Cuenta'}</span>
+              </>
+            ) : (
+              <>
+                <Lock size={14} className="text-slate-950" />
+                <span>Iniciar Sesión</span>
+              </>
+            )}
           </button>
 
           {/* ☀️ / 🌙 SELECTOR SEGMENTADO CLARO / OSCURO */}
@@ -348,10 +375,14 @@ function Navbar({
           <button
             type="button"
             onClick={onOpenAuth}
-            className="p-2 rounded-xl bg-black/30 dark:bg-black/50 text-emerald-200 hover:text-white border border-white/10 transition cursor-pointer"
-            title="Seguridad y Cuenta"
+            className={`p-2 rounded-xl border transition cursor-pointer ${
+              currentUser
+                ? 'bg-black/30 dark:bg-black/50 text-emerald-300 border-white/10'
+                : 'bg-emerald-500 text-slate-950 border-emerald-400 shadow-md shadow-emerald-500/20'
+            }`}
+            title={currentUser ? "Cuenta de Usuario" : "Iniciar Sesión"}
           >
-            <ShieldCheck size={16} />
+            {currentUser ? <ShieldCheck size={16} /> : <Lock size={16} />}
           </button>
           <button
             type="button"
