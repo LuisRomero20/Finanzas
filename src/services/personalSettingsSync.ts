@@ -6,7 +6,6 @@ import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
-import { getValidatedSession } from './authService';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
 type Entry = {

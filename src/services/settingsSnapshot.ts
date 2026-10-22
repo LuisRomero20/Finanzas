@@ -42,13 +42,51 @@ interface SettingsManifest {
   version?: number;
 }
 
+export interface MirrorSyncReport {
+  status: 'synced' | 'desynced' | 'table_not_migrated';
+  lastSync?: string;
+  error?: string;
+}
+
+// Registro en memoria y local del estado de sincronización del mirror secundario (personal_settings)
+const MIRROR_STATUS_STORAGE_KEY = 'finper_mirror_sync_status_v1';
+
+function loadMirrorStatusMap(): Record<string, MirrorSyncReport> {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      const raw = localStorage.getItem(MIRROR_STATUS_STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    }
+  } catch {}
+  return {};
+}
+
+const mirrorStatusMap: Record<string, MirrorSyncReport> = loadMirrorStatusMap();
+
+function persistMirrorStatus(): void {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(MIRROR_STATUS_STORAGE_KEY, JSON.stringify(mirrorStatusMap));
+    }
+  } catch {}
+}
+
+export function getMirrorSyncStatus(name?: string): Record<string, MirrorSyncReport> | MirrorSyncReport {
+  if (name) {
+    return mirrorStatusMap[name] || { status: 'table_not_migrated' };
+  }
+  return { ...mirrorStatusMap };
+}
+
 /**
- * Lee una instantánea de configuración con mecanismo de transición bidireccional y control de versiones:
- * 1. Consulta el manifiesto de la fuente tradicional ('transacciones') y de la tabla dedicada ('personal_settings').
- * 2. Compara marcas de tiempo para determinar cuál contiene la versión más reciente del dato.
- * 3. El concurrency token ('head') devuelto siempre corresponde exactamente al registro de 'transacciones'
- *    para garantizar que las comprobaciones de concurrencia optimista no fallen por discrepancias sintéticas.
- * 4. Si la tabla dedicada no existe aún en el esquema remoto (42P01), conmuta automáticamente a 'transacciones'.
+ * Lee una instantánea de configuración estableciendo a 'public.transacciones' como
+ * la ÚNICA FUENTE DE VERDAD AUTORITATIVA (Single Source of Truth).
+ * 
+ * Reglas de lectura:
+ * 1. Consulta el manifiesto canónico en 'transacciones'.
+ * 2. Si existe y sus fragmentos están íntegros, devuelve el valor canónico y el head autoritativo.
+ * 3. Nunca permite que lecturas secundarias desfasadas sobreescriban la versión autoritativa.
+ * 4. Únicamente si los fragmentos están incompletos en 'transacciones', recurre a 'personal_settings' como rescate.
  */
 export async function readSnapshot(name: string): Promise<{ value: string | null; head: string | null }> {
   const session = await getValidatedSession();
@@ -67,99 +105,78 @@ export async function readSnapshot(name: string): Promise<{ value: string | null
   if (legacyErr) throw legacyErr;
 
   let legacyManifest: SettingsManifest | null = null;
-  let legacyTimestamp = 0;
   if (legacyData?.concepto) {
     try {
       const parsed = JSON.parse(legacyData.concepto as string);
       if (parsed && parsed.revision && Number.isInteger(parsed.count)) {
         legacyManifest = parsed as SettingsManifest;
-        legacyTimestamp = parsed.updated_at ? new Date(parsed.updated_at).getTime() : 1;
       }
     } catch {}
   }
 
-  // 2. Intentar consultar la tabla dedicada 'personal_settings' (si existe en Supabase)
-  let dedicatedData: any = null;
-  let dedicatedTimestamp = 0;
+  // Si existe el manifiesto autoritativo en 'transacciones', recuperar sus fragmentos:
+  if (legacyManifest) {
+    const { data: chunks, error: chunkError } = await supabase
+      .from('transacciones')
+      .select('concepto, monto')
+      .like('id', `${id}-${legacyManifest.revision}-%`)
+      .order('monto')
+      .limit(10000);
+
+    if (chunkError) throw chunkError;
+
+    if (chunks && chunks.length === legacyManifest.count && chunks.every((chunk, index) => Number(chunk.monto) === index)) {
+      const rawJson = chunks.map(c => c.concepto).join('');
+      const canonicalValue = canonical(JSON.parse(rawJson));
+      const authoritativeHead = legacyData!.concepto as string;
+      return { value: canonicalValue, head: authoritativeHead };
+    }
+
+    // Si los fragmentos autoritativos están incompletos o dañados:
+    // Intentar rescate desde la tabla secundaria personal_settings:
+    try {
+      const { data: dedicatedData, error: dErr } = await supabase
+        .from('personal_settings')
+        .select('data, version, updated_at')
+        .eq('name', name)
+        .maybeSingle();
+
+      if (!dErr && dedicatedData?.data) {
+        const valStr = typeof dedicatedData.data === 'string'
+          ? dedicatedData.data
+          : canonical(dedicatedData.data);
+        return { value: valStr, head: legacyData?.concepto as string };
+      }
+    } catch {}
+
+    throw new Error('No se recibió la configuración completa; se conserva la copia local');
+  }
+
+  // 2. Si no existe registro en 'transacciones', consultar 'personal_settings' como contingencia
   try {
-    const { data: dData, error: dErr } = await supabase
+    const { data: dedicatedData, error: dErr } = await supabase
       .from('personal_settings')
       .select('data, version, updated_at')
       .eq('name', name)
       .maybeSingle();
 
-    if (!dErr && dData?.data) {
-      dedicatedData = dData;
-      dedicatedTimestamp = dData.updated_at ? new Date(dData.updated_at).getTime() : 0;
-    }
-  } catch {
-    // Si la tabla dedicada no existe o el rol no tiene acceso, se continúa con legacy
-  }
-
-  // El token de concurrencia (head) SIEMPRE debe ser el string exacto de transacciones.concepto
-  const authoritativeHead = (legacyData?.concepto as string) || null;
-
-  // 3. Decidir cuál fuente es más reciente y autoritativa para el VALOR
-  // Si la tabla dedicada existe y es más reciente que el manifiesto tradicional:
-  if (dedicatedData && dedicatedTimestamp >= legacyTimestamp) {
-    const valStr = typeof dedicatedData.data === 'string'
-      ? dedicatedData.data
-      : canonical(dedicatedData.data);
-    return {
-      value: valStr,
-      head: authoritativeHead,
-    };
-  }
-
-  // 4. Si la fuente tradicional es la más reciente (o la única existente):
-  if (!legacyManifest) {
-    // Si tampoco hay manifest en transacciones pero hay dedicatedData, usar dedicatedData
-    if (dedicatedData) {
+    if (!dErr && dedicatedData?.data) {
       const valStr = typeof dedicatedData.data === 'string'
         ? dedicatedData.data
         : canonical(dedicatedData.data);
-      return {
-        value: valStr,
-        head: authoritativeHead,
-      };
+      const authoritativeHead = (legacyData?.concepto as string) || null;
+      return { value: valStr, head: authoritativeHead };
     }
-    return { value: null, head: null };
-  }
+  } catch {}
 
-  // Lectura completa y verificación de fragmentos en 'transacciones'
-  const { data: chunks, error: chunkError } = await supabase
-    .from('transacciones')
-    .select('concepto, monto')
-    .like('id', `${id}-${legacyManifest.revision}-%`)
-    .order('monto')
-    .limit(10000);
-
-  if (chunkError) throw chunkError;
-  if (!chunks || chunks.length !== legacyManifest.count || chunks.some((chunk, index) => Number(chunk.monto) !== index)) {
-    // Si los fragmentos legacy están dañados/incompletos pero existe la tabla dedicada, recuperar de ella
-    if (dedicatedData) {
-      const valStr = typeof dedicatedData.data === 'string'
-        ? dedicatedData.data
-        : canonical(dedicatedData.data);
-      return {
-        value: valStr,
-        head: authoritativeHead,
-      };
-    }
-    throw new Error('No se recibió la configuración completa; se conserva la copia local');
-  }
-
-  const rawJson = chunks.map(c => c.concepto).join('');
-  const canonicalValue = canonical(JSON.parse(rawJson));
-
-  return { value: canonicalValue, head: authoritativeHead };
+  return { value: null, head: null };
 }
 
 /**
  * Guarda una instantánea de configuración asegurando:
- * 1. Control de concurrencia optimista contra previousHead.
- * 2. Escritura íntegra de fragmentos en 'transacciones'.
- * 3. Actualización dual resiliente en 'personal_settings' (si la tabla existe).
+ * 1. Control de concurrencia optimista estricto contra previousHead (Cero UPDATEs ciegos en colisiones 23505).
+ * 2. Escritura íntegra de fragmentos y manifiesto en 'transacciones' (fuente autoritativa).
+ * 3. Dual-write verificado y reportable en 'personal_settings' (fuente secundaria).
  * 4. Titularidad estricta (user_id) en todos los registros.
  */
 export async function writeSnapshot(name: string, value: string, previousHead: string | null): Promise<void> {
@@ -203,20 +220,23 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
   const head = JSON.stringify(manifestData);
 
   if (previousHead === null) {
+    // Intento de creación inicial de manifiesto
     const { error: insertErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
     if (insertErr) {
-      // Si la fila ya existía en transacciones (código 23505 unique violation), actualizarla
-      if (insertErr.code === '23505' || insertErr.message?.toLowerCase().includes('duplicate key') || insertErr.message?.toLowerCase().includes('unique')) {
-        const { error: updateErr } = await supabase
-          .from('transacciones')
-          .update({ concepto: head })
-          .eq('id', id);
-        if (updateErr) throw updateErr;
-      } else {
-        throw insertErr;
+      // Si la fila ya existía en transacciones (código 23505 unique violation), NUNCA sobreescribir sin versión.
+      // Es una colisión concurrente real: otro dispositivo ya creó o actualizó la configuración.
+      // Se rechaza la escritura para forzar la comparación de versiones y evitar pérdidas de datos.
+      if (
+        insertErr.code === '23505' ||
+        insertErr.message?.toLowerCase().includes('duplicate key') ||
+        insertErr.message?.toLowerCase().includes('unique')
+      ) {
+        throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
       }
+      throw insertErr;
     }
   } else {
+    // Actualización con verificación estricta de versión previa (previousHead)
     const result = await supabase
       .from('transacciones')
       .update({ concepto: head })
@@ -226,23 +246,12 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
 
     if (result.error) throw result.error;
     if (!result.data?.length) {
-      // Verificar si la fila existe con otro manifiesto (conflicto concurrente real) o si aún no existía
-      const { data: currentHeadData } = await supabase
-        .from('transacciones')
-        .select('concepto')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (!currentHeadData) {
-        const { error: insErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
-        if (insErr) throw insErr;
-      } else {
-        throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
-      }
+      // La versión en Supabase ya no coincide con previousHead -> carrera concurrente
+      throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
     }
   }
 
-  // 3. Dual-write verificado en 'personal_settings' (si la tabla ya ha sido migrada)
+  // 3. Dual-write verificable en la tabla secundaria 'personal_settings'
   try {
     const tableRef = supabase.from('personal_settings') as any;
     if (typeof tableRef?.upsert === 'function') {
@@ -261,12 +270,63 @@ export async function writeSnapshot(name: string, value: string, previousHead: s
           dedicatedErr.message?.toLowerCase().includes('does not exist') ||
           dedicatedErr.details?.toLowerCase().includes('does not exist');
 
-        if (!isMissingTable) {
-          console.warn(`[settingsSnapshot] Advertencia no crítica en personal_settings (${name}):`, dedicatedErr.message);
+        if (isMissingTable) {
+          mirrorStatusMap[name] = { status: 'table_not_migrated', lastSync: nowIso };
+        } else {
+          // Divergencia en mirror detectada y registrada de forma verificable
+          mirrorStatusMap[name] = {
+            status: 'desynced',
+            lastSync: nowIso,
+            error: dedicatedErr.message || 'Error al persistir en mirror secundario',
+          };
+          console.warn(`[settingsSnapshot] Divergencia detectada en personal_settings (${name}):`, dedicatedErr.message);
         }
+      } else {
+        mirrorStatusMap[name] = { status: 'synced', lastSync: nowIso };
       }
+      persistMirrorStatus();
     }
-  } catch (err) {
-    console.warn(`[settingsSnapshot] Excepción no crítica en dual-write de ${name}:`, err);
+  } catch (err: any) {
+    mirrorStatusMap[name] = {
+      status: 'desynced',
+      lastSync: nowIso,
+      error: err?.message || 'Excepción al conectar con mirror secundario',
+    };
+    persistMirrorStatus();
+  }
+}
+
+/**
+ * Repara y reconcilia verificablemente la tabla secundaria 'personal_settings'
+ * sincronizando desde la fuente autoritativa ('transacciones').
+ */
+export async function repairMirrorSync(name: string): Promise<boolean> {
+  const session = await getValidatedSession();
+  if (!session?.user?.id) return false;
+
+  try {
+    const snapshot = await readSnapshot(name);
+    if (!snapshot.value) return false;
+
+    const parsed = JSON.parse(snapshot.value);
+    const tableRef = supabase.from('personal_settings') as any;
+    if (typeof tableRef?.upsert !== 'function') return false;
+
+    const { error } = await tableRef.upsert({
+      id: `${session.user.id}-${name}`,
+      user_id: session.user.id,
+      name,
+      data: parsed,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'id' });
+
+    if (!error) {
+      mirrorStatusMap[name] = { status: 'synced', lastSync: new Date().toISOString() };
+      persistMirrorStatus();
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
   }
 }

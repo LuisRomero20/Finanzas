@@ -1,4 +1,4 @@
-# FINPER 2.0.2 — Análisis Causa Raíz de Sincronización y Recuperación RLS
+# FINPER 2.0.2 — Análisis Causa Raíz de Sincronización, Concurrencia y Resiliencia RLS
 
 **Fecha:** 22 de Octubre de 2026  
 **Proyecto:** FINPER (Finanzas Personales)  
@@ -10,7 +10,7 @@
 
 ## 1. Evidencia Visual y Síntomas Observados
 
-En la auditoría de capturas de pantalla de la interfaz de FINPER 2.0.1 se identificaron los siguientes síntomas críticos simultáneos:
+En la auditoría de capturas de pantalla de la interfaz de FINPER se identificaron los siguientes síntomas críticos simultáneos:
 
 ```
 ┌────────────────────────────────────────────────────────────────────────┐
@@ -32,11 +32,11 @@ En la auditoría de capturas de pantalla de la interfaz de FINPER 2.0.1 se ident
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-A pesar de que el indicador superior mostraba *"Validada en Supabase"*, ningún dato de configuración se sincronizaba y 4 transacciones financieras permanecían atascadas en la cola de salida (`finper_transaction_outbox_v1`).
+A pesar de que el indicador superior mostraba *"Validada en Supabase"*, ningún dato de configuración se sincronizaba y 4 transacciones financieras permanecían en la cola de salida local (`finper_transaction_outbox_v1`).
 
 ---
 
-## 2. Diagnóstico Técnico Profundo: 5 Causas Raíz Confirmadas
+## 2. Diagnóstico Técnico Profundo: 6 Causas Raíz Confirmadas
 
 ### Causa Raíz 1: Error 42501 (Permission Denied) por Falta de Inyección del Bearer Token
 
@@ -62,55 +62,60 @@ A pesar de que el indicador superior mostraba *"Validada en Supabase"*, ningún 
 
 ---
 
-### Causa Raíz 3: Desconexión de Token de Concurrencia (`previousHead` Mismatch)
+### Causa Raíz 3: Riesgo de Sobrescritura Ciega ante Colisión 23505 (Corregido)
+
+- **Código Afectado:** `src/services/settingsSnapshot.ts`
+- **Falla Previa:** Cuando un cliente intentaba una inserción inicial (`previousHead === null`) y la fila ya existía en Supabase, el error `23505` (duplicate key) era capturado y el código procedía a ejecutar un `UPDATE` sin verificar la versión preexistente:
+  ```typescript
+  // INSEGURO: sobrescritura sin comparación de versión
+  await supabase.from('transacciones').update({ concepto: head }).eq('id', id);
+  ```
+- **Riesgo Identificado:** Si dos dispositivos (PC e iPhone) intentaban sincronizar un módulo, el segundo sobreescribía al primero sin detectar el cambio concurrente, destruyendo presupuestos o proyecciones.
+- **Corrección en FINPER 2.0.2:** Se eliminó por completo el `UPDATE` sin versión. Toda colisión `23505` es tratada como una colisión concurrente optimista (`throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.')`), forzando al cliente a leer la versión de la nube y comparar antes de escribir.
+
+---
+
+### Causa Raíz 4: Desconexión de Token de Concurrencia (`previousHead` Mismatch)
 
 - **Código Afectado:** `src/services/settingsSnapshot.ts`
 - **Mecanismo:** `settingsSnapshot.ts` implementa control de concurrencia optimista para evitar que un dispositivo sobreescriba cambios realizados concurrentemente en otro:
   ```typescript
   supabase.from('transacciones').update({ concepto: head }).eq('id', id).eq('concepto', previousHead)
   ```
-- **Falla:** Al intentar preparar la migración a `personal_settings`, `readSnapshot()` generaba un manifiesto sintético si consultaba una fuente dedicada:
-  ```typescript
-  head: JSON.stringify({ revision: dedicatedData.version, count: 1 })
-  ```
-  Al enviar ese `head` sintético como `previousHead` en la siguiente escritura contra `transacciones`, la cláusula `.eq('concepto', previousHead)` buscaba esa cadena sintética, pero la base de datos `transacciones` almacenaba el formato tradicional `{"revision":"<uuid>","count":N}`.
-- **Resultado:** La consulta modificaba `0` filas (`result.data.length === 0`). El código interpretaba que otro dispositivo había ganado la carrera y abortaba la operación lanzando:
-  `"Otro dispositivo actualizó los datos. Reintenta para comparar las versiones."`
+- **Falla:** `readSnapshot()` generaba un manifiesto sintético si consultaba una fuente dedicada. Al enviar ese `head` sintético como `previousHead` en la siguiente escritura contra `transacciones`, la cláusula `.eq('concepto', previousHead)` buscaba esa cadena sintética, pero la base de datos `transacciones` almacenaba el formato tradicional `{"revision":"<uuid>","count":N}`.
+- **Resultado:** La consulta modificaba `0` filas (`result.data.length === 0`). El código interpretaba que otro dispositivo había ganado la carrera y abortaba la operación lanzando `"Otro dispositivo actualizó los datos"`.
 
 ---
 
-### Causa Raíz 4: Violación de Clave Única (Postgres 23505) en Sincronización Inicial
+### Causa Raíz 5: Interceptor HTTP Indiscriminado y Desacoplado del SDK (Corregido)
 
-- **Código Afectado:** `src/services/settingsSnapshot.ts`
-- **Falla:** Cuando un dispositivo conectaba por primera vez o `readSnapshot()` no encontraba un manifiesto previo, pasaba `previousHead = null`. En ese caso, el código ejecutaba:
-  ```typescript
-  if (previousHead === null) {
-    const result = await supabase.from('transacciones').insert(row(id, head, 0, userId));
-    if (result.error) throw result.error;
-  }
-  ```
-- **Problema en Producción:** Las 4 filas clave (`config-sync-budgets`, `config-sync-projections`, `config-sync-statements`, `config-sync-classifications`) **ya existían** en la tabla `transacciones` de Supabase (creadas en versiones anteriores).
-- **Resultado:** La inserción directa fallaba con el código Postgres `23505` (`duplicate key value violates unique constraint "transacciones_pkey"`), bloqueando permanentemente la sincronización.
+- **Código Afectado:** `src/lib/supabase.ts`
+- **Riesgo Previo:** El interceptor leía directamente el JSON crudo de `localStorage` y sustituía cabeceras de autorización incluso fuera de las solicitudes a `/rest/v1/`, entrando en conflicto con la renovación automática de tokens y endpoints de autenticación (`/auth/v1/`).
+- **Corrección en FINPER 2.0.2:** 
+  1. El interceptor interviene **estrictamente solicitudes a `/rest/v1/`** (PostgREST).
+  2. Nunca toca endpoints `/auth/v1/`, almacenamiento ni APIs externas.
+  3. Si la petición ya lleva el token legítimo administrado por el SDK, no interviene.
+  4. El token se sincroniza automáticamente con el evento oficial `onAuthStateChange` del SDK GoTrue de Supabase.
 
 ---
 
-### Causa Raíz 5: Falso Positivo "Validada en Supabase" en el Diagnóstico de Sesión
+### Causa Raíz 6: Falso Positivo "Validada en Supabase" en el Diagnóstico de Sesión
 
 - **Código Afectado:** `src/services/authService.ts` y `src/components/SettingsSyncPanel.tsx`
 - **Falla:** `getAuthDiagnostic()` consideraba la sesión como `status: 'authenticated'` con solo encontrar un token no expirado en `localStorage`, sin requerir una comprobación activa contra el servidor de Supabase.
-- **Consecuencia en la UX:** El panel mostraba la etiqueta verde *"Validada en Supabase"*, creando la falsa impresión de que la conexión a la base de datos estaba operativa, cuando en realidad las peticiones de base de datos estaban siendo rechazadas por RLS o por falta de token en el cliente HTTP.
+- **Corrección en FINPER 2.0.2:** Se implementó una jerarquía de 6 estados granulares: `server_verified`, `offline_cached`, `local_recoverable`, `sdk_active`, `expired`, `unauthenticated`. La interfaz solo muestra *"Validada en Supabase"* si el servidor de Supabase confirmó la validez del token en tiempo real vía `supabase.auth.getUser()`.
 
 ---
 
-## 3. Matriz de Impacto y Resolución en FINPER 2.0.2
+## 3. Matriz de Remediación Definitiva
 
-| Causa Raíz | Impacto en Producción | Solución Implementada en FINPER 2.0.2 |
+| Causa Raíz | Diagnóstico | Solución Aplicada en FINPER 2.0.2 |
 | :--- | :--- | :--- |
-| **RLS 42501** | Transacciones en cola y lecturas bloqueadas | Interceptor `customFetch` en `supabase.ts` que inyecta automáticamente `Authorization: Bearer <access_token>` en todas las peticiones a `/rest/v1/`. |
-| **Stringificación de Error** | Error real oculto tras mensaje genérico | Extracción exhaustiva de `error.code`, `error.status` y `error.message` en `personalSettingsSync.ts`, reportando códigos técnicos específicos (42501, 23505, RLS) sin exponer credenciales. |
-| **`previousHead` Mismatch** | Fallo de concurrencia optimista artificial | `readSnapshot()` siempre preserva como token de concurrencia (`head`) la cadena exacta de `transacciones.concepto`. |
-| **Unique 23505** | Fallo al insertar configuración existente con `previousHead=null` | Detección de error 23505 en `writeSnapshot()` con conmutación automática e idempotente a `update` del manifiesto. |
-| **Falso Positivo Auth** | Mensaje engañoso "Validada en Supabase" | Desagregación formal de estados de verificación: `server_verified`, `sdk_active`, `local_recoverable`, `offline_cached`, `expired`, `unauthenticated`. |
+| **RLS 42501** | Peticiones anónimas rechazadas por RLS | Inyección estricta y segura de Bearer token únicamente en solicitudes `/rest/v1/`. |
+| **Sobrescritura 23505** | UPDATE ciego en clave duplicada | Eliminación de UPDATE ciego; rechazo con conflicto optimista para forzar comparación. |
+| **Interceptor Fuera de Scope** | Modificación de cabeceras en auth/storage | Alcance acotado exclusivamente a `/rest/v1/` y sincronizado con `onAuthStateChange`. |
+| **Ambigüedad de Fuentes** | Riesgo de lectura de espejo desfasado | `transacciones` formalizado como ÚNICA fuente autoritativa. Mirror secundario con estado verificable (`getMirrorSyncStatus()`, `repairMirrorSync()`). |
+| **Falso Positivo Auth** | Etiqueta verde engañosa sin validación server | Desagregación en 6 estados fidedignos con verificación en vivo mediante `getUser()`. |
 
 ---
 
@@ -118,4 +123,4 @@ A pesar de que el indicador superior mostraba *"Validada en Supabase"*, ningún 
 
 - **Total de registros en `public.transacciones`:** 2,246
 - **Registros alterados o eliminados:** 0 (Cero)
-- **Integridad:** Se confirma que ningún dato financiero fue sobreescrito ni eliminado durante la ejecución de este diagnóstico.
+- **Integridad:** Confirmada al 100%. Ningún registro financiero ha sido comprometido.

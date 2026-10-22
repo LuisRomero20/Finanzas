@@ -18,29 +18,31 @@ function sanitizeKey(raw?: string): string {
   return raw.trim().replace(/^["']|["']$/g, '');
 }
 
-const SUPABASE_URL = sanitizeUrl(import.meta.env.VITE_SUPABASE_URL);
-const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
+export const SUPABASE_URL = sanitizeUrl(import.meta.env.VITE_SUPABASE_URL);
+export const SUPABASE_PUBLISHABLE_KEY = sanitizeKey(
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY
 );
 
-function getStoredAccessToken(): string | null {
+// Token en memoria administrado en sincronía con el ciclo de vida del SDK GoTrue
+let currentSdkToken: string | null = null;
+
+export function updateManagedSdkToken(token: string | null): void {
+  currentSdkToken = token;
+}
+
+export function getManagedSdkToken(): string | null {
+  return currentSdkToken;
+}
+
+function getFallbackStorageToken(): string | null {
   try {
     if (typeof localStorage === 'undefined') return null;
-    let raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
-    if (!raw) {
-      for (let i = 0; i < localStorage.length; i++) {
-        const k = localStorage.key(i);
-        if (k && k.startsWith('sb-') && k.endsWith('-auth-token')) {
-          raw = localStorage.getItem(k);
-          if (raw) break;
-        }
-      }
-    }
+    const raw = localStorage.getItem('sb-njgzhjwfcxdxiibkuuqg-auth-token');
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed?.access_token) {
         const nowUnix = Math.floor(Date.now() / 1000);
-        if (!parsed.expires_at || parsed.expires_at > nowUnix + 10) {
+        if (!parsed.expires_at || parsed.expires_at > nowUnix + 15) {
           return parsed.access_token;
         }
       }
@@ -49,24 +51,38 @@ function getStoredAccessToken(): string | null {
   return null;
 }
 
+/**
+ * Interceptor HTTP de protección estricta para solicitudes de base de datos (/rest/v1/).
+ * Reglas de diseño:
+ * 1. NUNCA intercepta rutas de autenticación (/auth/v1/), storage, ni peticiones externas.
+ * 2. Si la petición ya lleva un Bearer token legítimo del SDK, no modifica nada.
+ * 3. Utiliza preferentemente la sesión administrada por el SDK oficial de Supabase.
+ * 4. Solo inyecta el token de usuario si la solicitud a /rest/v1/ carece de autenticación o
+ *    lleva la anon_key por defecto, previniendo denegaciones de RLS (Postgres 42501).
+ */
 const customFetch: typeof fetch = async (input, init) => {
-  const headers = new Headers(init?.headers);
-  const currentAuth = headers.get('Authorization');
-  const token = getStoredAccessToken();
+  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
 
-  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : (input as any)?.toString?.() || '');
-
-  // Inyectar el token Bearer del usuario autenticado en todas las consultas de base de datos
-  // para evitar fallos de permisos RLS (código 42501) cuando el rol 'anon' no tiene privilegios:
-  if (token && urlStr.includes('/rest/v1/')) {
-    if (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}` || currentAuth.includes('anon')) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
-  } else if (token && (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`)) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // Regla 1: Intervenir ÚNICAMENTE peticiones dirigidas a PostgREST (/rest/v1/)
+  if (!urlStr.includes('/rest/v1/')) {
+    return fetch(input, init);
   }
 
-  return fetch(input, { ...init, headers });
+  const headers = new Headers(init?.headers);
+  const currentAuth = headers.get('Authorization');
+
+  // Regla 2: Si ya cuenta con un Bearer token específico distinto a la anon_key, respetar la sesión del SDK
+  const isAnonOrMissing = !currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}` || currentAuth.includes('anon');
+
+  if (isAnonOrMissing) {
+    const token = getManagedSdkToken() || getFallbackStorageToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+      return fetch(input, { ...init, headers });
+    }
+  }
+
+  return fetch(input, init);
 };
 
 export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
@@ -79,6 +95,15 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     fetch: customFetch,
   },
 });
+
+// Sincronizar automáticamente el token administrado con los eventos oficiales del SDK de Supabase
+if (supabase?.auth?.onAuthStateChange) {
+  try {
+    supabase.auth.onAuthStateChange((_event, session) => {
+      updateManagedSdkToken(session?.access_token ?? null);
+    });
+  } catch {}
+}
 
 // Tipos para Supabase
 export interface SupabaseUsuario {

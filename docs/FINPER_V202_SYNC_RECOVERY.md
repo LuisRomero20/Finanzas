@@ -3,75 +3,96 @@
 **Versión:** 2.0.2  
 **Fecha:** 22 de Octubre de 2026  
 **Rama:** `fix/finper-v202-sync-recovery`  
-**Objetivo:** Restaurar la sincronización fluida y bidireccional de movimientos y configuraciones entre PC y iPhone, resolviendo bloqueos por permisos RLS, previniendo condiciones de carrera y preservando intactos los 2,246 registros históricos en Supabase.
+**Objetivo:** Restaurar la sincronización fluida y bidireccional de movimientos y configuraciones entre PC y iPhone, resolviendo bloqueos por permisos RLS, previniendo condiciones de carrera y sobrescrituras ciegas, y preservando intactos los 2,246 registros históricos en Supabase.
 
 ---
 
-## 1. Arquitectura de Almacenamiento y Jerarquía de Fuentes de Verdad
+## 1. Arquitectura de Almacenamiento y Definición de Fuente Autoritativa
 
-Debido a que la tabla dedicada `public.personal_settings` aún no ha sido aprovisionada en el Supabase de producción (retornando error Postgres `42P01: relation does not exist`), FINPER 2.0.2 establece una jerarquía formal y determinista:
+FINPER 2.0.2 establece formalmente que **`public.transacciones` es la ÚNICA FUENTE DE VERDAD AUTORITATIVA (Single Source of Truth)**. La tabla `personal_settings` opera como un mirror secundario y de contingencia para la futura migración.
 
 ```mermaid
 flowchart TD
     subgraph Cliente["Cliente FINPER (PC / iPhone)"]
         UI["Panel de Ajustes / UI"]
         Outbox["Cola de Movimientos (Outbox Local)"]
-        Interceptor["Interceptor customFetch (Bearer Token)"]
+        Interceptor["Interceptor customFetch (Scope: /rest/v1/)"]
     end
 
     subgraph Supabase["Supabase Cloud"]
-        Transacciones["public.transacciones (2,246 Filas)<br/>★ FUENTE AUTORITATIVA ★"]
-        PersonalSettings["public.personal_settings<br/>(Mirror Secundario - Soft Fail 42P01)"]
+        Transacciones["public.transacciones (2,246 Filas)<br/>★ FUENTE AUTORITATIVA ÚNICA ★"]
+        PersonalSettings["public.personal_settings<br/>(Mirror Secundario - Estado Verificable)"]
     end
 
     UI -->|"readSnapshot / writeSnapshot"| Interceptor
     Outbox -->|"flushTransactions (user_id estricto)"| Interceptor
-    Interceptor -->|"1. Lee/Escribe fragmentos y manifiesto"| Transacciones
-    Interceptor -.->|"2. Dual-write asíncrono seguro"| PersonalSettings
+    Interceptor -->|"1. Lectura canónica y escritura con candado optimista"| Transacciones
+    Interceptor -.->|"2. Dual-write verificable (synced / desynced / not_migrated)"| PersonalSettings
 ```
 
 ### Reglas de Operación:
-1. **`public.transacciones` es la única fuente de verdad autoritativa:** Todos los fragmentos (`config-sync-<name>-<uuid>-<index>`) y manifiestos (`config-sync-<name>`) se leen y validan obligatoriamente contra `transacciones`.
-2. **`personal_settings` opera como mirror secundario tolerante a fallos:** Las lecturas y escrituras hacia `personal_settings` capturan de forma no destructiva los errores `42P01` (tabla inexistente) o de permisos, permitiendo que la aplicación continúe funcionando al 100% de manera transparente.
-3. **Token de Concurrencia Homogéneo:** `readSnapshot()` retorna siempre como token de concurrencia (`head`) la cadena exacta almacenada en `transacciones.concepto`. Con esto se erradica el error de falso conflicto concurrente provocado por tokens sintéticos.
+1. **Lectura canónica estricta:** `readSnapshot()` consulta siempre `transacciones`. Si el registro y sus fragmentos están íntegros, devuelve ese valor autoritativo. Nunca permite que una versión desfasada de la tabla secundaria sustituya la versión autoritativa.
+2. **Rescate ante contingencia:** Únicamente si `transacciones` se encuentra vacío o con fragmentos dañados, se acude a `personal_settings` como mecanismo de rescate.
+3. **Mirror secundario con estado verificable:** Toda escritura en `personal_settings` registra su estado:
+   - `table_not_migrated`: Si Supabase responde `42P01` (tabla no aprovisionada aún).
+   - `synced`: Si la persistencia secundaria se confirmó exitosamente.
+   - `desynced`: Si la tabla existe pero la escritura secundaria falló, registrando el error técnico sin interrumpir el flujo principal.
+4. **Reconciliación a demanda:** Se exporta `repairMirrorSync(name)` para sincronizar bajo demanda la tabla secundaria desde la fuente autoritativa en cualquier momento.
 
 ---
 
-## 2. Inyección Resiliente de Autenticación (`customFetch`)
+## 2. Eliminación de Sobrescritura Ciega ante Colisión 23505
 
-Para solucionar el error Postgres `42501` (Permission Denied) provocado cuando el cliente SDK de Supabase emitía consultas antes de que su estado GoTrue en memoria estuviera completamente inicializado, se implementó un interceptor a nivel de transporte HTTP en `src/lib/supabase.ts`:
+En versiones anteriores, si dos dispositivos intentaban una inserción simultánea con `previousHead = null`, el segundo en llegar capturaba el error `23505` (clave duplicada) y ejecutaba un `UPDATE` sin comprobar la versión existente, sobreescribiendo los datos del primer dispositivo.
 
+### Solución en FINPER 2.0.2:
 ```typescript
-const customFetch: typeof fetch = async (input, init) => {
-  const headers = new Headers(init?.headers);
-  const currentAuth = headers.get('Authorization');
-  const token = getStoredAccessToken();
-
-  const urlStr = typeof input === 'string' ? input : (input instanceof Request ? input.url : '');
-
-  // Garantizar que toda consulta a la base de datos (/rest/v1/) lleve el Bearer token del usuario
-  if (token && urlStr.includes('/rest/v1/')) {
-    if (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}` || currentAuth.includes('anon')) {
-      headers.set('Authorization', `Bearer ${token}`);
+if (previousHead === null) {
+  const { error: insertErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
+  if (insertErr) {
+    // Si la fila ya existe, NUNCA sobreescribir sin versión previa
+    if (
+      insertErr.code === '23505' ||
+      insertErr.message?.toLowerCase().includes('duplicate key') ||
+      insertErr.message?.toLowerCase().includes('unique')
+    ) {
+      throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
     }
-  } else if (token && (!currentAuth || currentAuth === `Bearer ${SUPABASE_PUBLISHABLE_KEY}`)) {
-    headers.set('Authorization', `Bearer ${token}`);
+    throw insertErr;
   }
+} else {
+  // Comprobación estricta de concurrencia optimista
+  const result = await supabase
+    .from('transacciones')
+    .update({ concepto: head })
+    .eq('id', id)
+    .eq('concepto', previousHead)
+    .select('id');
 
-  return fetch(input, { ...init, headers });
-};
+  if (result.error) throw result.error;
+  if (!result.data?.length) {
+    throw new Error('Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.');
+  }
+}
 ```
 
-### Beneficios Técnicos:
-- **Zero RLS 42501:** Ninguna consulta a `transacciones` se envía con el rol `anon` si existe una sesión válida localmente.
-- **Protección de endpoints de Auth:** Las rutas `/auth/v1/` continúan empleando la clave pública/anónima según lo requerido por el protocolo OAuth/GoTrue para inicios de sesión y refresco.
-- **Multiplataforma:** Opera idénticamente en navegadores de escritorio (Chrome, Edge, Firefox) y dispositivos móviles (Safari iOS, PWA).
+**Garantía:** Ningún dispositivo puede sobreescribir ajustes de otro sin detectar el cambio concurrente y forzar la comparación visual de versiones.
 
 ---
 
-## 3. Desagregación del Diagnóstico de Sesión (`getAuthDiagnostic`)
+## 3. Interceptor HTTP Acotado y Sincronizado con el SDK (`customFetch`)
 
-FINPER 2.0.2 reemplaza la evaluación binaria superficial de sesión por un modelo de 6 estados granulares:
+Para resolver los errores RLS `42501` sin alterar el ciclo de vida del SDK ni intervenir endpoints ajenos:
+
+1. **Alcance Estricto:** Interviene **exclusivamente** peticiones a `/rest/v1/` (PostgREST). Las rutas `/auth/v1/` (login, refresh, signup), almacenamiento y APIs externas pasan directamente sin ser interceptadas.
+2. **Respeto a la Sesión del SDK:** Si la petición ya lleva un `Bearer` token asignado por el SDK, el interceptor no lo reemplaza ni modifica.
+3. **Sincronización Reactiva:** El token en memoria se actualiza en tiempo real suscribiéndose al evento oficial `supabase.auth.onAuthStateChange`, garantizando que la renovación de tokens (`TOKEN_REFRESHED`) sea inmediata.
+
+---
+
+## 4. Desagregación del Diagnóstico de Sesión (`getAuthDiagnostic`)
+
+FINPER 2.0.2 implementa un modelo de 6 estados:
 
 | Estado de Verificación | Descripción | Representación en UI |
 | :--- | :--- | :--- |
@@ -82,40 +103,12 @@ FINPER 2.0.2 reemplaza la evaluación binaria superficial de sesión por un mode
 | `expired` | Token expirado; se requiere renovación o nuevo inicio de sesión. | **Sesión expirada** (Rojo) |
 | `unauthenticated` | No se encontró sesión local ni remota. | **Sin autenticar** (Gris) |
 
-Esto elimina la discrepancia donde la interfaz aseguraba que la sesión estaba *"Validada en Supabase"* sin haber realizado una verificación real contra el servidor.
-
----
-
-## 4. Recuperación Idempotente contra Claves Duplicadas (Postgres 23505)
-
-Cuando un cliente sincroniza por primera vez un módulo cuyo manifiesto ya existía previamente en Supabase, `previousHead` es `null`. 
-
-FINPER 2.0.2 intercepta la colisión de clave primaria y la transforma en una actualización transparente:
-
-```typescript
-if (previousHead === null) {
-  const { error: insertErr } = await supabase.from('transacciones').insert(row(id, head, 0, userId));
-  if (insertErr) {
-    if (insertErr.code === '23505' || insertErr.message?.toLowerCase().includes('duplicate key')) {
-      // Fila preexistente: conmutar a actualización idempotente
-      const { error: updateErr } = await supabase
-        .from('transacciones')
-        .update({ concepto: head })
-        .eq('id', id);
-      if (updateErr) throw updateErr;
-    } else {
-      throw insertErr;
-    }
-  }
-}
-```
+La UI **solo muestra «Validada en Supabase»** si el servidor confirmó la sesión en tiempo real.
 
 ---
 
 ## 5. Protocolo de Protección del Outbox de Movimientos
 
-Para resolver el problema de las **4 transacciones pendientes en cola** en la PC:
-
 1. **Titularidad Forzada:** `insertTransactionToSupabase()` y `deleteTransactionFromSupabase()` verifican la sesión y adjuntan obligatoriamente el `user_id` del usuario autenticado. Si no hay sesión, rechazan la operación sin descartar el elemento de la cola.
-2. **Reintento Idempotente:** `flushTransactions()` itera la cola de movimientos. Si la inserción tiene éxito en Supabase (ahora permitida por la inyección del Bearer token), el elemento se retira de la cola y se emite la sincronización en tiempo real vía `broadcastRealtimeSync('transactions')`.
-3. **Cero Pérdida de Datos:** En caso de corte de red o error temporal, las transacciones permanecen intactas en `localStorage` (`finper_transaction_outbox_v1`) y en memoria hasta su confirmación exitosa en Supabase.
+2. **Despacho Idempotente:** `flushTransactions()` despacha la cola de movimientos hacia Supabase con el Bearer token inyectado. Al confirmarse el éxito, el elemento se retira y se emite la sincronización en tiempo real vía `broadcastRealtimeSync('transactions')`.
+3. **Cero Pérdida de Datos:** Si ocurre un corte de red, las operaciones se retienen intactas en `localStorage` (`finper_transaction_outbox_v1`) y se reintentan automáticamente al restablecerse la conexión.

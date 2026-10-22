@@ -10,10 +10,14 @@
 
 ## 1. Verificaciones Previas a la Fusión (Pre-Merge Checklist)
 
-- [x] **Suite de pruebas completa:** 143 de 143 pruebas automatizadas pasadas en 28 suites.
+- [x] **Suite de pruebas completa:** 147 de 147 pruebas automatizadas pasadas en 28 suites.
+- [x] **Cero sobrescritura ciega:** Eliminado `UPDATE` sin versión en colisiones `23505`; concurrencia optimista real comprobada.
+- [x] **Interceptor HTTP acotado:** Inyección estricta a `/rest/v1/`, sin interferir en auth (`/auth/v1/`) ni almacenamiento.
+- [x] **Fuente autoritativa única:** `public.transacciones` definido formalmente como Single Source of Truth; mirror secundario con estado verificable (`getMirrorSyncStatus()`, `repairMirrorSync()`).
 - [x] **Verificación TypeScript:** `npx tsc --noEmit` completado sin errores de tipado.
+- [x] **Verificación ESLint:** 0 errores de lint; 12 advertencias en páginas legacy documentadas transparentemente.
 - [x] **Empaquetado de producción:** `npm run build` ejecutado exitosamente con artefactos limpios en `dist/`.
-- [x] **Integridad de base de datos:** Los 2,246 registros históricos de Supabase permanecen íntegros.
+- [x] **Integridad de base de datos:** Los 2,246 registros históricos de Supabase permanecen íntegros y RLS rechaza el rol `anon`.
 - [x] **Cero comandos destructivos:** No se ejecutó ningún `DROP`, `TRUNCATE` ni borrado en lote en producción.
 - [x] **Seguridad de credenciales:** Ningún secreto (`service_role` o contraseñas) ha sido incluido en el código cliente.
 - [x] **Aislamiento de rama:** Todo el trabajo se encuentra encapsulado en `fix/finper-v202-sync-recovery`.
@@ -36,7 +40,7 @@ Una vez que el usuario apruebe la fusión de la rama a `main` y Vercel complete 
    - Observa cómo la **Cola de Movimientos** se despacha hacia Supabase y pasa de `4 pendientes` a **`0 pendientes`**.
    - Observa cómo los 4 módulos de configuración se sincronizan:
      - Si muestran **«Sincronizado»** (verde), la sincronización se completó.
-     - Si alguno muestra **«Versiones distintas»** (ámbar) o **«Pendiente de reintento»** previo, pulsa **«Compartir este dispositivo a la nube»**.
+     - Si alguno muestra **«Versiones distintas»** (ámbar), pulsa **«Compartir este dispositivo a la nube»**.
 6. Realiza un respaldo preventivo pulsando **«Descargar copia de seguridad local (JSON)»**.
 
 ---

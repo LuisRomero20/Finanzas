@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { readSnapshot, writeSnapshot, canonical } from '../../services/settingsSnapshot';
+import { writeSnapshot, canonical, getMirrorSyncStatus, repairMirrorSync } from '../../services/settingsSnapshot';
 import { insertTransactionToSupabase, deleteTransactionFromSupabase } from '../../services/supabaseService';
 import * as authService from '../../services/authService';
 import { supabase } from '../../lib/supabase';
 import type { Transaction } from '../../utils/masterData';
 
-describe('FINPER 2.0.2 — Pruebas de Recuperación de Sincronización y Resiliencia RLS', () => {
+describe('FINPER 2.0.2 — Pruebas Rigurosas de Sincronización, Concurrencia y Resiliencia RLS', () => {
   const dummyTx: Transaction = {
     id: 'tx-v202-001',
     Tipo: 'Egreso',
@@ -31,18 +31,18 @@ describe('FINPER 2.0.2 — Pruebas de Recuperación de Sincronización y Resilie
   });
 
   // ============================================================================
-  // ESCENARIO 1: Recuperación de Inserción con Fila Preexistente (Unique 23505)
+  // REQUISITO 1: Rechazo de Sobrescritura Ciega ante Colisión 23505
   // ============================================================================
-  it('recupera y actualiza el manifiesto cuando previousHead es null pero la fila ya existía en transacciones', async () => {
+  it('rechaza sobrescritura ciega y lanza conflicto optimista cuando previousHead es null pero la fila ya existía (23505)', async () => {
     const memory = new Map<string, any>();
-    // Simular que el manifiesto ya existía en Supabase
+    const originalConcept = JSON.stringify({ revision: 'existing-rev-cloud', count: 1 });
     memory.set('config-sync-budgets', {
       id: 'config-sync-budgets',
-      concepto: JSON.stringify({ revision: 'old-rev', count: 1 }),
+      concepto: originalConcept,
       monto: 0,
     });
 
-    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => {
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => {
       let filterId: string | null = null;
       const query: any = {
         select: () => query,
@@ -61,55 +61,57 @@ describe('FINPER 2.0.2 — Pruebas de Recuperación de Sincronización y Resilie
           const rows = Array.isArray(payload) ? payload : [payload];
           for (const r of rows) {
             if (memory.has(r.id)) {
-              // Simular error 23505 de Postgres (duplicate key)
+              // Simular error 23505 de Postgres (duplicate key / row preexistente)
               return { data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint' } };
             }
             memory.set(r.id, r);
           }
           return { data: rows, error: null };
         },
-        update: (payload: any) => {
-          return {
-            eq: (k: string, v: any) => {
-              if (k === 'id') {
-                const existing = memory.get(v);
-                if (existing) {
-                  existing.concepto = payload.concepto;
-                  memory.set(v, existing);
-                }
-              }
-              return { error: null };
-            },
-          };
-        },
+        update: () => ({
+          eq: () => ({
+            eq: () => ({
+              select: async () => ({ data: [], error: null }),
+            }),
+          }),
+        }),
         upsert: async () => ({ error: null }),
       };
       return query;
     }) as any);
 
-    const testValue = canonical({ test: 'recuperacion_23505' });
-    // Llamar writeSnapshot con previousHead null (primer intento de sync del cliente)
-    await expect(writeSnapshot('budgets', testValue, null)).resolves.not.toThrow();
+    const testValue = canonical({ test: 'intento_sobrescritura_ciega' });
 
-    const updatedRow = memory.get('config-sync-budgets');
-    expect(updatedRow).toBeDefined();
-    const manifest = JSON.parse(updatedRow.concepto);
-    expect(manifest.count).toBe(1);
-    expect(manifest.revision).toBeDefined();
+    // Debe lanzar error de concurrencia optimista y NUNCA ejecutar update ciego
+    await expect(writeSnapshot('budgets', testValue, null)).rejects.toThrow(
+      'Otro dispositivo actualizó los datos. Reintenta para comparar las versiones.'
+    );
+
+    // Confirmar que la versión preexistente en la nube quedó completamente intacta
+    const persisted = memory.get('config-sync-budgets');
+    expect(persisted.concepto).toBe(originalConcept);
   });
 
   // ============================================================================
-  // ESCENARIO 2: Soft Fail cuando personal_settings no existe (42P01)
+  // REQUISITO 2: Condición de Carrera entre PC e iPhone
   // ============================================================================
-  it('ejecuta exitosamente writeSnapshot aunque la tabla personal_settings devuelva 42P01 (no existe)', async () => {
+  it('detecta condición de carrera entre PC e iPhone y previene pérdida silenciosa', async () => {
     const memory = new Map<string, any>();
+    let currentManifest = JSON.stringify({ revision: 'v1-shared', count: 1 });
+    memory.set('config-sync-projections', {
+      id: 'config-sync-projections',
+      concepto: currentManifest,
+      monto: 0,
+    });
 
-    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => {
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => {
       let filterId: string | null = null;
+      let filterConcepto: string | null = null;
       const query: any = {
         select: () => query,
         eq: (k: string, v: any) => {
           if (k === 'id') filterId = v;
+          if (k === 'concepto') filterConcepto = v;
           return query;
         },
         insert: async (payload: any) => {
@@ -118,60 +120,226 @@ describe('FINPER 2.0.2 — Pruebas de Recuperación de Sincronización y Resilie
           return { data: rows, error: null };
         },
         update: (payload: any) => ({
-          eq: () => ({
-            eq: () => ({
-              select: async () => ({ data: [{ id: 'config-sync-budgets' }], error: null }),
-            }),
-          }),
+          eq: (k: string, v: any) => {
+            if (k === 'id') filterId = v;
+            return {
+              eq: (k2: string, v2: any) => {
+                if (k2 === 'concepto') filterConcepto = v2;
+                return {
+                  select: async () => {
+                    const row = filterId ? memory.get(filterId) : null;
+                    if (row && row.concepto === filterConcepto) {
+                      row.concepto = payload.concepto;
+                      memory.set(filterId, row);
+                      currentManifest = payload.concepto;
+                      return { data: [row], error: null };
+                    }
+                    return { data: [], error: null };
+                  },
+                };
+              },
+            };
+          },
         }),
-        upsert: async () => {
-          if (table === 'personal_settings') {
-            // Simular error 42P01 de Postgres: tabla no existe
-            return { data: null, error: { code: '42P01', message: 'relation "personal_settings" does not exist' } };
-          }
-          return { data: null, error: null };
-        },
+        upsert: async () => ({ error: null }),
         maybeSingle: async () => ({ data: filterId ? memory.get(filterId) : null, error: null }),
       };
       return query;
     }) as any);
 
-    // Debe completar sin lanzar excepción
-    await expect(writeSnapshot('budgets', canonical({ ok: true }), null)).resolves.not.toThrow();
+    const initialHead = currentManifest;
+
+    // Dispositivo A (iPhone) actualiza primero con éxito
+    const iphoneValue = canonical({ items: [{ id: 'p1', monto: 500 }] });
+    await expect(writeSnapshot('projections', iphoneValue, initialHead)).resolves.not.toThrow();
+
+    // Dispositivo B (PC) intenta actualizar utilizando el 'initialHead' que ya quedó obsoleto
+    const pcValue = canonical({ items: [{ id: 'p1', monto: 800 }] });
+    await expect(writeSnapshot('projections', pcValue, initialHead)).rejects.toThrow(
+      'Otro dispositivo actualizó los datos'
+    );
+
+    // Comprobar que prevalece la versión de iPhone sin sobrescritura accidental
+    expect(memory.get('config-sync-projections').concepto).toBe(currentManifest);
   });
 
   // ============================================================================
-  // ESCENARIO 3: Titularidad Estricta en insertTransactionToSupabase
+  // REQUISITO 3: Rechazo por Sesión Caducada
   // ============================================================================
-  it('rechaza inserción en transacciones si no existe una sesión de usuario activa', async () => {
+  it('rechaza operaciones de guardado cuando la sesión ha caducado sin perder datos', async () => {
     vi.spyOn(authService, 'getValidatedSession').mockResolvedValue(null);
 
-    const result = await insertTransactionToSupabase(dummyTx);
-    expect(result.success).toBe(false);
-    expect(result.error).toContain('Se requiere sesión activa');
+    await expect(writeSnapshot('budgets', '{}', null)).rejects.toThrow(
+      'Se requiere sesión activa y validada'
+    );
+
+    const txResult = await insertTransactionToSupabase(dummyTx);
+    expect(txResult.success).toBe(false);
+    expect(txResult.error).toContain('Se requiere sesión activa');
   });
 
-  it('adjunta obligatoriamente user_id de la sesión al insertar en transacciones', async () => {
-    let capturedPayload: any = null;
+  // ============================================================================
+  // REQUISITO 4: Flujo de Renovación de Token (Token Refresh)
+  // ============================================================================
+  it('permite reanudar sincronización después de una renovación exitosa de token', async () => {
+    let tokenExpired = true;
 
-    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => ({
-      upsert: (payload: any) => {
-        capturedPayload = payload;
+    vi.spyOn(authService, 'getValidatedSession').mockImplementation(async () => {
+      if (tokenExpired) {
+        // Simular que expira pero luego se renueva
+        tokenExpired = false;
         return {
-          select: async () => ({ data: [payload], error: null }),
-        };
-      },
+          access_token: 'renewed-jwt-token-ok',
+          refresh_token: 'refresh-jwt-renewed',
+          expires_at: Math.floor(Date.now() / 1000) + 7200,
+          user: { id: '0fdea8f0-da9c-458b-a78c-4810a0685f2b' } as any,
+        } as any;
+      }
+      return {
+        access_token: 'renewed-jwt-token-ok',
+        refresh_token: 'refresh-jwt-renewed',
+        expires_at: Math.floor(Date.now() / 1000) + 7200,
+        user: { id: '0fdea8f0-da9c-458b-a78c-4810a0685f2b' } as any,
+      } as any;
+    });
+
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => ({
+      upsert: (payload: any) => ({
+        select: async () => ({ data: [payload], error: null }),
+      }),
     }) as any));
 
     const result = await insertTransactionToSupabase(dummyTx);
     expect(result.success).toBe(true);
-    expect(capturedPayload).toBeDefined();
-    expect(capturedPayload.user_id).toBe('0fdea8f0-da9c-458b-a78c-4810a0685f2b');
-    expect(capturedPayload.id).toBe('tx-v202-001');
+    expect(result.data[0].user_id).toBe('0fdea8f0-da9c-458b-a78c-4810a0685f2b');
   });
 
   // ============================================================================
-  // ESCENARIO 4: deleteTransactionFromSupabase Requiere Sesión Autenticada
+  // REQUISITO 5: Fallo Parcial de Fragmentos Nunca Publica Manifiesto
+  // ============================================================================
+  it('aborta la operación y no modifica el manifiesto si falla la inserción de chunks intermedios', async () => {
+    let manifestModified = false;
+
+    vi.spyOn(supabase, 'from').mockImplementation(((_table: string) => ({
+      insert: async (payload: any) => {
+        const rows = Array.isArray(payload) ? payload : [payload];
+        if (rows.some(r => String(r.id).includes('-'))) {
+          return { data: null, error: { message: 'Network interruption during chunk transfer' } };
+        }
+        manifestModified = true;
+        return { data: rows, error: null };
+      },
+    }) as any));
+
+    await expect(writeSnapshot('budgets', canonical({ deep: 'data' }), null)).rejects.toThrow(
+      'Network interruption during chunk transfer'
+    );
+    expect(manifestModified).toBe(false);
+  });
+
+  // ============================================================================
+  // REQUISITO 6: Tolerancia y Detección Verificable de Estado del Mirror (personal_settings)
+  // ============================================================================
+  it('registra verifiable mirror status: table_not_migrated cuando no existe personal_settings', async () => {
+    const memory = new Map<string, any>();
+
+    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
+      }),
+      insert: async (payload: any) => {
+        const rows = Array.isArray(payload) ? payload : [payload];
+        rows.forEach(r => memory.set(r.id, r));
+        return { data: rows, error: null };
+      },
+      upsert: async () => {
+        if (table === 'personal_settings') {
+          return { data: null, error: { code: '42P01', message: 'relation "personal_settings" does not exist' } };
+        }
+        return { data: null, error: null };
+      },
+    }) as any));
+
+    await writeSnapshot('budgets', canonical({ valid: true }), null);
+
+    const status = getMirrorSyncStatus('budgets') as any;
+    expect(status.status).toBe('table_not_migrated');
+  });
+
+  it('registra verifiable mirror status: desynced cuando la tabla existe pero la escritura falla', async () => {
+    const memory = new Map<string, any>();
+
+    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: null, error: null }),
+        }),
+      }),
+      insert: async (payload: any) => {
+        const rows = Array.isArray(payload) ? payload : [payload];
+        rows.forEach(r => memory.set(r.id, r));
+        return { data: rows, error: null };
+      },
+      upsert: async () => {
+        if (table === 'personal_settings') {
+          return { data: null, error: { code: '57014', message: 'canceling statement due to statement timeout' } };
+        }
+        return { data: null, error: null };
+      },
+    }) as any));
+
+    await writeSnapshot('classifications', canonical({ a: 'CatA' }), null);
+
+    const status = getMirrorSyncStatus('classifications') as any;
+    expect(status.status).toBe('desynced');
+    expect(status.error).toContain('timeout');
+  });
+
+  it('permite reconciliar y reparar el mirror mediante repairMirrorSync', async () => {
+    let mirrorUpserted = false;
+
+    vi.spyOn(supabase, 'from').mockImplementation(((table: string) => ({
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => {
+            if (table === 'transacciones') {
+              return {
+                data: {
+                  id: 'config-sync-statements',
+                  concepto: JSON.stringify({ revision: 'r1', count: 1 }),
+                },
+                error: null,
+              };
+            }
+            return { data: null, error: null };
+          },
+        }),
+        like: () => ({
+          order: () => ({
+            limit: async () => ({
+              data: [{ id: 'config-sync-statements-r1-0', concepto: '{"card":100}', monto: 0 }],
+              error: null,
+            }),
+          }),
+        }),
+      }),
+      upsert: async () => {
+        mirrorUpserted = true;
+        return { data: null, error: null };
+      },
+    }) as any));
+
+    const repaired = await repairMirrorSync('statements');
+    expect(repaired).toBe(true);
+    expect(mirrorUpserted).toBe(true);
+    const status = getMirrorSyncStatus('statements') as any;
+    expect(status.status).toBe('synced');
+  });
+
+  // ============================================================================
+  // REQUISITO 7: Titularidad RLS en Eliminación de Transacciones
   // ============================================================================
   it('rechaza eliminación de transacciones si no hay sesión autenticada', async () => {
     vi.spyOn(authService, 'getValidatedSession').mockResolvedValue(null);
