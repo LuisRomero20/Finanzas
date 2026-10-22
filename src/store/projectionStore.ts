@@ -4,6 +4,15 @@ import { useFinanceStore } from './financeStore';
 import { useCreditCardStore } from './creditCardStore';
 import { supabase } from '../lib/supabase';
 import { decodeLegacyProjections } from '../utils/legacyProjections';
+import { allocateMoney } from '../domain/finance/money';
+import { calculateBillingCycle, formatDateOnly } from '../domain/cards/billingCycles';
+import {
+  calculateMultiHorizonProjection,
+  getHorizonMonthList,
+  type MultiHorizonProjectionResult,
+  type ProjectionHorizonMonths,
+  type RawProjectionInputItem,
+} from '../domain/projections/multiHorizon';
 
 
 export type ProjectedRecurrence = 'fijo' | 'temporal' | 'unico';
@@ -81,6 +90,16 @@ export const CARD_RULES: Record<string, CardCycleRule> = {
   'Ripley': { entity: 'Ripley', corteDay: 3, pagoDay: 1 },
 };
 
+export function resolveCardRule(entity: string): CardCycleRule | undefined {
+  try {
+    const found = useCreditCardStore.getState().getCardByEntity(entity);
+    if (found) return { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
+  } catch {
+    // El store puede no estar inicializado durante SSR o pruebas puras.
+  }
+  return CARD_RULES[entity];
+}
+
 /**
  * Calcula la fecha y mes exacto en que se debe pagar un consumo de tarjeta de crédito
  * considerando el día de corte y el día límite de pago.
@@ -96,56 +115,27 @@ export function calculateCardPaymentDate(entity: string, year: number, monthInde
   cicloDescripcion: string;
   pagaEnMesSiguiente: boolean;
 } {
-  let rule = CARD_RULES[entity];
+  const rule = resolveCardRule(entity);
   if (!rule) {
-    try {
-      // Búsqueda dinámica en useCreditCardStore
-      const found = useCreditCardStore.getState().getCardByEntity(entity);
-      if (found) {
-        rule = { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
-      }
-    } catch {}
-  }
-  if (!rule) {
-    const padM = String(monthIndex + 1).padStart(2, '0');
+    const fallbackDate = formatDateOnly(year, monthIndex + 1, day);
     return { 
-      mesPago: `${year}-${padM}`, 
-      fechaPago: `${year}-${padM}-${String(day).padStart(2, '0')}`,
+      mesPago: fallbackDate.slice(0, 7),
+      fechaPago: fallbackDate,
       cicloDescripcion: 'Sin ciclo de tarjeta',
       pagaEnMesSiguiente: false,
     };
   }
-
-  let payYear = year;
-  let payMonthIndex: number;
-  let cicloDesc = '';
-
-  if (day < rule.corteDay) {
-    // Se consumió antes del corte del mes actual -> se paga el mes siguiente
-    payMonthIndex = monthIndex + 1;
-    if (payMonthIndex > 11) {
-      payMonthIndex = 0;
-      payYear++;
-    }
-    cicloDesc = `Antes del corte (día ${rule.corteDay}) · Paga mes siguiente`;
-  } else {
-    // Se consumió el día del corte o después -> entra al ciclo que cierra el mes siguiente y se paga 2 meses después
-    payMonthIndex = monthIndex + 2;
-    if (payMonthIndex > 11) {
-      payMonthIndex -= 12;
-      payYear++;
-    }
-    cicloDesc = `Corte día ${rule.corteDay} (nuevo ciclo) · Paga en 2 meses`;
-  }
-
-  const padPayMonth = String(payMonthIndex + 1).padStart(2, '0');
-  const padPayDay = String(rule.pagoDay).padStart(2, '0');
+  const purchaseDate = formatDateOnly(year, monthIndex + 1, day);
+  const cycle = calculateBillingCycle(purchaseDate, { cutoffDay: rule.corteDay, dueDay: rule.pagoDay });
+  const beforeCutoff = day < rule.corteDay;
 
   return {
-    mesPago: `${payYear}-${padPayMonth}`,
-    fechaPago: `${payYear}-${padPayMonth}-${padPayDay}`,
-    cicloDescripcion: cicloDesc,
-    pagaEnMesSiguiente: day < rule.corteDay,
+    mesPago: cycle.billingMonth,
+    fechaPago: cycle.dueDate,
+    cicloDescripcion: beforeCutoff
+      ? `Antes del corte (día ${rule.corteDay}) · Paga mes siguiente`
+      : `Corte día ${rule.corteDay} (nuevo ciclo) · Paga en 2 meses`,
+    pagaEnMesSiguiente: beforeCutoff,
   };
 }
 
@@ -177,19 +167,9 @@ export function calculateCardInstallmentSchedule(
   const firstPayInfo = calculateCardPaymentDate(entity, y, m - 1, d);
   const [startPayY, startPayM] = firstPayInfo.mesPago.split('-').map(Number);
 
-  let rule = CARD_RULES[entity];
-  if (!rule) {
-    try {
-      const found = useCreditCardStore.getState().getCardByEntity(entity);
-      if (found) {
-        rule = { entity: found.entity, corteDay: found.cycleStartDay, pagoDay: found.paymentDay };
-      }
-    } catch {}
-  }
+  const rule = resolveCardRule(entity);
   const payDay = rule ? rule.pagoDay : 5;
-  const padDay = String(payDay).padStart(2, '0');
-
-  const cuotaBase = Math.round((totalAmount / cuotas) * 100) / 100;
+  const installmentAmounts = allocateMoney(totalAmount, cuotas);
   const schedule: CardInstallmentSchedule[] = [];
 
   const MESES_NOMBRES = [
@@ -204,13 +184,9 @@ export function calculateCardInstallmentSchedule(
       payM -= 12;
       payY++;
     }
-    const padM = String(payM).padStart(2, '0');
-    const mesPago = `${payY}-${padM}`;
-    const fechaPago = `${payY}-${padM}-${padDay}`;
-    // Ajuste de centavos en la última cuota para que la suma total sea exactamente totalAmount
-    const montoCuota = (k === cuotas)
-      ? Math.round((totalAmount - cuotaBase * (cuotas - 1)) * 100) / 100
-      : cuotaBase;
+    const fechaPago = formatDateOnly(payY, payM, payDay);
+    const mesPago = fechaPago.slice(0, 7);
+    const montoCuota = installmentAmounts[k - 1];
 
     const mesLabel = `${MESES_NOMBRES[payM - 1]} ${payY}`;
 
@@ -398,16 +374,16 @@ export function getCardDueDetailsForMonth(
 
   // Calcular rango del ciclo
   let startCycleMonth = targetMonth - 2;
-  let startCycleYear = targetYear;
+  // startCycleYear
   if (startCycleMonth < 1) {
     startCycleMonth += 12;
-    startCycleYear--;
+    // year shift
   }
   let endCycleMonth = targetMonth - 1;
-  let endCycleYear = targetYear;
+  // endCycleYear
   if (endCycleMonth < 1) {
     endCycleMonth += 12;
-    endCycleYear--;
+    // year shift
   }
   const periodoFacturado = `${String(rule.corteDay).padStart(2, '0')}/${String(startCycleMonth).padStart(2, '0')} — ${String(rule.corteDay - 1).padStart(2, '0')}/${String(endCycleMonth).padStart(2, '0')}`;
 
@@ -676,6 +652,12 @@ export interface ProjectionState {
 
   // Selector de cálculo
   getMonthlyProjections: (monthStr: string) => EffectiveProjectedRow[];
+  getMultiHorizon: (
+    baseMonth: string,
+    horizonMonths: ProjectionHorizonMonths,
+    initialLiquidCash?: number,
+    simulations?: ProjectedItem[],
+  ) => MultiHorizonProjectionResult;
   resetToDefaults: () => void;
 }
 
@@ -715,6 +697,7 @@ export async function fetchProjectionsFromSupabase(): Promise<{
       };
     }
   } catch (err) {
+    console.warn('Error fetching projections from Supabase:', err);
     throw err;
   }
   return null;
@@ -1067,6 +1050,55 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
     // Ordenar por día de fecha ascendente
     rows.sort((a, b) => a.fecha.localeCompare(b.fecha));
     return rows;
+  },
+
+  getMultiHorizon: (baseMonth, horizonMonths, initialLiquidCash = 0, simulations = []) => {
+    const months = getHorizonMonthList(baseMonth, horizonMonths);
+    const inputItems: RawProjectionInputItem[] = [];
+
+    for (const m of months) {
+      const rows = get().getMonthlyProjections(m);
+      for (const r of rows) {
+        inputItems.push({
+          id: r.id,
+          source: (r.esTarjetaCredito || r.esPagoLiquidacionTarjeta) ? 'obligation' : 'estimate',
+          type: r.tipo,
+          month: m,
+          date: r.fecha,
+          concept: r.concepto,
+          category: r.categoria,
+          entity: r.entidad,
+          amount: r.monto,
+          isInstallment: r.esTemporal,
+        });
+      }
+    }
+
+    if (simulations.length > 0) {
+      for (const sim of simulations) {
+        for (const m of months) {
+          const [startYear, startMonth] = sim.mesInicio.split('-').map(Number);
+          const [targetYear, targetMonth] = m.split('-').map(Number);
+          const diff = (targetYear * 12 + targetMonth) - (startYear * 12 + startMonth);
+          if (diff < 0) continue;
+          if (sim.recurrencia === 'unico' && diff !== 0) continue;
+          if (sim.recurrencia === 'temporal' && diff >= (sim.mesesDuracion || 1)) continue;
+
+          inputItems.push({
+            id: `sim-${sim.id}-${m}`,
+            source: 'simulation',
+            type: sim.tipo,
+            month: m,
+            concept: `[Simulación] ${sim.concepto}`,
+            category: sim.categoria,
+            entity: sim.entidad,
+            amount: sim.monto,
+          });
+        }
+      }
+    }
+
+    return calculateMultiHorizonProjection(baseMonth, horizonMonths, initialLiquidCash, inputItems);
   },
 
   resetToDefaults: () => {
