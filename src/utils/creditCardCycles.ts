@@ -46,47 +46,39 @@ export interface Cycle {
   prevPayDate: Date; // Ventana de pago inicia desde esta fecha (exclusiva)
 }
 
+function dateWithClampedDay(year: number, monthIndex: number, day: number): Date {
+  const lastDay = new Date(year, monthIndex + 1, 0, 12).getDate();
+  return new Date(year, monthIndex, Math.min(Math.max(day, 1), lastDay), 12, 0, 0, 0);
+}
+
+function monthShift(date: Date, delta: number, day: number): Date {
+  return dateWithClampedDay(date.getFullYear(), date.getMonth() + delta, day);
+}
+
+function dayBefore(date: Date): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() - 1);
+  return result;
+}
+
 /**
  * Dado un día de referencia, devuelve:
  *  - current: ciclo que está acumulando ahora
  *  - prev:    ciclo anterior (ya facturado, pendiente de pago)
  */
 export function getCycles(ref: Date, card: CardConfig): { current: Cycle; prev: Cycle } {
-  const year = ref.getFullYear();
-  const month = ref.getMonth();
-  const day = ref.getDate();
-
-  let currentStart: Date;
-  let currentEnd: Date;
-  let prevStart: Date;
-  let prevEnd: Date;
-  let currentPayBase: Date;
-  let prevPayBase: Date;
-  let prevPrevPayBase: Date;
-
-  if (day >= card.cycleStartDay) {
-    // Ya pasó el corte de este mes:
-    prevStart = new Date(year, month - 1, card.cycleStartDay, 12, 0, 0, 0);
-    prevEnd = new Date(year, month, card.cycleStartDay - 1, 12, 0, 0, 0);
-    prevPayBase = new Date(year, month + 1, card.paymentDay, 12, 0, 0, 0);
-    prevPrevPayBase = new Date(year, month, card.paymentDay, 12, 0, 0, 0);
-
-    // El ciclo que está acumulando (current) empieza este mes y cierra el mes que viene
-    currentStart = new Date(year, month, card.cycleStartDay, 12, 0, 0, 0);
-    currentEnd = new Date(year, month + 1, card.cycleStartDay - 1, 12, 0, 0, 0);
-    currentPayBase = new Date(year, month + 2, card.paymentDay, 12, 0, 0, 0);
-  } else {
-    // Aún NO ha pasado el corte de este mes:
-    prevStart = new Date(year, month - 2, card.cycleStartDay, 12, 0, 0, 0);
-    prevEnd = new Date(year, month - 1, card.cycleStartDay - 1, 12, 0, 0, 0);
-    prevPayBase = new Date(year, month, card.paymentDay, 12, 0, 0, 0);
-    prevPrevPayBase = new Date(year, month - 1, card.paymentDay, 12, 0, 0, 0);
-
-    // El ciclo que está acumulando (current) empezó el mes pasado y cierra este mes
-    currentStart = new Date(year, month - 1, card.cycleStartDay, 12, 0, 0, 0);
-    currentEnd = new Date(year, month, card.cycleStartDay - 1, 12, 0, 0, 0);
-    currentPayBase = new Date(year, month + 1, card.paymentDay, 12, 0, 0, 0);
-  }
+  const normalizedRef = new Date(ref.getFullYear(), ref.getMonth(), ref.getDate(), 12);
+  const startThisMonth = dateWithClampedDay(ref.getFullYear(), ref.getMonth(), card.cycleStartDay);
+  const currentStart = normalizedRef >= startThisMonth
+    ? startThisMonth
+    : monthShift(startThisMonth, -1, card.cycleStartDay);
+  const nextStart = monthShift(currentStart, 1, card.cycleStartDay);
+  const currentEnd = dayBefore(nextStart);
+  const prevStart = monthShift(currentStart, -1, card.cycleStartDay);
+  const prevEnd = dayBefore(currentStart);
+  const currentPayBase = monthShift(currentStart, 2, card.paymentDay);
+  const prevPayBase = monthShift(prevStart, 2, card.paymentDay);
+  const prevPrevPayBase = monthShift(prevStart, 1, card.paymentDay);
 
   const currentPayDate = nextWorkingDay(currentPayBase);
   const prevPayDate = nextWorkingDay(prevPayBase);

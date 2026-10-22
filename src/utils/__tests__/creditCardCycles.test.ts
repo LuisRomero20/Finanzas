@@ -80,6 +80,18 @@ describe('Credit Card Cycles & Live Position Logic', () => {
     expect(current.end.getDate()).toBe(20);
   });
 
+  it('limita días 31 sin desbordar febrero y conserva ciclos contiguos', () => {
+    const card = { ...CARDS[0], cycleStartDay: 31, paymentDay: 31 };
+    const { current, prev } = getCycles(new Date(2028, 1, 29), card);
+
+    expect(current.start.getFullYear()).toBe(2028);
+    expect(current.start.getMonth()).toBe(1);
+    expect(current.start.getDate()).toBe(29);
+    expect(prev.end.getTime() + 86_400_000).toBe(current.start.getTime());
+    expect(current.payDate.getMonth()).toBe(4);
+    expect(current.payDate.getDate()).toBe(1);
+  });
+
   it('detecta pagos de tarjeta buscando Pago de Tarjeta <Entidad>', () => {
     const amex = CARDS.find((c) => c.entity === 'Interbank Amex')!;
     const refDate = new Date(2026, 8, 9);

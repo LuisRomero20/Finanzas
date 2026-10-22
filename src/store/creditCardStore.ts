@@ -10,8 +10,20 @@ export interface CardConfig {
   id: string;
   entity: string;
   name: string;
+  issuer?: string;
+  productVariant?: string;
+  network?: 'Visa' | 'Mastercard' | 'American Express' | 'Otra' | 'Por confirmar';
+  currency?: 'PEN' | 'USD';
   cycleStartDay: number; // día que inicia el ciclo (corte)
   paymentDay: number;    // día límite de pago
+  billingRulesStatus?: 'unverified' | 'user_confirmed' | 'statement_confirmed';
+  annualEffectiveRate?: number;
+  tcea?: number;
+  membershipFee?: number;
+  debtInsurance?: number;
+  otherFees?: number;
+  rewardsNotes?: string;
+  status?: 'active' | 'blocked' | 'closed';
   accentBg: string;
   accentText: string;
   headerBg: string;
@@ -26,8 +38,14 @@ export const DEFAULT_CARDS: CardConfig[] = [
     id: 'card-ibk-amex',
     entity: 'Interbank Amex',
     name: 'Interbank Amex',
+    issuer: 'Interbank',
+    productVariant: 'Benefit (por confirmar)',
+    network: 'American Express',
+    currency: 'PEN',
     cycleStartDay: 21,
     paymentDay: 15,
+    billingRulesStatus: 'unverified',
+    status: 'active',
     accentBg: 'bg-blue-600',
     accentText: 'text-blue-700',
     headerBg: 'from-blue-700 to-blue-500',
@@ -38,8 +56,14 @@ export const DEFAULT_CARDS: CardConfig[] = [
     id: 'card-bbva-bfree',
     entity: 'BBVA Bfree',
     name: 'BBVA Bfree',
+    issuer: 'BBVA',
+    productVariant: 'Bfree',
+    network: 'Por confirmar',
+    currency: 'PEN',
     cycleStartDay: 10,
     paymentDay: 5,
+    billingRulesStatus: 'unverified',
+    status: 'active',
     accentBg: 'bg-sky-600',
     accentText: 'text-sky-700',
     headerBg: 'from-sky-700 to-sky-500',
@@ -50,8 +74,14 @@ export const DEFAULT_CARDS: CardConfig[] = [
     id: 'card-ripley',
     entity: 'Ripley',
     name: 'Ripley',
+    issuer: 'Banco Ripley',
+    productVariant: 'Ripley Mastercard',
+    network: 'Mastercard',
+    currency: 'PEN',
     cycleStartDay: 3,
     paymentDay: 1,
+    billingRulesStatus: 'unverified',
+    status: 'active',
     accentBg: 'bg-purple-600',
     accentText: 'text-purple-700',
     headerBg: 'from-purple-700 to-purple-500',
@@ -62,6 +92,31 @@ export const DEFAULT_CARDS: CardConfig[] = [
 
 const STORAGE_KEY = 'finper_credit_cards_v2';
 
+function normalizeDay(value: unknown, fallback: number): number {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) ? Math.min(31, Math.max(1, parsed)) : fallback;
+}
+
+export function normalizeCardConfig(value: unknown): CardConfig | null {
+  if (!value || typeof value !== 'object') return null;
+  const candidate = value as Partial<CardConfig>;
+  if (typeof candidate.id !== 'string' || typeof candidate.entity !== 'string' || typeof candidate.name !== 'string') return null;
+  const fallback = DEFAULT_CARDS.find(card => card.id === candidate.id || card.entity === candidate.entity);
+  const visualFallback = fallback ?? DEFAULT_CARDS[0];
+  return {
+    ...visualFallback,
+    ...candidate,
+    id: candidate.id,
+    entity: candidate.entity.trim(),
+    name: candidate.name.trim(),
+    cycleStartDay: normalizeDay(candidate.cycleStartDay, fallback?.cycleStartDay ?? 1),
+    paymentDay: normalizeDay(candidate.paymentDay, fallback?.paymentDay ?? 1),
+    billingRulesStatus: candidate.billingRulesStatus ?? (fallback ? 'unverified' : 'user_confirmed'),
+    currency: candidate.currency ?? 'PEN',
+    status: candidate.status ?? 'active',
+  };
+}
+
 function loadStoredCards(): CardConfig[] {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
@@ -69,19 +124,8 @@ function loadStoredCards(): CardConfig[] {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          // Asegurar que las tarjetas predeterminadas tengan los días exactos actualizados
-          return parsed.map((c: CardConfig) => {
-            if (/^BBVA/i.test(c.entity)) {
-              return { ...c, cycleStartDay: 10, paymentDay: 5 };
-            }
-            if (/^Ripley/i.test(c.entity)) {
-              return { ...c, cycleStartDay: 3, paymentDay: 1 };
-            }
-            if (/^Interbank\s*Amex/i.test(c.entity)) {
-              return { ...c, cycleStartDay: 21, paymentDay: 15 };
-            }
-            return c;
-          });
+          const normalized = parsed.map(normalizeCardConfig).filter((card): card is CardConfig => card !== null);
+          if (normalized.length > 0) return normalized;
         }
       }
     }
@@ -101,9 +145,8 @@ function persistCards(cards: CardConfig[]): void {
   }
   // Sincronizar en la nube para que otros dispositivos (Vercel/iPhone) accedan a la config actualizada
   saveCardsConfigToSupabase(cards)
-    .then(() => broadcastRealtimeSync('cards'))
-    .catch(() => {});
-  broadcastRealtimeSync('cards');
+    .then((saved) => { if (saved) broadcastRealtimeSync('cards'); })
+    .catch(() => { /* La copia local permanece como fuente de recuperación. */ });
 }
 
 interface CreditCardStoreState {
@@ -185,8 +228,11 @@ export const useCreditCardStore = create<CreditCardStoreState>((set, get) => ({
       id: `card-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       name: data.name.trim(),
       entity: entityName,
+      currency: 'PEN',
       cycleStartDay: Math.min(31, Math.max(1, data.cycleStartDay)),
       paymentDay: Math.min(31, Math.max(1, data.paymentDay)),
+      billingRulesStatus: 'user_confirmed',
+      status: 'active',
       accentBg: theme.accentBg,
       accentText: theme.accentText,
       headerBg: theme.headerBg,
@@ -217,7 +263,15 @@ export const useCreditCardStore = create<CreditCardStoreState>((set, get) => ({
 
   updateCard: (id, updates) => {
     set((state) => {
-      const updated = state.cards.map((c) => (c.id === id ? { ...c, ...updates } : c));
+      const updated = state.cards.map((card) => {
+        if (card.id !== id) return card;
+        const billingRulesChanged = updates.cycleStartDay !== undefined || updates.paymentDay !== undefined;
+        return normalizeCardConfig({
+          ...card,
+          ...updates,
+          billingRulesStatus: updates.billingRulesStatus ?? (billingRulesChanged ? 'user_confirmed' : card.billingRulesStatus),
+        }) ?? card;
+      });
       persistCards(updated);
       return { cards: updated };
     });
@@ -246,13 +300,8 @@ export const useCreditCardStore = create<CreditCardStoreState>((set, get) => ({
     try {
       const cloudCards = await fetchCardsConfigFromSupabase();
       if (cloudCards && cloudCards.length > 0) {
-        // Aplicar correcciones de días a tarjetas conocidas
-        const normalized = cloudCards.map((c: CardConfig) => {
-          if (/^BBVA/i.test(c.entity)) return { ...c, cycleStartDay: 10, paymentDay: 5 };
-          if (/^Ripley/i.test(c.entity)) return { ...c, cycleStartDay: 3, paymentDay: 1 };
-          if (/^Interbank\s*Amex/i.test(c.entity)) return { ...c, cycleStartDay: 21, paymentDay: 15 };
-          return c;
-        });
+        const normalized = cloudCards.map(normalizeCardConfig).filter((card): card is CardConfig => card !== null);
+        if (normalized.length === 0) return 0;
         // Guardar localmente y actualizar el estado
         try {
           localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));

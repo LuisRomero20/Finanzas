@@ -253,6 +253,11 @@ export const CronogramaPagos: React.FC = () => {
                         &nbsp;·&nbsp;
                         Pago: día <strong className="text-white">{card.paymentDay}</strong>
                       </p>
+                      {card.billingRulesStatus === 'unverified' && (
+                        <p className="mt-1 inline-flex rounded-full border border-amber-200/50 bg-amber-300/20 px-2 py-0.5 text-[10px] font-bold text-amber-50">
+                          Fechas configuradas · pendientes de confirmar con estado de cuenta
+                        </p>
+                      )}
                     </div>
                   </div>
 
