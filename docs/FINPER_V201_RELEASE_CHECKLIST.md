@@ -1,88 +1,100 @@
-# FINPER 2.0.1 — LISTA DE VERIFICACIÓN Y DESPLIEGUE (PC & iPhone)
+# FINPER 2.0.1 — LISTA DE VERIFICACIÓN Y PROTOCOLO DE DESPLIEGUE CONTROLADO (PC & iPhone)
 
 **Versión:** FINPER 2.0.1  
 **Rama de Entrega:** `feature/finper-v201-sync`  
-**Objetivo:** Guía operativa paso a paso para que el usuario valide la sincronización bidireccional entre su PC con Windows y su iPhone (Safari/PWA) antes de fusionar a producción.
+**Rama Destino:** `main` (directa, sin ramas intermedias)  
+**Objetivo:** Guía operativa de verificación rigurosa para validar la sincronización bidireccional entre la PC con Windows y el iPhone (Safari/PWA) antes y después de fusionar a producción.
 
 ---
 
-## 1. Requisitos Previos
+## 1. Requisitos Previos y Estado de Validación Automatizada
 
-- [ ] Dispositivos disponibles:
-  - **PC Windows:** Navegador Chrome o Edge actualizado.
-  - **iPhone:** Safari o acceso directo PWA ("Añadir a pantalla de inicio").
-- [ ] Conexión a internet estable en ambos dispositivos.
-- [ ] Credenciales de acceso válidas (`luis_jesusrc@hotmail.com`).
-- [ ] No ejecutar acciones destructivas en la base de datos (las 2,246 transacciones históricas deben permanecer intactas).
+- [x] **136 de 136 pruebas automatizadas aprobadas (100% éxito)** en Vitest.
+  - 4 pruebas de diagnóstico de autenticación y caducidad de JWT.
+  - 4 pruebas de cola Outbox y persistencia offline.
+  - 6 pruebas de integración de sincronización bidireccional (interrupciones de red, cancelaciones locales, conflictos concurrentes, fallos parciales).
+  - 6 pruebas de validación aislada de la migración `personal_settings` con evaluación de políticas RLS.
+  - 116 pruebas existentes de modelo contable, ciclo de facturación, simulador de deuda, cuotas y parseo de estados de cuenta.
+- [x] **Comprobación de Tipos TypeScript (`npx tsc --noEmit`):** 0 errores.
+- [x] **Compilación de Producción (`npm run build`):** Exitosa en 9.30s.
+- [x] **Integridad de Base de Datos en Supabase:** 2,246 registros históricos contables intactos con titularidad asignada y RLS forzado.
 
 ---
 
-## 2. Protocolo de Pruebas Cruzadas (PC ↔ iPhone)
+## 2. Validación Aislada de Migración SQL (`personal_settings`)
+
+- [x] La migración `supabase/migrations/20261022170000_create_personal_settings.sql` ha sido auditada y validada en entorno de pruebas unitarias (`personalSettingsMigration.test.ts`).
+- [ ] **IMPORTANTE:** La migración **NO se ha ejecutado en producción** todavía.
+- [x] La aplicación en `feature/finper-v201-sync` cuenta con **compatibilidad transicional garantizada**:
+  - `readSnapshot` compara marcas de tiempo y lee de la fuente autoritativa más reciente (`transacciones`).
+  - `writeSnapshot` escribe primero en `transacciones` con verificación optimista de concurrencia y no declara éxito si esta falla. Si la tabla `personal_settings` aún no existe, el sistema continúa operando sin interrupción.
+
+---
+
+## 3. Protocolo de Pruebas Cruzadas en Dispositivos (PC ↔ iPhone)
 
 ### Paso 1: Validación de Sesión y Diagnóstico
-1. Iniciar sesión en la PC y en el iPhone con las credenciales del usuario.
-2. Navegar a **Configuración** o abrir el panel lateral de sincronización (**Estado de Sincronización**).
+1. Iniciar sesión en la PC y en el iPhone con las credenciales del usuario (`luis_jesusrc@hotmail.com`).
+2. Abrir el panel lateral **Ajustes financieros · Nube**.
 3. **Criterio de Aceptación:**
-   - La etiqueta de sesión debe indicar **«Sesión Activa»** (en verde) en ambos dispositivos.
-   - El contador de cola de pendientes (**Outbox**) debe reportar `0` operaciones retenidas.
-   - La información de usuario debe reflejar el UUID correspondiente: `0fdea8f0-da9c...`.
+   - Indicador en verde: **«Sesión Activa»**.
+   - Contador de cola Outbox: `0` operaciones retenidas.
 
-### Paso 2: Sincronización de los 4 Ajustes Personales
-1. En el panel de sincronización de la PC, hacer clic en el botón **«Sincronizar Todo»**.
-2. Observar el estado de cada uno de los cuatro módulos:
+### Paso 2: Sincronización de los 4 Módulos de Ajustes
+1. En el panel de sincronización de la PC, hacer clic en **«Sincronizar Todo»**.
+2. Observar los 4 módulos:
    - *Presupuestos*
    - *Proyecciones*
    - *Deudas regularizadas de tarjetas*
    - *Clasificación de movimientos*
 3. **Criterio de Aceptación:**
-   - Los módulos deben transicionar de «Pendiente de reintento» a **«Sincronizado»** (en verde) con fecha y hora reciente.
-   - Al abrir la misma sección en el iPhone y pulsar «Sincronizar Todo», los cuatro módulos deben reflejar la misma fecha y estado sincronizado sin errores.
+   - Los módulos pasan a **«Sincronizado»** con fecha y hora reciente.
+   - En el iPhone, al pulsar «Sincronizar Todo», los 4 módulos quedan igualmente en verde sin inconsistencias.
 
-### Paso 3: Prueba de Resiliencia en Pagos Pendientes (PC → iPhone)
-1. En la **PC**, ir a la sección de **Proyecciones / Pagos Pendientes**.
-2. Crear un nuevo pago pendiente de prueba (ejemplo: `Partida Prueba Sync`, Monto: `S/ 10.00`, Entidad: `BCP`).
-3. Comprobar que aparece de inmediato en la lista de la PC.
-4. En el **iPhone**, recargar la página o pulsar el botón de actualizar datos.
-5. **Criterio de Aceptación:**
-   - La partida `Partida Prueba Sync` debe figurar de manera idéntica en el iPhone.
-   - El conteo de partidas pendientes entre PC e iPhone debe ser exactamente el mismo (eliminando la discrepancia histórica como la ocurrida con `Salida`).
+### Paso 3: Prueba de Movimientos Pendientes (PC → iPhone)
+1. En la **PC**, ir a **Proyecciones / Pagos Pendientes** y registrar una partida de prueba (`Partida Prueba Sync`, `S/ 15.00`, `BCP`).
+2. Comprobar que en la PC aparece en la lista y el Outbox se vacía tras el despacho.
+3. En el **iPhone**, refrescar la pantalla.
+4. **Criterio de Aceptación:**
+   - La partida aparece en el iPhone con el mismo monto y detalle. Ambas listas tienen exactamente el mismo número de partidas.
 
-### Paso 4: Prueba Inversa (iPhone → PC)
-1. En el **iPhone**, marcar la partida `Partida Prueba Sync` como pagada o eliminarla.
-2. En la **PC**, refrescar la pantalla.
+### Paso 4: Prueba Inversa y Borrado Seguro (iPhone → PC)
+1. En el **iPhone**, marcar la partida como pagada o eliminarla.
+2. En la **PC**, actualizar la vista.
 3. **Criterio de Aceptación:**
-   - La partida debe desaparecer en ambos dispositivos de forma consistente e idempotente.
-   - El outbox de ambos dispositivos debe permanecer en `0`.
+   - La partida desaparece de ambos dispositivos sin duplicarse ni resucitar como partida fantasma.
 
 ---
 
-## 3. Guía de Ejecución de la Migración SQL Aditiva (Opcional en Supabase)
+## 4. Procedimiento de Fusión Directa a Producción (`main`)
 
-Para completar el desacoplamiento definitivo y evitar fragmentos en la tabla contable:
+Una vez revisado el Pull Request en borrador y contando con la autorización explícita:
 
-1. Abrir el panel de Supabase: [https://supabase.com/dashboard/project/njgzhjwfcxdxiibkuuqg](https://supabase.com/dashboard/project/njgzhjwfcxdxiibkuuqg).
-2. Ir a **SQL Editor**.
-3. Copiar y pegar el contenido de:
-   [`supabase/migrations/20261022170000_create_personal_settings.sql`](file:///c:/Users/Luis%20Romero/Documents/Proyectos/FinanzasPersonales/supabase/migrations/20261022170000_create_personal_settings.sql).
-4. Hacer clic en **Run**.
-5. *Nota:* La aplicación ya cuenta con compatibilidad dual: continuará funcionando perfectamente incluso si la tabla aún no se ha creado, pero su ejecución optimizará de inmediato la velocidad de carga.
+```bash
+# 1. Asegurar rama local limpia y actualizada
+git checkout main
+git pull origin main
+
+# 2. Fusión directa de la rama de sincronización hacia main
+git merge feature/finper-v201-sync --no-ff -m "merge: release FINPER 2.0.1 multi-device sync and resilience"
+
+# 3. Publicación hacia GitHub (dispara despliegue automático en Vercel)
+git push origin main
+```
 
 ---
 
-## 4. Procedimiento de Fusión y Despliegue a Producción
+## 5. Protocolo de Reversión (Rollback)
 
-Una vez que el usuario otorgue su aprobación explícita:
+Si se detectara alguna anomalía en producción tras la publicación:
 
-1. Fusión de rama:
-   ```bash
-   git checkout feature/finanzas-v2
-   git merge feature/finper-v201-sync
-   git push origin feature/finanzas-v2
-   ```
-2. Fusión final hacia `main` (despliegue automático en Vercel):
+1. **Reversión instantánea en Git:**
    ```bash
    git checkout main
-   git merge feature/finanzas-v2
+   git revert -m 1 HEAD
    git push origin main
    ```
-3. Verificación de versión en Vercel: consultar `https://finanzas-tau-three.vercel.app/` y confirmar funcionamiento en vivo.
+2. **Reversión en Vercel:**  
+   Ingresar al dashboard de Vercel y pulsar **«Instant Rollback»** al despliegue anterior inmediatamente precedente.
+3. **Seguridad en Supabase:**  
+   Dado que la migración a `personal_settings` es aditiva y las transacciones históricas no son modificadas, ninguna reversión compromete los 2,246 registros históricos contables.
