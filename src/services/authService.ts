@@ -42,16 +42,32 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
     }
 
     if (data.access_token && data.refresh_token) {
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-
-      if (sessionError) {
-        return { user: null, error: sessionError.message };
+      // 1. Guardar la sesión directamente en el almacenamiento de Supabase del navegador
+      const storageKey = 'sb-njgzhjwfcxdxiibkuuqg-auth-token';
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(data));
+      } catch (e) {
+        console.warn('Could not write auth token to localStorage:', e);
       }
 
-      return { user: sessionData.user, error: null };
+      // 2. Notificar al cliente de Supabase
+      try {
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+        });
+
+        if (!sessionError && sessionData.user) {
+          return { user: sessionData.user, error: null };
+        }
+      } catch (e) {
+        console.warn('setSession notice:', e);
+      }
+
+      // Si setSession dio error de fetch, pero tenemos data.user y token guardado en localStorage:
+      if (data.user) {
+        return { user: data.user, error: null };
+      }
     }
 
     return { user: null, error: 'No se recibieron credenciales de sesión válidas.' };
@@ -72,26 +88,20 @@ export async function signInWithEmail(email: string, password: string): Promise<
       return { user: data.user, error: null };
     }
 
-    // 2. Si hay error de red/fetch (común con Microsoft Edge o AdBlock), recurrir al proxy de Vercel
-    if (error && (error.message.toLowerCase().includes('fetch') || error.message.toLowerCase().includes('network'))) {
-      const proxyResult = await tryProxyLogin(email, password);
-      if (proxyResult.user) return proxyResult;
-      if (proxyResult.error && !proxyResult.error.toLowerCase().includes('fetch')) {
-        return proxyResult;
-      }
-    }
-
-    if (error) {
-      return { user: null, error: error.message };
-    }
-    return { user: data?.user ?? null, error: null };
-  } catch (err: any) {
-    // 3. Fallback directo al proxy en caso de excepción de red en el navegador
+    // 2. Si el SDK falla o hay error de fetch/red, intentar de inmediato con el proxy serverless de Vercel
     const proxyResult = await tryProxyLogin(email, password);
-    if (proxyResult.user || (proxyResult.error && !proxyResult.error.toLowerCase().includes('fetch'))) {
+    if (proxyResult.user) {
       return proxyResult;
     }
-    return { user: null, error: err?.message || 'Error inesperado al iniciar sesión.' };
+
+    if (error && !error.message.toLowerCase().includes('fetch')) {
+      return { user: null, error: error.message };
+    }
+
+    return proxyResult;
+  } catch {
+    // 3. Fallback al proxy serverless si hubo excepción en fetch
+    return await tryProxyLogin(email, password);
   }
 }
 
@@ -112,6 +122,10 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
 export async function signOut(): Promise<{ error: string | null }> {
   try {
+    const storageKey = 'sb-njgzhjwfcxdxiibkuuqg-auth-token';
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {}
     const { error } = await supabase.auth.signOut();
     if (error) return { error: error.message };
     return { error: null };

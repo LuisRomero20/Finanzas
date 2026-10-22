@@ -1,6 +1,6 @@
 // FINPER Progressive Web App Service Worker
 // Versionado dinámico para forzar actualización inmediata en smartphones y Vercel
-const CACHE_NAME = 'finper-cache-v5-' + Date.now();
+const CACHE_NAME = 'finper-cache-v8-' + Date.now();
 
 self.addEventListener('install', (event) => {
   // Activar inmediatamente sin esperar a que se cierren pestañas
@@ -28,17 +28,31 @@ self.addEventListener('message', (event) => {
 
 // Estrategia Network-First agresiva: siempre consultar primero a la red
 self.addEventListener('fetch', (event) => {
-  // No intervenir en peticiones que no sean GET ni llamadas a Supabase
-  if (event.request.method !== 'GET' || event.request.url.includes('/rest/v1/')) {
+  const url = event.request.url;
+
+  // NUNCA INTERVENIR en:
+  // 1. Peticiones que no sean GET
+  // 2. Cualquier llamada a Supabase (*.supabase.co, /auth/, /rest/, /storage/)
+  // 3. Cualquier endpoint de API local (/api/)
+  // 4. WebSocket o esquemas no http/https
+  if (
+    event.request.method !== 'GET' ||
+    url.includes('supabase.co') ||
+    url.includes('/rest/v1/') ||
+    url.includes('/auth/v1/') ||
+    url.includes('/storage/v1/') ||
+    url.includes('/api/') ||
+    !url.startsWith('http')
+  ) {
     return;
   }
 
   // version.json y index.html NUNCA deben servirse de caché si la red está disponible
   const isHtmlOrVersion =
     event.request.mode === 'navigate' ||
-    event.request.url.includes('version.json') ||
-    event.request.url.endsWith('/') ||
-    event.request.url.includes('index.html');
+    url.includes('version.json') ||
+    url.endsWith('/') ||
+    url.includes('index.html');
 
   if (isHtmlOrVersion) {
     event.respondWith(
