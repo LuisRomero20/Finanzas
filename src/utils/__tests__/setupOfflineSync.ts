@@ -46,6 +46,18 @@ vi.mock('../../lib/supabase', () => {
       auth: {
         getUser: vi.fn().mockResolvedValue({ data: { user: null }, error: null }),
         getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+        setSession: vi.fn().mockImplementation((payload) => Promise.resolve({
+          data: {
+            session: {
+              access_token: payload?.access_token || 'mock-token',
+              refresh_token: payload?.refresh_token || 'mock-refresh',
+              expires_at: Math.floor(Date.now() / 1000) + 3600,
+              user: { id: '0fdea8f0-da9c-458b-a78c-4810a0685f2b', email: 'luis_jesusrc@hotmail.com' },
+            },
+          },
+          error: null,
+        })),
+        refreshSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
         signInWithPassword: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
         signUp: vi.fn().mockResolvedValue({ data: { user: null, session: null }, error: null }),
         signOut: vi.fn().mockResolvedValue({ error: null }),
