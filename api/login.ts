@@ -40,6 +40,10 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    if (!data.expires_at && data.expires_in) {
+      data.expires_at = Math.floor(Date.now() / 1000) + data.expires_in;
+    }
+
     return res.status(200).json(data);
   } catch (err: any) {
     return res.status(500).json({ error: err.message || 'Error al conectar con Supabase desde el servidor.' });

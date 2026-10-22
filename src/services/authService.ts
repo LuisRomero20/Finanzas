@@ -8,7 +8,21 @@ export interface AuthState {
   error: string | null;
 }
 
+export const AUTH_STORAGE_KEY = 'sb-njgzhjwfcxdxiibkuuqg-auth-token';
+
 export async function getCurrentUser(): Promise<User | null> {
+  // 1. Revisar de inmediato almacenamiento local para evitar parpadeos
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.user) {
+        return parsed.user;
+      }
+    }
+  } catch {}
+
+  // 2. Consultar al SDK de Supabase
   try {
     const { data: { user }, error } = await supabase.auth.getUser();
     if (error) return null;
@@ -19,13 +33,24 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function getSession(): Promise<Session | null> {
+  // 1. Preguntar al SDK de Supabase
   try {
     const { data: { session }, error } = await supabase.auth.getSession();
-    if (error) return null;
-    return session;
-  } catch {
-    return null;
-  }
+    if (!error && session) return session;
+  } catch {}
+
+  // 2. Fallback a almacenamiento local si el SDK aún no ha cargado en memoria
+  try {
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.access_token && parsed?.user) {
+        return parsed as Session;
+      }
+    }
+  } catch {}
+
+  return null;
 }
 
 async function tryProxyLogin(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
@@ -42,10 +67,19 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
     }
 
     if (data.access_token && data.refresh_token) {
-      // 1. Guardar la sesión directamente en el almacenamiento de Supabase del navegador
-      const storageKey = 'sb-njgzhjwfcxdxiibkuuqg-auth-token';
+      const expiresAt = data.expires_at || Math.floor(Date.now() / 1000) + (data.expires_in || 3600);
+      const sessionPayload = {
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_in: data.expires_in || 3600,
+        expires_at: expiresAt,
+        token_type: data.token_type || 'bearer',
+        user: data.user,
+      };
+
+      // 1. Guardar la sesión directamente con expires_at válido para que el SDK no la descarte
       try {
-        localStorage.setItem(storageKey, JSON.stringify(data));
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionPayload));
       } catch (e) {
         console.warn('Could not write auth token to localStorage:', e);
       }
@@ -53,8 +87,8 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
       // 2. Notificar al cliente de Supabase
       try {
         const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-          access_token: data.access_token,
-          refresh_token: data.refresh_token,
+          access_token: sessionPayload.access_token,
+          refresh_token: sessionPayload.refresh_token,
         });
 
         if (!sessionError && sessionData.user) {
@@ -64,9 +98,9 @@ async function tryProxyLogin(email: string, password: string): Promise<{ user: U
         console.warn('setSession notice:', e);
       }
 
-      // Si setSession dio error de fetch, pero tenemos data.user y token guardado en localStorage:
-      if (data.user) {
-        return { user: data.user, error: null };
+      // 3. Si setSession tuvo advertencia de red pero tenemos el usuario verificado
+      if (sessionPayload.user) {
+        return { user: sessionPayload.user, error: null };
       }
     }
 
@@ -122,9 +156,8 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
 export async function signOut(): Promise<{ error: string | null }> {
   try {
-    const storageKey = 'sb-njgzhjwfcxdxiibkuuqg-auth-token';
     try {
-      localStorage.removeItem(storageKey);
+      localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {}
     const { error } = await supabase.auth.signOut();
     if (error) return { error: error.message };

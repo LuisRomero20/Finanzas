@@ -25,6 +25,7 @@ import {
 import type { User } from "@supabase/supabase-js";
 import { initLiveUpdateService, syncAllStoresFromSupabase } from "./utils/liveUpdateService";
 import { supabase } from "./lib/supabase";
+import { getSession, getCurrentUser } from "./services/authService";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
@@ -68,16 +69,26 @@ export default function App() {
 
   // Verificar estado de autenticación inicial y suscribirse a cambios
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
-      setCurrentUser(data.user);
-      if (!data.user) {
-        setIsAuthOpen(true);
+    getSession().then((session) => {
+      if (session?.user) {
+        setCurrentUser(session.user);
+        syncAllStoresFromSupabase(true).catch(() => {});
+      } else {
+        getCurrentUser().then((user) => {
+          setCurrentUser(user);
+          if (user) {
+            syncAllStoresFromSupabase(true).catch(() => {});
+          } else {
+            setIsAuthOpen(true);
+          }
+        });
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setCurrentUser(session?.user ?? null);
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      const user = session?.user ?? null;
+      setCurrentUser(user);
+      if (user && (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')) {
         syncAllStoresFromSupabase(true).catch(() => {});
       }
     });
@@ -114,7 +125,7 @@ export default function App() {
         />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
-          <SettingsSyncPanel onOpenAuth={() => setIsAuthOpen(true)} />
+          <SettingsSyncPanel currentUser={currentUser} onOpenAuth={() => setIsAuthOpen(true)} />
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}
             {tab === "Registro Rápido" && <RegistroMovimientoPage />}
@@ -141,7 +152,10 @@ export default function App() {
       <AuthModal 
         isOpen={isAuthOpen} 
         onClose={() => setIsAuthOpen(false)} 
-        onAuthSuccess={() => syncAllStoresFromSupabase(true)} 
+        onAuthSuccess={(user) => {
+          setCurrentUser(user);
+          syncAllStoresFromSupabase(true).catch(() => {});
+        }} 
       />
     </div>
   );

@@ -1,28 +1,36 @@
 import { useState, useEffect } from 'react';
 import { useSettingsSync, resolveSettings, syncPersonalSettings, downloadSyncBackup } from '../services/personalSettingsSync';
 import { supabase } from '../lib/supabase';
+import { getCurrentUser } from '../services/authService';
 import type { User } from '@supabase/supabase-js';
 import { ShieldCheck, Lock } from 'lucide-react';
 
 interface SettingsSyncPanelProps {
   onOpenAuth?: () => void;
+  currentUser?: User | null;
 }
 
-export function SettingsSyncPanel({ onOpenAuth }: SettingsSyncPanelProps) {
+export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: SettingsSyncPanelProps) {
   const { entries } = useSettingsSync();
   const [expanded, setExpanded] = useState(false);
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [internalUser, setInternalUser] = useState<User | null>(propUser ?? null);
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setCurrentUser(data.user));
+    if (propUser !== undefined) {
+      setInternalUser(propUser);
+      return;
+    }
+    getCurrentUser().then(u => setInternalUser(u));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUser(session?.user ?? null);
+      setInternalUser(session?.user ?? null);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [propUser]);
+
+  const activeUser = propUser !== undefined ? propUser : internalUser;
 
   // Si no está autenticado, mostrar banner amigable de inicio de sesión en lugar de errores
-  if (!currentUser) {
+  if (!activeUser) {
     return (
       <section className="mb-4 rounded-2xl border border-emerald-500/30 bg-emerald-950/20 dark:bg-emerald-950/40 p-4 text-xs shadow-lg backdrop-blur-sm animate-in fade-in duration-200" aria-label="Aviso de autenticación">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -55,9 +63,13 @@ export function SettingsSyncPanel({ onOpenAuth }: SettingsSyncPanelProps) {
   const labels = { budgets: 'Presupuestos', projections: 'Proyecciones', statements: 'Deudas regularizadas de tarjetas', classifications: 'Clasificación de movimientos' } as const;
   const stateLabels = { waiting: 'Pendiente de compartir', syncing: 'Sincronizando…', synced: 'Sincronizado', conflict: 'Versiones distintas', error: 'Pendiente de reintento' };
 
-  return <section className="mb-3 rounded-xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs" aria-label="Sincronización de ajustes financieros">
+  return <section className="mb-3 rounded-xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs shadow-sm" aria-label="Sincronización de ajustes financieros">
     <button onClick={() => setExpanded(!expanded)} className="flex min-h-11 w-full items-center justify-between gap-2 px-3 text-left cursor-pointer" aria-expanded={expanded || needsAttention}>
-      <span className="font-bold">{needsAttention ? 'Revisar sincronización' : syncing ? 'Sincronizando ajustes…' : 'Ajustes financieros · Nube'}</span>
+      <div className="flex items-center gap-2 min-w-0">
+        <ShieldCheck size={16} className="text-emerald-500 shrink-0" />
+        <span className="font-bold truncate">{needsAttention ? 'Revisar sincronización' : syncing ? 'Sincronizando ajustes…' : 'Ajustes financieros · Nube'}</span>
+        <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-mono hidden sm:inline truncate">({activeUser.email})</span>
+      </div>
       <span>{expanded || needsAttention ? '−' : '+'}</span>
     </button>
     {(expanded || needsAttention) && <div className="space-y-3 border-t border-slate-200 dark:border-slate-800 p-3">
