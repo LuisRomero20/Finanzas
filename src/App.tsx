@@ -337,8 +337,6 @@ function Navbar({
             title="Seguridad y Cuenta"
           >
             <ShieldCheck size={16} />
-          >
-            <Database size={16} />
           </button>
           <button
             type="button"
