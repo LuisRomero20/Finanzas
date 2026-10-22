@@ -39,20 +39,28 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
       if (isLoginMode) {
         const result = await signInWithEmail(email, password);
         if (result.error) {
-          setErrorMessage(result.error);
+          const msg = result.error.toLowerCase().includes('failed to fetch')
+            ? 'No se pudo conectar con el servidor de Supabase. Verifica tu conexión a internet o desactiva extensiones de bloqueo (AdBlock).'
+            : result.error === 'Invalid login credentials'
+            ? 'Correo o contraseña incorrectos. Verifica que la contraseña coincida con tu usuario de Supabase.'
+            : result.error;
+          setErrorMessage(msg);
         } else if (result.user) {
           setCurrentUser(result.user);
           setSuccessMessage('¡Sesión iniciada con éxito!');
           onAuthSuccess?.(result.user);
-          setTimeout(() => onClose(), 1200);
+          setTimeout(() => onClose(), 1000);
         }
       } else {
         const result = await signUpWithEmail(email, password);
         if (result.error) {
-          setErrorMessage(result.error);
+          const msg = result.error.toLowerCase().includes('failed to fetch')
+            ? 'No se pudo conectar al servidor. Si ya creaste tu usuario en Supabase, elige la pestaña «Iniciar Sesión».'
+            : result.error;
+          setErrorMessage(msg);
         } else if (result.user) {
           setCurrentUser(result.user);
-          setSuccessMessage('Usuario registrado exitosamente. Ya puedes iniciar sesión.');
+          setSuccessMessage('Usuario registrado con éxito. Si ya confirmaste tu cuenta, puedes iniciar sesión.');
           onAuthSuccess?.(result.user);
         }
       }
@@ -97,7 +105,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 rounded-xl hover:bg-white/10 text-white/80 hover:text-white transition"
+            className="p-1.5 rounded-xl hover:bg-white/10 text-white/80 hover:text-white transition cursor-pointer"
           >
             <X size={18} />
           </button>
@@ -123,7 +131,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   <button
                     type="button"
                     onClick={copyUidToClipboard}
-                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline"
+                    className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
                   >
                     {copiedUid ? <Check size={12} /> : <Copy size={12} />}
                     {copiedUid ? 'Copiado' : 'Copiar'}
@@ -133,7 +141,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                   {currentUser.id}
                 </code>
                 <p className="text-[10px] text-slate-400 mt-2">
-                  Usa este identificador en el script de migración para vincular tus 2,246 registros históricos.
+                  Tu cuenta tiene titularidad y acceso autorizado sobre tus 2,246 registros históricos.
                 </p>
               </div>
 
@@ -141,7 +149,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
                 type="button"
                 onClick={handleSignOut}
                 disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 font-bold text-xs transition"
+                className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-950/50 font-bold text-xs transition cursor-pointer"
               >
                 <LogOut size={14} />
                 <span>Cerrar Sesión</span>
@@ -149,77 +157,99 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onAuthSuc
             </div>
           ) : (
             /* Formulario de Login / Registro */
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {errorMessage && (
-                <div className="p-3 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-center gap-2 text-rose-700 dark:text-rose-300 text-xs">
-                  <ShieldAlert size={16} className="shrink-0" />
-                  <span>{errorMessage}</span>
-                </div>
-              )}
-
-              {successMessage && (
-                <div className="p-3 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-center gap-2 text-emerald-700 dark:text-emerald-300 text-xs">
-                  <Check size={16} className="shrink-0" />
-                  <span>{successMessage}</span>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Correo Electrónico
-                </label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="tu_correo@ejemplo.com"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                  Contraseña
-                </label>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="password"
-                    required
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••••••"
-                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition"
-                  />
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-900/20 transition cursor-pointer disabled:opacity-50"
-              >
-                {loading ? 'Procesando...' : isLoginMode ? 'Iniciar Sesión' : 'Crear Cuenta'}
-              </button>
-
-              <div className="text-center pt-2">
+            <div>
+              {/* Pestañas Segmentadas */}
+              <div className="flex rounded-2xl bg-slate-100 dark:bg-slate-800 p-1 mb-5">
                 <button
                   type="button"
                   onClick={() => {
-                    setIsLoginMode(!isLoginMode);
+                    setIsLoginMode(true);
                     setErrorMessage(null);
                     setSuccessMessage(null);
                   }}
-                  className="text-xs text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 font-semibold transition"
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                    isLoginMode
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
                 >
-                  {isLoginMode ? '¿Aún no tienes cuenta? Regístrate aquí' : '¿Ya tienes cuenta? Inicia sesión aquí'}
+                  Iniciar Sesión
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsLoginMode(false);
+                    setErrorMessage(null);
+                    setSuccessMessage(null);
+                  }}
+                  className={`flex-1 py-2 text-xs font-bold rounded-xl transition cursor-pointer ${
+                    !isLoginMode
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Crear Cuenta
                 </button>
               </div>
-            </form>
+
+              <form onSubmit={handleSubmit} className="space-y-4">
+                {errorMessage && (
+                  <div className="p-3.5 rounded-2xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 flex items-start gap-2 text-rose-700 dark:text-rose-300 text-xs">
+                    <ShieldAlert size={16} className="shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{errorMessage}</span>
+                  </div>
+                )}
+
+                {successMessage && (
+                  <div className="p-3.5 rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex items-start gap-2 text-emerald-700 dark:text-emerald-300 text-xs">
+                    <Check size={16} className="shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{successMessage}</span>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Correo Electrónico
+                  </label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="tu_correo@ejemplo.com"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    Contraseña
+                  </label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input
+                      type="password"
+                      required
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••••••"
+                      className="w-full pl-10 pr-4 py-2.5 rounded-2xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-xs font-medium focus:ring-2 focus:ring-emerald-500 outline-none transition"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-900/20 transition cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? 'Procesando...' : isLoginMode ? 'Iniciar Sesión' : 'Crear Cuenta'}
+                </button>
+              </form>
+            </div>
           )}
         </div>
       </div>
