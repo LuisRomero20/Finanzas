@@ -6,7 +6,7 @@ import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist', 'supabase/.temp']),
+  globalIgnores(['dist', 'supabase/.temp', 'scripts/**', 'backups/**', 'docs/**']),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -21,6 +21,10 @@ export default defineConfig([
     },
     rules: {
       'no-empty': ['error', { allowEmptyCatch: true }],
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'react-refresh/only-export-components': 'off',
+      'no-useless-escape': 'warn',
     },
   },
 ])

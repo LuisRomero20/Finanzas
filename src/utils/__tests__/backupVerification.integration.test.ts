@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { supabase } from '../../lib/supabase';
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';

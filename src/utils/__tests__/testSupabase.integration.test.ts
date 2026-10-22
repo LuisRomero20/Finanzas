@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { checkSupabaseHealth, fetchTransactionsFromSupabase } from '../../services/supabaseService';
+import { checkSupabaseHealth } from '../../services/supabaseService';
 import { supabase } from '../../lib/supabase';
 
 const integrationEnabled = process.env.RUN_SUPABASE_INTEGRATION === 'true';

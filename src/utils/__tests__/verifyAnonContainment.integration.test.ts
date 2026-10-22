@@ -6,7 +6,7 @@ const integrationEnabled = process.env.RUN_SUPABASE_INTEGRATION === 'true';
 describe.runIf(integrationEnabled)('Verification of Anonymous Containment on Supabase', () => {
   it('confirms that anonymous clients can no longer read or modify public.transacciones', async () => {
     // 1. Intento de lectura anónima (SELECT)
-    const { data: readData, error: readError, count } = await supabase
+    const { error: readError, count } = await supabase
       .from('transacciones')
       .select('*', { count: 'exact', head: true });
 
