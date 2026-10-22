@@ -21,7 +21,8 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { initLiveUpdateService } from "./utils/liveUpdateService";
+import { initLiveUpdateService, syncAllStoresFromSupabase } from "./utils/liveUpdateService";
+import { supabase } from "./lib/supabase";
 import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
@@ -79,6 +80,16 @@ export default function App() {
     applyThemeClass(theme);
   }, [theme]);
 
+  // Sincronizar automáticamente datos cuando el usuario inicia sesión o refresca token
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+        syncAllStoresFromSupabase(true).catch(() => {});
+      }
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <div className="min-h-screen w-full bg-[#EEF2F6] dark:bg-[#070C0E] text-slate-800 dark:text-slate-100 flex flex-col justify-between transition-colors duration-200">
       <div>
@@ -115,7 +126,11 @@ export default function App() {
 
       <BackupRestoreModal isOpen={isBackupOpen} onClose={() => setIsBackupOpen(false)} />
       <UniversalSearchModal isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} onSelectTab={setTab} />
-      <AuthModal isOpen={isAuthOpen} onClose={() => setIsAuthOpen(false)} />
+      <AuthModal 
+        isOpen={isAuthOpen} 
+        onClose={() => setIsAuthOpen(false)} 
+        onAuthSuccess={() => syncAllStoresFromSupabase(true)} 
+      />
     </div>
   );
 }
