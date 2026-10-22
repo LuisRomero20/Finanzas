@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useSettingsSync, resolveSettings, syncPersonalSettings, downloadSyncBackup } from '../services/personalSettingsSync';
-import { supabase } from '../lib/supabase';
+import { supabase, getSupabaseConfigHealth, type SupabaseConfigHealth } from '../lib/supabase';
 import { getCurrentUser, getAuthDiagnostic, type AuthDiagnostic } from '../services/authService';
 import { getPendingOutboxCount, flushPendingPaymentsOutbox } from '../services/pendingPaymentsOutbox';
 import { pendingTransactions, flushTransactions } from '../services/transactionOutbox';
 import { syncAllStoresFromSupabase } from '../utils/liveUpdateService';
 import type { User } from '@supabase/supabase-js';
-import { ShieldCheck, Lock, RefreshCw, Database, Smartphone, Laptop, Clock } from 'lucide-react';
+import { ShieldCheck, RefreshCw, Database, Smartphone, Laptop, Clock, Server, AlertTriangle } from 'lucide-react';
 
 interface SettingsSyncPanelProps {
   onOpenAuth?: () => void;
@@ -20,6 +20,8 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
   const [authDiag, setAuthDiag] = useState<AuthDiagnostic | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
+  const [isClearingCache, setIsClearingCache] = useState(false);
+  const configHealth: SupabaseConfigHealth = getSupabaseConfigHealth();
 
   useEffect(() => {
     if (propUser !== undefined) {
@@ -70,6 +72,29 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
     }
   };
 
+  const handleForceClearPwaCache = async () => {
+    setIsClearingCache(true);
+    try {
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        for (const reg of registrations) {
+          await reg.unregister();
+        }
+      }
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map(name => caches.delete(name)));
+      }
+      // Forzar recarga completa desde la red
+      window.location.reload();
+    } catch (err) {
+      console.warn('Error al limpiar caché PWA:', err);
+      window.location.reload();
+    } finally {
+      setIsClearingCache(false);
+    }
+  };
+
   const getSessionBadge = () => {
     switch (authDiag?.verificationState) {
       case 'server_verified':
@@ -99,29 +124,36 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-3.5 w-full sm:w-auto">
             <div className="p-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0">
-              <ShieldCheck size={24} />
+              <ShieldCheck size={20} />
             </div>
             <div>
-              <h4 className="font-bold text-white text-sm">Tu información financiera ahora está protegida</h4>
-              <p className="text-slate-300 text-xs mt-0.5">
-                Inicia sesión con tu cuenta para acceder a tus 2,246 registros y sincronizar tus dispositivos de forma segura.
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-slate-100 text-sm">Finanzas Personales 2.0</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-900/60 text-emerald-300 border border-emerald-700/60">
+                  v{configHealth.appVersion}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-800 text-slate-300 border border-slate-700">
+                  {configHealth.targetProjectRef}
+                </span>
+              </div>
+              <p className="text-slate-400 mt-0.5 leading-relaxed">
+                Inicia sesión para sincronizar automáticamente tus movimientos, presupuestos y proyecciones en tiempo real entre tu PC y tu iPhone.
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onOpenAuth}
-            className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow-md shadow-emerald-500/20 transition cursor-pointer shrink-0"
+            className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md shadow-emerald-950/40 transition-all cursor-pointer whitespace-nowrap"
           >
-            <Lock size={14} />
-            <span>Iniciar Sesión</span>
+            Iniciar Sesión
           </button>
         </div>
       </section>
     );
   }
 
-  const needsAttention = Object.values(entries).some(e => e.status === 'conflict' || e.status === 'error');
+  const needsAttention = Object.values(entries).some(e => e.status === 'conflict' || e.status === 'error') || !configHealth.isHealthy;
   const syncing = Object.values(entries).some(e => e.status === 'syncing') || isManualSyncing;
   const labels = {
     budgets: 'Presupuestos por Categoría',
@@ -142,6 +174,24 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
 
   return (
     <section className="mb-4 rounded-2xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs shadow-sm overflow-hidden" aria-label="Sincronización de ajustes financieros">
+      {/* Alerta visible si existe discrepancia de proyecto Supabase */}
+      {!configHealth.isHealthy && (
+        <div className="bg-rose-600 text-white px-4 py-2.5 text-xs flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0" />
+            <span>
+              <strong>Alerta de Seguridad:</strong> {configHealth.errorMessage} — Las escrituras están temporalmente protegidas.
+            </span>
+          </div>
+          <button
+            onClick={handleForceClearPwaCache}
+            className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold hover:bg-slate-100 cursor-pointer text-[11px] shrink-0"
+          >
+            Limpiar Caché
+          </button>
+        </div>
+      )}
+
       {/* Barra superior de estado */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800">
         <button
@@ -159,6 +209,13 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                 RLS Activo
+              </span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${configHealth.isHealthy ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
+                {configHealth.activeProjectRef}
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
+                v{configHealth.appVersion}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
@@ -195,18 +252,18 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
       {(expanded || needsAttention) && (
         <div className="p-4 space-y-4 animate-in fade-in duration-150">
           {/* Diagnóstico técnico amigable */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 p-3 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-2">
               <Laptop size={15} className="text-slate-500 shrink-0" />
               <div>
-                <span className="block text-[10px] text-slate-500 font-bold uppercase">Cola de Movimientos</span>
+                <span className="block text-[10px] text-slate-500 font-bold uppercase">Movimientos en Cola</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{pendingTxCount} pendientes</span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <Smartphone size={15} className="text-slate-500 shrink-0" />
               <div>
-                <span className="block text-[10px] text-slate-500 font-bold uppercase">Cola de Pagos Pendientes</span>
+                <span className="block text-[10px] text-slate-500 font-bold uppercase">Pagos en Cola</span>
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{pendingPaymentsCount} pendientes</span>
               </div>
             </div>
@@ -216,6 +273,15 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                 <span className="block text-[10px] text-slate-500 font-bold uppercase">Estado de Sesión</span>
                 <span className={`font-semibold ${sessionBadge.color}`}>
                   {sessionBadge.label}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Server size={15} className="text-slate-500 shrink-0" />
+              <div>
+                <span className="block text-[10px] text-slate-500 font-bold uppercase">Servidor Destino</span>
+                <span className="font-mono text-[11px] font-semibold text-slate-700 dark:text-slate-300">
+                  {configHealth.activeProjectRef}
                 </span>
               </div>
             </div>
@@ -262,25 +328,20 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                     </div>
                   )}
 
+                  {/* En caso de error de conexión: solo permitir reintentar para no sobreescribir datos por fallas de red */}
                   {entry.status === 'error' && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
                         disabled={syncing}
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 cursor-pointer"
-                        onClick={() => void resolveSettings(name, 'local')}
-                      >
-                        Compartir este dispositivo a la nube
-                      </button>
-                      <button
-                        disabled={syncing}
-                        className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
                         onClick={() => void syncPersonalSettings()}
                       >
-                        Reintentar
+                        Reintentar sincronización
                       </button>
                     </div>
                   )}
 
+                  {/* En caso de versiones distintas (conflicto legítimo): ofrecer resolución consciente */}
                   {entry.status === 'conflict' && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
@@ -304,7 +365,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
             })}
           </div>
 
-          {/* Acciones de respaldo */}
+          {/* Acciones de respaldo y mantenimiento de caché */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
@@ -314,9 +375,20 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <Database size={13} />
               <span>Descargar copia de seguridad local (JSON)</span>
             </button>
-            <span className="text-[11px] text-slate-400">
-              Protocolo de sincronización Finanzas 2.0.2
-            </span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleForceClearPwaCache}
+                disabled={isClearingCache}
+                className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer disabled:opacity-50"
+                title="Elimina service workers y cachés obsoletas para cargar la versión más reciente"
+              >
+                {isClearingCache ? 'Actualizando…' : 'Limpiar caché PWA'}
+              </button>
+              <span className="text-[11px] text-slate-400">
+                Protocolo de sincronización Finanzas 2.0.3
+              </span>
+            </div>
           </div>
         </div>
       )}
