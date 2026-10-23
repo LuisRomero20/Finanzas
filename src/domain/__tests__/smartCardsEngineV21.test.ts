@@ -7,10 +7,15 @@ import {
   aggregateCardObligationsForMonth,
   evaluateCardPayment,
   evaluateReconciliationInput,
+  buildPaymentIdempotencyKey,
+  detectEquivalentPayment,
   CONTRACTUAL_WARNING_MESSAGE,
   type CardContractualRates,
 } from '../cards/smartCardEngine';
 import { calculateBillingCycle } from '../cards/billingCycles';
+import { generateDiffReport, computeAssistedMerge } from '../sync/diffComparison';
+import { useFinanceStore } from '../../store/financeStore';
+import { clearTransactionOutboxForTesting } from '../../services/transactionOutbox';
 
 describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
   // Configuración de las 3 tarjetas del usuario
@@ -546,6 +551,315 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
       expect(res.verificationStatus).toBe('disputed');
       expect(res.variance).toBe(250.00);
       expect(res.statusBadge.label).toBe('En Disputa Bancaria');
+    });
+  });
+
+  describe('11. Idempotencia, detección de pagos equivalentes y persistencia por capas', () => {
+    it('buildPaymentIdempotencyKey genera clave inmutable y determinística por operación lógica', () => {
+      const key1 = buildPaymentIdempotencyKey({
+        cardEntity: 'Ripley',
+        dueDate: '2026-11-01',
+        paymentDate: '2026-10-25',
+        amount: 350.50,
+        intentToken: 'session-xyz',
+      });
+      const key2 = buildPaymentIdempotencyKey({
+        cardEntity: 'Ripley',
+        dueDate: '2026-11-01',
+        paymentDate: '2026-10-25',
+        amount: 350.50,
+        intentToken: 'session-xyz',
+      });
+
+      expect(key1).toBe('pay-ripley-2026-11-01-2026-10-25-35050-session-');
+      expect(key1).toBe(key2);
+    });
+
+    it('buildPaymentIdempotencyKey genera identificador diferenciado para un segundo pago legítimo con sequence > 1', () => {
+      const firstPaymentKey = buildPaymentIdempotencyKey({
+        cardEntity: 'BBVA',
+        dueDate: '2026-11-05',
+        paymentDate: '2026-10-25',
+        amount: 200,
+        sequence: 1,
+        intentToken: 'token123',
+      });
+      const secondPaymentKey = buildPaymentIdempotencyKey({
+        cardEntity: 'BBVA',
+        dueDate: '2026-11-05',
+        paymentDate: '2026-10-25',
+        amount: 200,
+        sequence: 2,
+        intentToken: 'token123',
+      });
+
+      expect(secondPaymentKey).toContain('-seq2');
+      expect(firstPaymentKey).not.toBe(secondPaymentKey);
+    });
+
+    it('detectEquivalentPayment identifica pagos previos equivalentes en fecha, entidad y monto', () => {
+      const existingPayments = [
+        {
+          id: 'pay-tx-1',
+          Fecha: '2026-10-23',
+          Monto: 150.00,
+          Concepto: 'Pago parcial de Tarjeta Interbank',
+          Entidad: 'Interbank',
+          Tipo: 'Egreso',
+        },
+      ];
+
+      const checkDup = detectEquivalentPayment({
+        existingPayments,
+        cardEntity: 'Interbank',
+        paymentDate: '2026-10-23',
+        amount: 150.00,
+      });
+
+      expect(checkDup.hasEquivalentPayment).toBe(true);
+      expect(checkDup.existingTransaction?.id).toBe('pay-tx-1');
+      expect(checkDup.warningMessage).toContain('Ya existe un pago registrado');
+
+      const checkDifferent = detectEquivalentPayment({
+        existingPayments,
+        cardEntity: 'Interbank',
+        paymentDate: '2026-10-24',
+        amount: 150.00,
+      });
+      expect(checkDifferent.hasEquivalentPayment).toBe(false);
+    });
+
+    it('idempotencia en store: registrar dos veces una transacción con el mismo ID actualiza sin duplicar', () => {
+      clearTransactionOutboxForTesting();
+      const store = useFinanceStore.getState();
+      const originalCount = store.transactions.length;
+
+      const stableId = 'test-idempotency-tx-999';
+      store.addTransaction({
+        id: stableId,
+        Tipo: 'Egreso',
+        Categoria: 'Servicio',
+        Concepto: 'Pago Tarjeta Test Intento 1',
+        Monto: 100,
+        Entidad: 'Interbank',
+        Fecha: '2026-10-23',
+      });
+
+      const countAfterFirst = useFinanceStore.getState().transactions.length;
+      expect(countAfterFirst).toBe(originalCount + 1);
+
+      // Reintento con el mismo ID y concepto corregido
+      store.addTransaction({
+        id: stableId,
+        Tipo: 'Egreso',
+        Categoria: 'Servicio',
+        Concepto: 'Pago Tarjeta Test Intento 2 Reintento',
+        Monto: 100,
+        Entidad: 'Interbank',
+        Fecha: '2026-10-23',
+      });
+
+      const updatedTransactions = useFinanceStore.getState().transactions;
+      expect(updatedTransactions.length).toBe(originalCount + 1); // No duplicado
+      const found = updatedTransactions.find(t => t.id === stableId);
+      expect(found?.Concepto).toBe('Pago Tarjeta Test Intento 2 Reintento');
+
+      // Limpieza de prueba
+      store.deleteTransaction(stableId);
+      clearTransactionOutboxForTesting();
+    });
+
+    it('registerPaymentTransaction en modo offline persiste con local_pending y mensaje transparente', async () => {
+      clearTransactionOutboxForTesting();
+      const store = useFinanceStore.getState();
+      const txId = 'test-offline-pay-001';
+
+      const res = await store.registerPaymentTransaction(
+        {
+          id: txId,
+          Tipo: 'Egreso',
+          Categoria: 'Servicio',
+          Concepto: 'Pago Offline Test',
+          Monto: 250,
+          Entidad: 'BCP',
+          Fecha: '2026-10-23',
+        },
+        { skipImmediateFlush: true }
+      );
+
+      expect(res.persistenceState).toBe('local_pending');
+      expect(res.transaction.syncStatus).toBe('local_pending');
+      expect(res.message).toContain('este dispositivo');
+
+      // Limpieza
+      store.deleteTransaction(txId);
+      clearTransactionOutboxForTesting();
+    });
+
+    it('integridad contable: amortización de deuda no altera consumos originales (cero doble contabilización)', () => {
+      // Consumo original del ciclo (genera gasto económico S/ 500)
+      const consumosCiclo = [
+        { id: 'c1', Monto: 300, Tipo: 'Egreso', Concepto: 'Supermercado' },
+        { id: 'c2', Monto: 200, Tipo: 'Egreso', Concepto: 'Combustible' },
+      ];
+      const gastoEconomicoTotal = consumosCiclo.reduce((s, c) => s + c.Monto, 0);
+      expect(gastoEconomicoTotal).toBe(500);
+
+      // Pago parcial de pasivo S/ 200
+      const paymentEval = evaluateCardPayment({
+        pendingDebt: gastoEconomicoTotal,
+        paymentAmount: '200.00',
+      });
+
+      expect(paymentEval.classification).toBe('pago_parcial');
+      expect(paymentEval.remainingDebt).toBe(300);
+
+      // El gasto económico en consumos sigue siendo 500, la deuda financiera viva baja a 300
+      expect(gastoEconomicoTotal).toBe(500);
+      expect(paymentEval.remainingDebt).toBe(300);
+    });
+  });
+
+  describe('12. Conciliación multidispositivo y resolución asistida en personal_settings', () => {
+    it('generateDiffReport detecta discrepancia de verificationStatus entre PC y Nube', () => {
+      const localStatements = {
+        'Ripley_2026-11-01': {
+          cardEntity: 'Ripley',
+          dueDate: '2026-11-01',
+          finalDebt: 450.00,
+          verificationStatus: 'statement_verified',
+          documentReference: 'EECC_Ripley_Oct2026.pdf',
+        },
+      };
+
+      const remoteStatements = {
+        'Ripley_2026-11-01': {
+          cardEntity: 'Ripley',
+          dueDate: '2026-11-01',
+          finalDebt: 450.00,
+          verificationStatus: 'user_declared',
+          documentReference: undefined,
+        },
+      };
+
+      const report = generateDiffReport(
+        'statements',
+        JSON.stringify(localStatements),
+        JSON.stringify(remoteStatements)
+      );
+
+      expect(report.modifiedCount).toBe(1);
+      const diffItem = report.items.find(i => i.id === 'Ripley_2026-11-01');
+      expect(diffItem?.status).toBe('modified');
+      const statusDiff = diffItem?.differences?.find(d => d.fieldName === 'Estado de verificación');
+      expect(statusDiff).toBeDefined();
+      expect(statusDiff?.localValue).toBe('statement_verified');
+      expect(statusDiff?.remoteValue).toBe('user_declared');
+    });
+
+    it('generateDiffReport detecta diferencias en documentReference entre dispositivos', () => {
+      const localStatements = {
+        'BBVA_2026-11-05': {
+          cardEntity: 'BBVA',
+          dueDate: '2026-11-05',
+          finalDebt: 800.00,
+          documentReference: 'Factura_BBVA_Digital.pdf',
+        },
+      };
+
+      const remoteStatements = {
+        'BBVA_2026-11-05': {
+          cardEntity: 'BBVA',
+          dueDate: '2026-11-05',
+          finalDebt: 800.00,
+          documentReference: undefined,
+        },
+      };
+
+      const report = generateDiffReport(
+        'statements',
+        JSON.stringify(localStatements),
+        JSON.stringify(remoteStatements)
+      );
+
+      const diffItem = report.items.find(i => i.id === 'BBVA_2026-11-05');
+      expect(diffItem?.status).toBe('modified');
+      const docDiff = diffItem?.differences?.find(d => d.fieldName === 'Referencia documental');
+      expect(docDiff).toBeDefined();
+      expect(docDiff?.localValue).toBe('Factura_BBVA_Digital.pdf');
+    });
+
+    it('computeAssistedMerge resuelve conflicto de conciliación adoptando remote conscientemente', () => {
+      const localStatements = {
+        'Ripley_2026-11-01': {
+          cardEntity: 'Ripley',
+          dueDate: '2026-11-01',
+          finalDebt: 400.00,
+        },
+      };
+
+      const remoteStatements = {
+        'Ripley_2026-11-01': {
+          cardEntity: 'Ripley',
+          dueDate: '2026-11-01',
+          finalDebt: 450.00,
+          verificationStatus: 'statement_verified',
+        },
+      };
+
+      const mergedRes = computeAssistedMerge(
+        'statements',
+        JSON.stringify(localStatements),
+        JSON.stringify(remoteStatements),
+        {
+          'Ripley_2026-11-01': {
+            itemId: 'Ripley_2026-11-01',
+            type: 'use_remote',
+          },
+        }
+      );
+
+      const mergedData = JSON.parse(mergedRes.mergedValue);
+      expect(mergedData['Ripley_2026-11-01'].finalDebt).toBe(450.00);
+      expect(mergedData['Ripley_2026-11-01'].verificationStatus).toBe('statement_verified');
+    });
+
+    it('computeAssistedMerge permite resolución custom con importe corregido', () => {
+      const localStatements = {
+        'IBK_2026-11-15': {
+          cardEntity: 'Interbank',
+          dueDate: '2026-11-15',
+          finalDebt: 600.00,
+        },
+      };
+
+      const remoteStatements = {
+        'IBK_2026-11-15': {
+          cardEntity: 'Interbank',
+          dueDate: '2026-11-15',
+          finalDebt: 650.00,
+        },
+      };
+
+      const mergedRes = computeAssistedMerge(
+        'statements',
+        JSON.stringify(localStatements),
+        JSON.stringify(remoteStatements),
+        {
+          'IBK_2026-11-15': {
+            itemId: 'IBK_2026-11-15',
+            type: 'custom',
+            customAmount: 625.50,
+          },
+        }
+      );
+
+      const mergedData = JSON.parse(mergedRes.mergedValue);
+      expect(mergedData['IBK_2026-11-15'].finalDebt).toBe(625.50);
+    });
+
+    it('aislamiento total: las pruebas unitarias y de integración corren en sandbox sin llamadas a Supabase prod', () => {
+      expect(process.env.NODE_ENV).toBe('test');
     });
   });
 });

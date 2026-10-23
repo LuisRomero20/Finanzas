@@ -2,7 +2,11 @@ import React, { useState, useMemo } from 'react';
 import { X, CheckCircle2, SlidersHorizontal, CreditCard, RotateCcw, Wallet, AlertTriangle } from 'lucide-react';
 import { useFinanceStore } from '../store/financeStore';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
-import { evaluateCardPayment } from '../domain/cards/smartCardEngine';
+import {
+  evaluateCardPayment,
+  buildPaymentIdempotencyKey,
+  detectEquivalentPayment,
+} from '../domain/cards/smartCardEngine';
 import type { CardConfig, Cycle } from '../utils/creditCardCycles';
 
 interface Props {
@@ -33,7 +37,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   verifiedStatement,
   onSuccess,
 }) => {
-  const { addTransaction } = useFinanceStore();
+  const { transactions, registerPaymentTransaction } = useFinanceStore();
   const { saveVerifiedStatement, removeVerifiedStatement } = useCardStatementStore();
 
   const [activeTab, setActiveTab] = useState<'cancelar' | 'ajustar'>('cancelar');
@@ -51,6 +55,8 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   const [confirmExternalZero, setConfirmExternalZero] = useState<boolean>(false);
   const [confirmExcess, setConfirmExcess] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [intentToken] = useState<string>(() => Math.random().toString(36).slice(2, 10));
+  const [allowDuplicatePayment, setAllowDuplicatePayment] = useState<boolean>(false);
 
   // Evaluación financiera determinística del pago
   const paymentEval = useMemo(() => {
@@ -60,6 +66,17 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       confirmExcess,
     });
   }, [pendingDebt, payAmount, confirmExcess]);
+
+  // Detección de pago equivalente para proteger contra reintentos accidentales
+  const equivalentCheck = useMemo(() => {
+    if (!card || !paymentEval.paymentAmount) return { hasEquivalentPayment: false };
+    return detectEquivalentPayment({
+      existingPayments: transactions,
+      cardEntity: card.entity,
+      paymentDate: payDate,
+      amount: paymentEval.paymentAmount,
+    });
+  }, [transactions, card, payDate, paymentEval.paymentAmount]);
 
   // Estado para ajuste manual de deuda
   const [customDebt, setCustomDebt] = useState<string>(() => {
@@ -73,8 +90,8 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
 
   const cycleKey = `${card.entity}_${prevCycle.payDate.toISOString().slice(0, 10)}`;
 
-  // 1. Manejo: Registrar Pago con Evaluación Estricta
-  const handleRegisterPayment = (e: React.FormEvent) => {
+  // 1. Manejo: Registrar Pago con Evaluación Estricta e Idempotencia
+  const handleRegisterPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
 
@@ -83,21 +100,34 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       return;
     }
 
+    if (equivalentCheck.hasEquivalentPayment && !allowDuplicatePayment) {
+      alert('Se ha detectado un pago equivalente registrado previamente. Marca la casilla de confirmación consciente si se trata de un segundo pago legítimo.');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
 
-      const opId = `pay-${card.entity.toLowerCase().replace(/[^a-z0-9]/g, '')}-${prevCycle.payDate.toISOString().slice(0, 10)}-${Date.now()}`;
+      const dueDateStr = prevCycle.payDate.toISOString().slice(0, 10);
+      const opId = buildPaymentIdempotencyKey({
+        cardEntity: card.entity,
+        dueDate: dueDateStr,
+        paymentDate: payDate,
+        amount: paymentEval.paymentAmount,
+        sequence: allowDuplicatePayment ? 2 : 1,
+        intentToken,
+      });
 
       let concepto = `Pago de Tarjeta ${card.entity}`;
       if (paymentEval.classification === 'pago_parcial') {
-        concepto = `Pago parcial de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+        concepto = `Pago parcial de Tarjeta ${card.entity} (Ciclo vence ${dueDateStr})`;
       } else if (paymentEval.classification === 'pago_con_excedente') {
-        concepto = `Pago con excedente de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+        concepto = `Pago con excedente de Tarjeta ${card.entity} (Ciclo vence ${dueDateStr})`;
       } else {
-        concepto = `Pago total de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+        concepto = `Pago total de Tarjeta ${card.entity} (Ciclo vence ${dueDateStr})`;
       }
 
-      const newTx = addTransaction({
+      const res = await registerPaymentTransaction({
         id: opId,
         Tipo: 'Egreso',
         Categoria: 'Servicio',
@@ -105,13 +135,19 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
         Monto: paymentEval.paymentAmount,
         Entidad: payAccount,
         Fecha: payDate,
+        idempotencyToken: opId,
+        syncStatus: 'local_pending',
       });
 
-      if (!newTx) {
+      if (!res?.transaction) {
         throw new Error('No se pudo persistir la transacción de pago');
       }
 
-      onSuccess(`✅ ${paymentEval.summaryMessage}`);
+      const statusTag = res.persistenceState === 'remote_confirmed'
+        ? 'Confirmado en Supabase'
+        : 'Guardado localmente en este dispositivo (pendiente de sincronización en la nube)';
+
+      onSuccess(`✅ ${paymentEval.summaryMessage} · ${statusTag}`);
       onClose();
     } catch (err) {
       alert(`Error al registrar el pago: ${err instanceof Error ? err.message : String(err)}`);
@@ -381,11 +417,37 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                   </div>
                 )}
 
+                {/* Alerta y confirmación consciente si se detecta pago equivalente */}
+                {equivalentCheck.hasEquivalentPayment && (
+                  <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl text-xs space-y-2">
+                    <div className="flex items-start gap-2 text-amber-900 dark:text-amber-200">
+                      <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold">Detección de Pago Equivalente</p>
+                        <p className="text-[11px] text-amber-800 dark:text-amber-300 mt-0.5 leading-relaxed">
+                          {equivalentCheck.warningMessage}
+                        </p>
+                      </div>
+                    </div>
+                    <label className="flex items-start gap-2 pt-1 cursor-pointer font-bold text-amber-950 dark:text-amber-200">
+                      <input
+                        type="checkbox"
+                        checked={allowDuplicatePayment}
+                        onChange={e => setAllowDuplicatePayment(e.target.checked)}
+                        className="mt-0.5 rounded text-amber-600 focus:ring-amber-500 cursor-pointer"
+                      />
+                      <span className="text-[11px]">
+                        Confirmo conscientemente que este registro corresponde a un segundo pago legítimo idéntico.
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={!paymentEval.canProceed || isSubmitting}
+                  disabled={!paymentEval.canProceed || isSubmitting || (equivalentCheck.hasEquivalentPayment && !allowDuplicatePayment)}
                   className={`w-full text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 mt-2 ${
-                    paymentEval.canProceed && !isSubmitting
+                    paymentEval.canProceed && !isSubmitting && (!equivalentCheck.hasEquivalentPayment || allowDuplicatePayment)
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                   }`}
@@ -394,6 +456,8 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                   <span>
                     {!paymentEval.isValid
                       ? 'Ingresa un monto mayor a S/ 0.00'
+                      : equivalentCheck.hasEquivalentPayment && !allowDuplicatePayment
+                      ? 'Autoriza el pago equivalente para continuar'
                       : paymentEval.classification === 'pago_parcial'
                       ? `Registrar Pago Parcial de ${fmt.format(paymentEval.paymentAmount)}`
                       : paymentEval.classification === 'pago_con_excedente'

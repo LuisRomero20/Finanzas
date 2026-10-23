@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { broadcastRealtimeSync } from '../utils/syncBus';
 
 export type VerificationStatus = 'draft' | 'user_declared' | 'statement_verified' | 'disputed';
 export type StatementSource = 'manual_entry' | 'statement_file' | 'external';
@@ -92,6 +93,7 @@ export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
       saveToStorage(updated);
       return { statements: updated };
     });
+    broadcastRealtimeSync('statements');
   },
 
   removeVerifiedStatement: (key) => {
@@ -107,6 +109,7 @@ export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
       saveToStorage(updated);
       return { statements: updated };
     });
+    broadcastRealtimeSync('statements');
   },
 
   getVerifiedStatement: (cardEntity, cyclePayDate, cycleEndDate) => {
@@ -156,5 +159,6 @@ export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
   clearAll: () => {
     set({ statements: {} });
     saveToStorage({});
+    broadcastRealtimeSync('statements');
   },
 }));

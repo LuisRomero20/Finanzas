@@ -11,17 +11,17 @@
 | Métrica | Resultado |
 | :--- | :--- |
 | **Total de Archivos de Prueba (Suites)** | **36 suites aprobadas** (100%) |
-| **Total de Pruebas Unitarias e Integración** | **224 pruebas aprobadas** (100%) |
+| **Total de Pruebas Unitarias e Integración** | **235 pruebas aprobadas** (100%) |
 | **Pruebas Fallidas / Errores** | **0 fallos** |
 | **Errores de Tipos TypeScript (`tsc --noEmit`)** | **0 errores** |
 | **Errores de Linting (`npm run lint`)** | **0 errores** |
-| **Compilación de Producción (`npm run build`)** | **Exitosa (8.82s)** |
+| **Compilación de Producción (`npm run build`)** | **Exitosa (16.92s)** |
 
 ---
 
 ## 2. Detalle de la Suite de Tarjetas Inteligentes (`smartCardsEngineV21.test.ts`)
 
-La suite ampliada de 32 pruebas unitarias cubre rigurosamente:
+La suite ampliada de 43 pruebas unitarias cubre rigurosamente:
 
 1. **Parameterización y Reglas de Ciclo de las 3 Tarjetas:**
    - [x] Ripley Mastercard (corte 3, pago 1): compras pre-corte vs post-corte.
@@ -77,13 +77,28 @@ La suite ampliada de 32 pruebas unitarias cubre rigurosamente:
     - [x] Saldo cero confirmado: requiere checkbox consciente explícito para habilitar el guardado.
     - [x] Diferencia en disputa: clasificada como `disputed` con variance identificada.
 
+11. **Idempotencia Determinística, Pagos Equivalentes y Persistencia por Capas:**
+    - [x] `buildPaymentIdempotencyKey`: genera identificador determinístico inmutable por tarjeta, vencimiento, fecha y monto.
+    - [x] Segundo pago legítimo: diferenciado mediante incremento consciente de secuencia (`-seq2`).
+    - [x] `detectEquivalentPayment`: detecta operaciones idénticas previas y exige autorización consciente para evitar dobles cobros accidentales.
+    - [x] Idempotencia en Store (`useFinanceStore`): reintentos con el mismo ID actualizan el registro y jamás duplican filas en el array.
+    - [x] Persistencia desacoplada (`registerPaymentTransaction`): pagos offline se etiquetan como `local_pending` en cola outbox con comunicación honesta.
+    - [x] Distinción contable: los pagos amortizan el pasivo sin duplicar los gastos económicos de los consumos individuales.
+
+12. **Conciliación Multidispositivo y Resolución Asistida en `personal_settings`:**
+    - [x] `generateDiffReport` en `statements`: detecta discrepancias de `verificationStatus` entre PC y iPhone.
+    - [x] `generateDiffReport` en `statements`: detecta diferencias en `documentReference`.
+    - [x] `computeAssistedMerge`: adopta de forma íntegra la versión remota ante decisión consciente `use_remote`.
+    - [x] `computeAssistedMerge`: resuelve conflictos con saldo corregido ante decisión `custom`.
+    - [x] Aislamiento total: suites de prueba corren en entorno sandbox estricto sin peticiones a Supabase productivo.
+
 ---
 
 ## 3. Registro de Validación General
 
 ```
 Test Files  36 passed (36)
-     Tests  224 passed (224)
-  Duration  11.30s
+     Tests  235 passed (235)
+  Duration  12.80s
   Result    SUCCESS
 ```

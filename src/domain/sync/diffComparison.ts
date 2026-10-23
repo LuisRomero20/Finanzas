@@ -366,11 +366,13 @@ export function generateDiffReport(
             remoteValue: `S/ ${Number(rem.finalDebt || 0).toFixed(2)}`,
           });
         }
-        if (normStr(loc.cutOffDate) !== normStr(rem.cutOffDate)) {
+        const locCutoff = normStr(loc.cutoffDate || loc.cutOffDate);
+        const remCutoff = normStr(rem.cutoffDate || rem.cutOffDate);
+        if (locCutoff !== remCutoff) {
           diffs.push({
             fieldName: 'Fecha de corte',
-            localValue: loc.cutOffDate || '(vacío)',
-            remoteValue: rem.cutOffDate || '(vacío)',
+            localValue: loc.cutoffDate || loc.cutOffDate || '(vacío)',
+            remoteValue: rem.cutoffDate || rem.cutOffDate || '(vacío)',
           });
         }
         if (normStr(loc.dueDate) !== normStr(rem.dueDate)) {
@@ -378,6 +380,20 @@ export function generateDiffReport(
             fieldName: 'Fecha de pago',
             localValue: loc.dueDate || '(vacío)',
             remoteValue: rem.dueDate || '(vacío)',
+          });
+        }
+        if (normStr(loc.verificationStatus) !== normStr(rem.verificationStatus)) {
+          diffs.push({
+            fieldName: 'Estado de verificación',
+            localValue: loc.verificationStatus || '(no definido)',
+            remoteValue: rem.verificationStatus || '(no definido)',
+          });
+        }
+        if (normStr(loc.documentReference) !== normStr(rem.documentReference)) {
+          diffs.push({
+            fieldName: 'Referencia documental',
+            localValue: loc.documentReference || '(sin documento)',
+            remoteValue: rem.documentReference || '(sin documento)',
           });
         }
 

@@ -16,6 +16,8 @@ export interface Transaction {
   montoTotal?: number;
   montoCuota?: number;
   mesInicioFacturacion?: string;
+  syncStatus?: 'local_pending' | 'syncing' | 'remote_confirmed' | 'sync_failed' | 'reconciled';
+  idempotencyToken?: string;
 }
 
 export { CONCEPTO_A_CATEGORIA, CATEGORIAS_PERSONALES } from './categoryClassification';

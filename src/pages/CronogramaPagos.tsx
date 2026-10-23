@@ -533,6 +533,44 @@ export const CronogramaPagos: React.FC = () => {
                     </div>
                   )}
 
+                  {/* Pagos / Abonos Registrados en el Ciclo con badge de sincronización */}
+                  {pagadoTxs.length > 0 && (
+                    <div className="mb-4 p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                        <span>Abonos / Pagos registrados ({pagadoTxs.length}):</span>
+                        <span className="tabular-nums font-black">{fmt.format(pagadoTotal)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {pagadoTxs.map(pt => {
+                          const isRemote = pt.syncStatus === 'remote_confirmed' || pt.syncStatus === 'reconciled';
+                          return (
+                            <div key={pt.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/70 border border-emerald-100 dark:border-emerald-900/30">
+                              <div className="min-w-0 flex-1 pr-2">
+                                <p className="text-slate-800 dark:text-slate-200 font-medium truncate text-[11px]">{pt.Concepto}</p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500">{pt.Fecha} · {pt.Entidad}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="font-bold text-emerald-700 dark:text-emerald-300 text-xs tabular-nums">
+                                  {fmt.format(pt.Monto)}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    isRemote
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                  }`}
+                                  title={isRemote ? 'Transacción confirmada en Supabase' : 'Guardado localmente, en cola de sincronización'}
+                                >
+                                  {isRemote ? 'Nube' : 'Local'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   {prevTxs.length === 0 ? (
                     <p className="text-slate-400 dark:text-slate-500 text-sm italic py-4 text-center">Sin transacciones en este período</p>
                   ) : (

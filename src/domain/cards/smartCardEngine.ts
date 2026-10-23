@@ -891,3 +891,83 @@ export function evaluateReconciliationInput(params: {
     displayDocumentRef,
   };
 }
+
+/**
+ * ============================================================================
+ * IDEMPOTENCIA Y TRAZABILIDAD DE PERSISTENCIA DE PAGOS
+ * ============================================================================
+ */
+export type PaymentPersistenceState = 'local_pending' | 'syncing' | 'remote_confirmed' | 'sync_failed' | 'reconciled';
+
+export interface PaymentIdempotencyParams {
+  cardEntity: string;
+  dueDate: string; // YYYY-MM-DD
+  paymentDate: string; // YYYY-MM-DD
+  amount: number;
+  sequence?: number;
+  intentToken?: string;
+}
+
+/**
+ * Genera un identificador inmutable y estable por operación lógica de pago.
+ * Conserva el ID durante reintentos, recargas y despacho de cola para evitar duplicaciones.
+ */
+export function buildPaymentIdempotencyKey(params: PaymentIdempotencyParams): string {
+  const cleanEntity = params.cardEntity.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cents = Math.round(params.amount * 100);
+  const seq = params.sequence && params.sequence > 1 ? `-seq${params.sequence}` : '';
+  const tokenSuffix = params.intentToken ? `-${params.intentToken.slice(0, 8)}` : '';
+  return `pay-${cleanEntity}-${params.dueDate}-${params.paymentDate}-${cents}${seq}${tokenSuffix}`;
+}
+
+export interface EquivalentPaymentCheck {
+  hasEquivalentPayment: boolean;
+  existingTransaction?: {
+    id: string;
+    Fecha: string;
+    Monto: number;
+    Concepto: string;
+    Entidad: string;
+  };
+  warningMessage?: string;
+}
+
+/**
+ * Detecta pagos equivalentes en la misma tarjeta, ciclo, fecha e importe
+ * para distinguir reintentos accidentales de pagos legítimos repetidos.
+ */
+export function detectEquivalentPayment(params: {
+  existingPayments: Array<{
+    id: string;
+    Fecha: string;
+    Monto: number;
+    Concepto: string;
+    Entidad: string;
+    Tipo: string;
+  }>;
+  cardEntity: string;
+  paymentDate: string;
+  amount: number;
+}): EquivalentPaymentCheck {
+  const targetAmount = roundMoney(params.amount);
+  const existing = params.existingPayments.find(tx => {
+    if (tx.Tipo !== 'Egreso') return false;
+    if (roundMoney(tx.Monto) !== targetAmount) return false;
+    if (tx.Fecha !== params.paymentDate) return false;
+    const concept = tx.Concepto.toLowerCase();
+    const entityMatches =
+      concept.includes(params.cardEntity.toLowerCase()) ||
+      tx.Entidad.toLowerCase() === params.cardEntity.toLowerCase();
+    return entityMatches;
+  });
+
+  if (existing) {
+    return {
+      hasEquivalentPayment: true,
+      existingTransaction: existing,
+      warningMessage: `Ya existe un pago registrado de S/ ${targetAmount.toFixed(2)} el ${params.paymentDate} para esta tarjeta (ID: ${existing.id}). Si se trata de un segundo pago legítimo por el mismo importe y fecha, confirma conscientemente para autorizarlo.`,
+    };
+  }
+
+  return { hasEquivalentPayment: false };
+}

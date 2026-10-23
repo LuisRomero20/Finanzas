@@ -10,8 +10,8 @@
 
 - [x] **Compilación TypeScript sin Errores:** `npx tsc --noEmit` completado con código 0.
 - [x] **Linting ESLint:** `npm run lint` completado con 0 errores.
-- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (8.82s).
-- [x] **Suites de Pruebas Automatizadas:** 36 suites y 224 pruebas unitarias aprobadas al 100%.
+- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (16.92s).
+- [x] **Suites de Pruebas Automatizadas:** 36 suites y 235 pruebas unitarias e integrales aprobadas al 100%.
 
 ---
 
@@ -20,11 +20,12 @@
 - [x] **1. Pago parcial mantiene deuda pendiente:** Si un pago es inferior a la obligación (ej. S/ 100 sobre S/ 455.60), se mantiene el saldo restante (S/ 355.60) y el estado continúa como pendiente (no cancelado).
 - [x] **2. Pago total cancela correctamente:** Si el pago cubre el 100% de la deuda, se salda la obligación del ciclo y se confirma la cancelación de manera verificable.
 - [x] **3. Importes cero, negativos y excedentes controlados:** Pagos $\le \text{S/ } 0.00$ o inválidos están estrictamente bloqueados; si el pago excede la deuda se activa la alerta de saldo a favor con checkbox de confirmación obligatoria.
-- [x] **4. No se generan pagos duplicados:** Identificadores financieros estables por tarjeta y ciclo, sumado a bloqueo `isSubmitting` para evitar dobles egresos por clics repetidos.
+- [x] **4. Idempotencia y protección contra pagos duplicados:** Identificadores financieros determinísticos inmutables por sesión y operación lógica (`buildPaymentIdempotencyKey`), sumado a detección de pagos equivalentes (`detectEquivalentPayment`) con confirmación consciente obligatoria.
 - [x] **5. Conciliación manual no se presenta como verificación documental:** Se distinguen los estados `user_declared`, `statement_verified`, `disputed` y `draft`. Las declaraciones manuales no inventan nombres de archivo ni certificaciones documentales ficticias.
-- [x] **6. Errores de persistencia no provocan éxito falso:** Se valida la confirmación de la transacción antes de emitir mensaje de éxito, evitando que fallos de red eliminen deudas o generen inconsistencias.
-- [x] **7. Pruebas técnicas aprobadas:** 224 pruebas unitarias pasando en 36 suites, 0 errores de tipos, 0 advertencias en código modificado y build limpio.
-- [x] **8. Revisión visual Windows e iPhone completada:** Formularios adaptables, breakdown de saldos claro, controles táctiles ergonómicos ($\ge 44\text{px}$) y respeto al safe area inset.
+- [x] **6. Honestidad en persistencia (Local vs Supabase):** Se distingue `remote_confirmed` vs `local_pending`. No se anuncia falsamente éxito en la nube si la transacción está en cola local; la UI exhibe distintivos visuales (`[Nube]` / `[Local]`) en los pagos del ciclo.
+- [x] **7. Sincronización multidispositivo de conciliaciones:** El comparador de diferencias y conciliación asistida en `personal_settings` detecta divergencias en `verificationStatus` y `documentReference` entre PC y iPhone.
+- [x] **8. Pruebas técnicas y aislamiento total:** 235 pruebas unitarias e integrales pasando en 36 suites, 0 errores de tipos, 0 mutaciones en base productiva Supabase (`njgzhjwfcxdxiibkuuqg`) y build de producción verificado.
+- [x] **9. Revisión visual Windows e iPhone completada:** Formularios adaptables, desglose previo de amortización, badges de persistencia claros, controles táctiles ergonómicos ($\ge 44\text{px}$) y respeto al safe area inset.
 
 ---
 
