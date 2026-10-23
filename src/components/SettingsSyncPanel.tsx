@@ -1,7 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useSettingsSync, resolveSettings, resolveSettingsAssisted, syncPersonalSettings, downloadSyncBackup, downloadDiffReportJson } from '../services/personalSettingsSync';
+import { useSettingsSync, resolveSettings, resolveSettingsAssisted, syncPersonalSettings, downloadSyncBackup, downloadDiffReportJson, type SettingsName } from '../services/personalSettingsSync';
 import { DiffComparisonModal } from './DiffComparisonModal';
-import { supabase, getSupabaseConfigHealth, type SupabaseConfigHealth } from '../lib/supabase';
+import {
+  supabase,
+  getSupabaseConfigHealth,
+  subscribeSupabaseConfigHealth,
+  verifySupabaseConfiguration,
+  type SupabaseConfigHealth,
+} from '../lib/supabase';
 import { getCurrentUser, getAuthDiagnostic, type AuthDiagnostic } from '../services/authService';
 import { getPendingOutboxCount, flushPendingPaymentsOutbox } from '../services/pendingPaymentsOutbox';
 import { pendingTransactions, flushTransactions } from '../services/transactionOutbox';
@@ -14,16 +20,41 @@ interface SettingsSyncPanelProps {
   currentUser?: User | null;
 }
 
+const EXPANDED_SESSION_KEY = 'finper_sync_panel_expanded';
+
 export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: SettingsSyncPanelProps) {
   const { entries } = useSettingsSync();
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(() => {
+    try {
+      return sessionStorage.getItem(EXPANDED_SESSION_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  });
   const [internalUser, setInternalUser] = useState<User | null>(propUser ?? null);
   const [authDiag, setAuthDiag] = useState<AuthDiagnostic | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
-  const [isClearingCache, setIsClearingCache] = useState(false);
-  const [diffModalName, setDiffModalName] = useState<Name | null>(null);
-  const configHealth: SupabaseConfigHealth = getSupabaseConfigHealth();
+  const [diffModalName, setDiffModalName] = useState<SettingsName | null>(null);
+  const [configHealth, setConfigHealth] = useState<SupabaseConfigHealth>(() => getSupabaseConfigHealth());
+
+  const toggleExpanded = () => {
+    setExpanded(current => {
+      const next = !current;
+      try {
+        sessionStorage.setItem(EXPANDED_SESSION_KEY, String(next));
+      } catch {
+        // La preferencia de sesión es opcional (por ejemplo, en modo privado estricto).
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    const unsubscribe = subscribeSupabaseConfigHealth(setConfigHealth);
+    void verifySupabaseConfiguration().then(setConfigHealth);
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     if (propUser !== undefined) {
@@ -59,6 +90,8 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
   const totalOutboxPending = pendingTxCount + pendingPaymentsCount;
 
   const handleManualSyncAll = async () => {
+    const verifiedHealth = await verifySupabaseConfiguration();
+    if (!verifiedHealth.isHealthy) return;
     setIsManualSyncing(true);
     try {
       await Promise.allSettled([
@@ -71,29 +104,6 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
       getAuthDiagnostic().then(setAuthDiag);
     } finally {
       setIsManualSyncing(false);
-    }
-  };
-
-  const handleForceClearPwaCache = async () => {
-    setIsClearingCache(true);
-    try {
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations();
-        for (const reg of registrations) {
-          await reg.unregister();
-        }
-      }
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map(name => caches.delete(name)));
-      }
-      // Forzar recarga completa desde la red
-      window.location.reload();
-    } catch (err) {
-      console.warn('Error al limpiar caché PWA:', err);
-      window.location.reload();
-    } finally {
-      setIsClearingCache(false);
     }
   };
 
@@ -155,8 +165,19 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
     );
   }
 
-  const needsAttention = Object.values(entries).some(e => e.status === 'conflict' || e.status === 'error') || !configHealth.isHealthy;
+  const problemModuleCount = Object.values(entries).filter(e => e.status === 'conflict' || e.status === 'error').length;
+  const needsAttention = problemModuleCount > 0 || !configHealth.isHealthy;
   const syncing = Object.values(entries).some(e => e.status === 'syncing') || isManualSyncing;
+  const configStatusLabel = configHealth.isHealthy
+    ? 'Conexión configurada correctamente'
+    : configHealth.configurationState === 'unverified'
+      ? 'Conexión pendiente de verificación'
+      : configHealth.configurationState === 'missing'
+        ? 'Configuración ausente'
+        : 'Configuración bloqueada';
+  const configAlertClasses = configHealth.severity === 'critical'
+    ? 'text-rose-700 dark:text-rose-300'
+    : 'text-amber-700 dark:text-amber-300';
   const labels = {
     budgets: 'Presupuestos por Categoría',
     projections: 'Proyecciones & Ingresos Fijos',
@@ -176,41 +197,26 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
 
   return (
     <section className="mb-4 rounded-2xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs shadow-sm overflow-hidden" aria-label="Sincronización de ajustes financieros">
-      {/* Alerta visible si existe discrepancia de proyecto Supabase */}
-      {!configHealth.isHealthy && (
-        <div className="bg-rose-600 text-white px-4 py-2.5 text-xs flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <AlertTriangle size={16} className="shrink-0" />
-            <span>
-              <strong>Alerta de Seguridad:</strong> {configHealth.errorMessage} — Las escrituras están temporalmente protegidas.
-            </span>
-          </div>
-          <button
-            onClick={handleForceClearPwaCache}
-            className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold hover:bg-slate-100 cursor-pointer text-[11px] shrink-0"
-          >
-            Limpiar Caché
-          </button>
-        </div>
-      )}
-
       {/* Barra superior de estado */}
       <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 px-4 py-3 bg-slate-50/80 dark:bg-slate-900/60 border-b border-slate-200/80 dark:border-slate-800">
         <button
-          onClick={() => setExpanded(!expanded)}
+          type="button"
+          onClick={toggleExpanded}
           className="flex items-center gap-2.5 text-left cursor-pointer flex-1 min-w-0"
-          aria-expanded={expanded || needsAttention}
+          aria-expanded={expanded}
+          aria-controls="finper-sync-panel-details"
+          aria-label={expanded ? 'Colapsar detalles de sincronización' : 'Expandir detalles de sincronización'}
         >
-          <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-            <ShieldCheck size={18} />
+          <div className={`p-1.5 rounded-lg shrink-0 ${needsAttention ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400' : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'}`}>
+            {needsAttention ? <AlertTriangle size={18} /> : <ShieldCheck size={18} />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-bold text-slate-800 dark:text-slate-100">
-                {needsAttention ? 'Revisar sincronización multidispositivo' : syncing ? 'Sincronizando con Supabase…' : 'Sincronización Segura PC / iPhone'}
+                Sincronización PC / iPhone
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                RLS Activo
+                RLS sin cambios
               </span>
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${configHealth.isHealthy ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
@@ -220,39 +226,62 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                 v{configHealth.appVersion}
               </span>
             </div>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+            <p className={`text-[11px] mt-0.5 font-semibold ${configHealth.isHealthy ? 'text-emerald-700 dark:text-emerald-300' : configAlertClasses}`}>
+              {syncing ? 'Sincronizando con Supabase…' : configStatusLabel}
+              {` · Módulos con problemas: ${problemModuleCount}`}
+              {` · Operaciones pendientes: ${totalOutboxPending}`}
+            </p>
+            {!configHealth.isHealthy && (
+              <p className={`text-[10px] mt-0.5 line-clamp-2 ${configAlertClasses}`} role="alert">
+                {configHealth.errorMessage} Las escrituras permanecen protegidas.
+              </p>
+            )}
+            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
               Sesión: <span className="font-semibold text-slate-700 dark:text-slate-300">{activeUser.email}</span>
               {lastSyncTime && ` · Última sincronía: ${lastSyncTime}`}
-              {totalOutboxPending > 0 && ` · ${totalOutboxPending} en cola`}
             </p>
           </div>
         </button>
 
         <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+          {expanded && (
+            <button
+              type="button"
+              onClick={handleManualSyncAll}
+              disabled={syncing || !configHealth.isHealthy}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition cursor-pointer"
+              title={configHealth.isHealthy ? 'Sincronizar todos los movimientos y ajustes ahora' : 'Sincronización bloqueada hasta verificar la configuración'}
+            >
+              <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
+              <span>{syncing ? 'Sincronizando…' : 'Sincronizar Todo'}</span>
+            </button>
+          )}
           <button
             type="button"
-            onClick={handleManualSyncAll}
-            disabled={syncing}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 transition cursor-pointer"
-            title="Sincronizar todos los movimientos y ajustes ahora"
-          >
-            <RefreshCw size={13} className={syncing ? 'animate-spin' : ''} />
-            <span>{syncing ? 'Sincronizando…' : 'Sincronizar Todo'}</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setExpanded(!expanded)}
+            onClick={toggleExpanded}
             className="p-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 transition cursor-pointer"
             title={expanded ? 'Colapsar panel' : 'Expandir detalle'}
+            aria-label={expanded ? 'Colapsar panel de sincronización' : 'Expandir panel de sincronización'}
+            aria-expanded={expanded}
+            aria-controls="finper-sync-panel-details"
           >
-            <span className="text-sm font-bold">{expanded || needsAttention ? '▲' : '▼'}</span>
+            <span className="text-sm font-bold" aria-hidden="true">{expanded ? '▲' : '▼'}</span>
           </button>
         </div>
       </div>
 
       {/* Detalle expandido */}
-      {(expanded || needsAttention) && (
-        <div className="p-4 space-y-4 animate-in fade-in duration-150">
+      {expanded && (
+        <div id="finper-sync-panel-details" className="p-4 space-y-4 animate-in fade-in duration-150">
+          {!configHealth.isHealthy && (
+            <div className={`${configHealth.severity === 'critical' ? 'bg-rose-50 border-rose-300 text-rose-800 dark:bg-rose-950/30 dark:border-rose-800 dark:text-rose-200' : 'bg-amber-50 border-amber-300 text-amber-800 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200'} flex items-start gap-2 rounded-xl border p-3`} role="alert">
+              <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+              <div>
+                <strong className="block">Diagnóstico de configuración</strong>
+                <span>{configHealth.errorMessage} No se ha vaciado ninguna cola ni se ha modificado información financiera.</span>
+              </div>
+            </div>
+          )}
           {/* Diagnóstico técnico amigable */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-2">
@@ -334,7 +363,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                   {entry.status === 'error' && (
                     <div className="flex flex-wrap gap-2 pt-1">
                       <button
-                        disabled={syncing}
+                        disabled={syncing || !configHealth.isHealthy}
                         className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 cursor-pointer"
                         onClick={() => void syncPersonalSettings()}
                       >
@@ -349,7 +378,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                       {entry.diffReport && entry.diffReport.modifiedCount > 0 ? (
                         <button
                           type="button"
-                          disabled={syncing}
+                          disabled={syncing || !configHealth.isHealthy}
                           className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
                           onClick={() => setDiffModalName(name)}
                           title="Examina y concilia los importes modificados antes de guardar"
@@ -362,7 +391,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                       ) : (
                         <button
                           type="button"
-                          disabled={syncing}
+                          disabled={syncing || !configHealth.isHealthy}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer"
                           onClick={() => void resolveSettings(name, 'merge')}
                           title="Combina los registros únicos demostrablemente no conflictivos"
@@ -372,7 +401,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                       )}
                       <button
                         type="button"
-                        disabled={syncing}
+                        disabled={syncing || !configHealth.isHealthy}
                         className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
                         onClick={() => void resolveSettings(name, 'local')}
                       >
@@ -380,7 +409,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                       </button>
                       <button
                         type="button"
-                        disabled={syncing}
+                        disabled={syncing || !configHealth.isHealthy}
                         className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
                         onClick={() => void resolveSettings(name, 'remote')}
                       >
@@ -393,7 +422,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
             })}
           </div>
 
-          {/* Acciones de respaldo y mantenimiento de caché */}
+          {/* Acciones de respaldo. El panel no limpia cachés ni datos locales. */}
           <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-200 dark:border-slate-800">
             <button
               type="button"
@@ -403,20 +432,9 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <Database size={13} />
               <span>Descargar copia de seguridad local (JSON)</span>
             </button>
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={handleForceClearPwaCache}
-                disabled={isClearingCache}
-                className="text-[11px] text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 underline cursor-pointer disabled:opacity-50"
-                title="Elimina service workers y cachés obsoletas para cargar la versión más reciente"
-              >
-                {isClearingCache ? 'Actualizando…' : 'Limpiar caché PWA'}
-              </button>
-              <span className="text-[11px] text-slate-400">
-                Protocolo de sincronización Finanzas 2.0.3
-              </span>
-            </div>
+            <span className="text-[11px] text-slate-400">
+              Protocolo de sincronización Finanzas {configHealth.appVersion}
+            </span>
           </div>
         </div>
       )}
