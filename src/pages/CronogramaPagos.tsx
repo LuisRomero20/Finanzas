@@ -14,12 +14,18 @@ import {
   Trash2,
   Lock,
   SlidersHorizontal,
+  Calculator,
 } from 'lucide-react';
 import { RegularizarDeudaModal } from '../components/RegularizarDeudaModal';
 import { AddCardModal } from '../components/AddCardModal';
+import { SmartCardSimulatorModal } from '../components/cards/SmartCardSimulatorModal';
+import { SmartCardReconciliationModal } from '../components/cards/SmartCardReconciliationModal';
+import { CardContractualSheetModal } from '../components/cards/CardContractualSheetModal';
 import { MobileDisclosure } from '../components/MobileDisclosure';
+import { StatementSyncBadge } from '../components/cards/StatementSyncBadge';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
 import { useCreditCardStore } from '../store/creditCardStore';
+import { CONTRACTUAL_WARNING_MESSAGE } from '../domain/cards/smartCardEngine';
 import {
   getCycles,
   getCardTxs as getTxs,
@@ -54,6 +60,15 @@ export const CronogramaPagos: React.FC = () => {
     return d;
   });
 
+  // Modales FINPER 2.1: Simulador, Conciliación de Estado de Cuenta, Ficha Contractual
+  const [isSimulatorOpen, setIsSimulatorOpen] = useState(false);
+  const [simulatorCardEntity, setSimulatorCardEntity] = useState<string | undefined>();
+  const [isReconcileOpen, setIsReconcileOpen] = useState(false);
+  const [reconcileCard, setReconcileCard] = useState<CardConfig | null>(null);
+  const [reconcileCycle, setReconcileCycle] = useState<Cycle | null>(null);
+  const [isContractualOpen, setIsContractualOpen] = useState(false);
+  const [contractualCard, setContractualCard] = useState<CardConfig | null>(null);
+
   // Modal de regularización de deuda y cancelación
   const [regularizeModalCard, setRegularizeModalCard] = useState<CardConfig | null>(null);
   const [regularizeCycleData, setRegularizeCycleData] = useState<{
@@ -78,6 +93,7 @@ export const CronogramaPagos: React.FC = () => {
 
   // Resumen global
   const summary = useMemo(() => {
+    void statements;
     let totalPorPagar = 0;
     let totalAcumulando = 0;
     const proximoPago: { card: string; payDate: Date; total: number }[] = [];
@@ -135,13 +151,26 @@ export const CronogramaPagos: React.FC = () => {
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {/* Botón Simulador de Cuotas */}
+          <button
+            onClick={() => {
+              setSimulatorCardEntity(cards[0]?.entity);
+              setIsSimulatorOpen(true);
+            }}
+            className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-100 dark:hover:bg-white text-white dark:text-slate-900 text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+            title="Abrir simulador puro de cuotas y financiamiento"
+          >
+            <Calculator size={15} />
+            <span>Simulador de Cuotas</span>
+          </button>
+
           {/* Botón Agregar Tarjeta */}
           <button
             onClick={() => setIsAddCardModalOpen(true)}
-            className="flex items-center gap-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
+            className="flex items-center gap-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold px-3.5 py-2.5 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer"
           >
-            <Plus size={16} />
+            <Plus size={15} />
             <span>Nueva Tarjeta</span>
           </button>
 
@@ -236,6 +265,9 @@ export const CronogramaPagos: React.FC = () => {
           const isOverdue = daysLeft < 0 && !isPaid && netToPay > 0;
           const isUrgent = daysLeft >= 0 && daysLeft <= 7 && !isPaid && netToPay > 0;
 
+          const creditLine = card.creditLine ?? card.lineaCredito ?? card.referenceCreditLine ?? 1000;
+          const availableCredit = Math.max(0, creditLine - liveDebt);
+
           return (
             <div key={card.entity} className={`${card.entity === selectedMobileCard ? 'block' : 'hidden sm:block'} bg-white dark:bg-[#11191D] rounded-2xl shadow-sm overflow-hidden border border-slate-200/80 dark:border-slate-800 transition-colors`}>
 
@@ -253,15 +285,47 @@ export const CronogramaPagos: React.FC = () => {
                         &nbsp;·&nbsp;
                         Pago: día <strong className="text-white">{card.paymentDay}</strong>
                       </p>
-                      {card.billingRulesStatus === 'unverified' && (
+                      <p className="text-white/85 text-[11px] mt-0.5">
+                        Línea: <strong className="text-white">{fmt.format(creditLine)}</strong>
+                        &nbsp;·&nbsp;
+                        Disponible: <strong className="text-emerald-200">{fmt.format(availableCredit)}</strong>
+                      </p>
+                      {(!card.annualEffectiveRate || !card.debtInsurance) && (
                         <p className="mt-1 inline-flex rounded-full border border-amber-200/50 bg-amber-300/20 px-2 py-0.5 text-[10px] font-bold text-amber-50">
-                          Fechas configuradas · pendientes de confirmar con estado de cuenta
+                          {CONTRACTUAL_WARNING_MESSAGE}
                         </p>
                       )}
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 self-start sm:self-center flex-wrap">
+                    {/* Botón Conciliar Estado de Cuenta */}
+                    <button
+                      onClick={() => {
+                        setReconcileCard(card);
+                        setReconcileCycle(prev);
+                        setIsReconcileOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 bg-blue-500/80 hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20 cursor-pointer shadow-sm"
+                      title="Conciliar con estado de cuenta bancario"
+                    >
+                      <FileCheck2 size={13} />
+                      <span>Conciliar Banco</span>
+                    </button>
+
+                    {/* Botón Ficha Contractual */}
+                    <button
+                      onClick={() => {
+                        setContractualCard(card);
+                        setIsContractualOpen(true);
+                      }}
+                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20 cursor-pointer"
+                      title="Ver y configurar ficha contractual y tasas"
+                    >
+                      <SlidersHorizontal size={13} />
+                      <span>Ficha</span>
+                    </button>
+
                     {/* Botón Regularizar Deuda */}
                     <button
                       onClick={() => {
@@ -280,7 +344,7 @@ export const CronogramaPagos: React.FC = () => {
                       title="Regularizar monto o saldar deuda de esta tarjeta"
                     >
                       <SlidersHorizontal size={13} />
-                      <span>Regularizar Deuda</span>
+                      <span>Regularizar</span>
                     </button>
 
                     {/* Botón Rápido: Poner como Cancelada (si aún no está cancelada) */}
@@ -352,13 +416,22 @@ export const CronogramaPagos: React.FC = () => {
                 <div className="bg-emerald-50/80 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <FileCheck2 size={15} className="text-emerald-600 dark:text-emerald-400" />
-                    <span className="font-bold text-emerald-900 dark:text-emerald-200">Deuda Regularizada para este Ciclo:</span>
+                    <span className="font-bold text-emerald-900 dark:text-emerald-200">Deuda Conciliada/Regularizada:</span>
                     <span className="bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-bold px-2 py-0.5 rounded text-[11px]">
                       {fmt.format(verifiedStatement.finalDebt)}
                     </span>
-                    <span className="text-slate-400 dark:text-slate-500 text-[11px] hidden sm:inline">
-                      ({verifiedStatement.fileName})
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline ${
+                      verifiedStatement.verificationStatus === 'statement_verified'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : verifiedStatement.verificationStatus === 'disputed'
+                        ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}>
+                      {verifiedStatement.verificationStatus === 'statement_verified'
+                        ? `Doc. Verificado (${verifiedStatement.documentReference || verifiedStatement.fileName})`
+                        : (verifiedStatement.verificationStatus === 'disputed' ? 'En Disputa' : 'Declarado por Usuario')}
                     </span>
+                    <StatementSyncBadge showMessage={false} />
                   </div>
 
                   <div className="flex items-center gap-3">
@@ -459,6 +532,44 @@ export const CronogramaPagos: React.FC = () => {
                           Abonado {fmt.format(pagadoTotal)} de {fmt.format(prevTotal)}
                         </p>
                       )}
+                    </div>
+                  )}
+
+                  {/* Pagos / Abonos Registrados en el Ciclo con badge de sincronización */}
+                  {pagadoTxs.length > 0 && (
+                    <div className="mb-4 p-2.5 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-900/40 space-y-1.5">
+                      <div className="flex items-center justify-between text-xs font-bold text-emerald-900 dark:text-emerald-200">
+                        <span>Abonos / Pagos registrados ({pagadoTxs.length}):</span>
+                        <span className="tabular-nums font-black">{fmt.format(pagadoTotal)}</span>
+                      </div>
+                      <div className="space-y-1">
+                        {pagadoTxs.map(pt => {
+                          const isRemote = pt.syncStatus === 'remote_confirmed' || pt.syncStatus === 'reconciled';
+                          return (
+                            <div key={pt.id} className="flex items-center justify-between text-xs py-1 px-2 rounded-lg bg-white/80 dark:bg-slate-900/70 border border-emerald-100 dark:border-emerald-900/30">
+                              <div className="min-w-0 flex-1 pr-2">
+                                <p className="text-slate-800 dark:text-slate-200 font-medium truncate text-[11px]">{pt.Concepto}</p>
+                                <p className="text-[10px] text-slate-400 dark:text-slate-500">{pt.Fecha} · {pt.Entidad}</p>
+                              </div>
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <span className="font-bold text-emerald-700 dark:text-emerald-300 text-xs tabular-nums">
+                                  {fmt.format(pt.Monto)}
+                                </span>
+                                <span
+                                  className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
+                                    isRemote
+                                      ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                                      : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                                  }`}
+                                  title={isRemote ? 'Movimiento contable registrado y confirmado en Supabase' : 'Guardado localmente, en cola de sincronización'}
+                                >
+                                  {isRemote ? 'Nube' : 'Local'}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
 
@@ -567,6 +678,36 @@ export const CronogramaPagos: React.FC = () => {
       <AddCardModal
         isOpen={isAddCardModalOpen}
         onClose={() => setIsAddCardModalOpen(false)}
+      />
+
+      {/* Modal FINPER 2.1: Simulador Financiero de Cuotas */}
+      <SmartCardSimulatorModal
+        isOpen={isSimulatorOpen}
+        onClose={() => setIsSimulatorOpen(false)}
+        defaultCardEntity={simulatorCardEntity}
+      />
+
+      {/* Modal FINPER 2.1: Conciliación de Estado de Cuenta Bancario */}
+      <SmartCardReconciliationModal
+        isOpen={isReconcileOpen}
+        onClose={() => setIsReconcileOpen(false)}
+        card={reconcileCard}
+        cycle={reconcileCycle}
+        onSuccess={(msg) => {
+          setSuccessToast(msg);
+          setTimeout(() => setSuccessToast(null), 4000);
+        }}
+      />
+
+      {/* Modal FINPER 2.1: Ficha Contractual de Tarjeta */}
+      <CardContractualSheetModal
+        isOpen={isContractualOpen}
+        onClose={() => setIsContractualOpen(false)}
+        card={contractualCard}
+        onSuccess={(msg) => {
+          setSuccessToast(msg);
+          setTimeout(() => setSuccessToast(null), 4000);
+        }}
       />
 
     </div>

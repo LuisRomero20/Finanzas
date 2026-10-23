@@ -31,6 +31,10 @@ export interface CardConfig {
   pillText: string;
   creditLine?: number;
   lineaCredito?: number;
+  referenceCreditLine?: number;
+  referenceUsedDebt?: number;
+  referenceDate?: string;
+  ratesStatus?: 'unverified' | 'contract_confirmed';
 }
 
 export const DEFAULT_CARDS: CardConfig[] = [
@@ -39,13 +43,18 @@ export const DEFAULT_CARDS: CardConfig[] = [
     entity: 'Interbank Amex',
     name: 'Interbank Amex',
     issuer: 'Interbank',
-    productVariant: 'Benefit (por confirmar)',
+    productVariant: 'American Express Benefit',
     network: 'American Express',
     currency: 'PEN',
     cycleStartDay: 21,
     paymentDay: 15,
     billingRulesStatus: 'unverified',
     status: 'active',
+    creditLine: 1000,
+    lineaCredito: 1000,
+    referenceCreditLine: 1000.00,
+    referenceUsedDebt: 182.38,
+    referenceDate: '2026-09-30',
     accentBg: 'bg-blue-600',
     accentText: 'text-blue-700',
     headerBg: 'from-blue-700 to-blue-500',
@@ -56,14 +65,19 @@ export const DEFAULT_CARDS: CardConfig[] = [
     id: 'card-bbva-bfree',
     entity: 'BBVA Bfree',
     name: 'BBVA Bfree',
-    issuer: 'BBVA',
-    productVariant: 'Bfree',
-    network: 'Por confirmar',
+    issuer: 'BBVA Perú',
+    productVariant: 'BBVA Bfree',
+    network: 'Visa',
     currency: 'PEN',
     cycleStartDay: 10,
     paymentDay: 5,
     billingRulesStatus: 'unverified',
     status: 'active',
+    creditLine: 700,
+    lineaCredito: 700,
+    referenceCreditLine: 700.00,
+    referenceUsedDebt: 436.21,
+    referenceDate: '2026-09-30',
     accentBg: 'bg-sky-600',
     accentText: 'text-sky-700',
     headerBg: 'from-sky-700 to-sky-500',
@@ -82,6 +96,11 @@ export const DEFAULT_CARDS: CardConfig[] = [
     paymentDay: 1,
     billingRulesStatus: 'unverified',
     status: 'active',
+    creditLine: 1000,
+    lineaCredito: 1000,
+    referenceCreditLine: 1000.00,
+    referenceUsedDebt: 358.66,
+    referenceDate: '2026-09-30',
     accentBg: 'bg-purple-600',
     accentText: 'text-purple-700',
     headerBg: 'from-purple-700 to-purple-500',

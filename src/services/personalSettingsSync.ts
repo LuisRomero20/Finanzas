@@ -13,11 +13,30 @@ import {
 } from '../domain/sync/diffComparison';
 import { getValidatedSession } from './authService';
 import { broadcastRealtimeSync } from '../utils/syncBus';
-import { useCardStatementStore } from '../store/cardStatementStore';
+import { useCardStatementStore, registerStatementSyncTransport } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
+export type SettingsName = Name;
+
+/**
+ * Resultado estructurado de una sincronización. La ausencia de excepciones NO equivale a
+ * confirmación remota: solo `remote_confirmed` indica que Supabase aceptó (y, para conciliaciones,
+ * devolvió al releerse) exactamente la versión local.
+ */
+export type SyncState = 'remote_confirmed' | 'local_pending' | 'sync_failed' | 'conflict';
+export type SyncErrorKind = 'network' | 'auth' | 'rls' | 'concurrency' | 'integrity' | 'other';
+export interface SyncOutcome {
+  name: Name;
+  state: SyncState;
+  message: string;
+  at: string;
+  errorKind?: SyncErrorKind;
+  /** true cuando los datos cambiaron durante la sincronización y conviene reintentar con la versión más reciente. */
+  stale?: boolean;
+}
+
 export type Entry = {
   status: 'waiting' | 'syncing' | 'synced' | 'conflict' | 'error';
   message?: string;
@@ -110,7 +129,7 @@ function apply(name: Name, value: string) {
   }
 }
 
-const running: Partial<Record<Name, Promise<void>>> = {};
+const running: Partial<Record<Name, Promise<SyncOutcome>>> = {};
 
 function summary(name: Name, value: string): string {
   try {
@@ -123,14 +142,85 @@ function summary(name: Name, value: string): string {
   }
 }
 
-async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<void> {
+function classifyError(error: any): { kind: SyncErrorKind; userMsg: string } {
+  const errCode = error?.code || error?.status || '';
+  const rawMsg: string = error instanceof Error
+    ? error.message
+    : (error?.message || error?.error_description || error?.details || (typeof error === 'object' ? JSON.stringify(error) : String(error)));
+  const lower = rawMsg.toLowerCase();
+
+  if (
+    rawMsg.includes('Otro dispositivo') ||
+    rawMsg.includes('concurrencia') ||
+    rawMsg.includes('Reintenta para comparar')
+  ) {
+    return { kind: 'concurrency', userMsg: 'Versiones distintas: otro dispositivo actualizó los datos. Compara ambas versiones antes de decidir; no se sobrescribió nada.' };
+  }
+  if (rawMsg.includes('Verificación remota')) {
+    return { kind: 'integrity', userMsg: rawMsg };
+  }
+  if (
+    rawMsg.includes('JWT') ||
+    rawMsg.includes('token') ||
+    rawMsg.includes('Sesión no disponible') ||
+    rawMsg.includes('expirada') ||
+    errCode === 401 ||
+    errCode === 'PGRST301'
+  ) {
+    return { kind: 'auth', userMsg: 'Sesión expirada o no válida. Vuelve a iniciar sesión para continuar.' };
+  }
+  if (rawMsg.includes('permission denied') || errCode === '42501' || errCode === 403) {
+    return { kind: 'rls', userMsg: 'Acceso no autorizado en Supabase (RLS). Tu sesión no tiene permisos de lectura/escritura.' };
+  }
+  if (
+    rawMsg.includes('Failed to fetch') ||
+    rawMsg.includes('NetworkError') ||
+    rawMsg.includes('Network request failed') ||
+    lower.includes('network') ||
+    lower.includes('offline')
+  ) {
+    return { kind: 'network', userMsg: 'Sin conexión a internet. Los cambios se conservan localmente y se enviarán al reconectar.' };
+  }
+  if (rawMsg.includes('completa') || rawMsg.includes('incompleta')) {
+    return { kind: 'other', userMsg: rawMsg };
+  }
+  if (errCode) {
+    return { kind: 'other', userMsg: `Error de sincronización (${errCode}): ${rawMsg.slice(0, 80)}. Se conserva la copia local.` };
+  }
+  return { kind: 'other', userMsg: `Error al sincronizar: ${rawMsg.slice(0, 80)}. Se conserva la copia local.` };
+}
+
+/**
+ * Relee lo que quedó realmente en Supabase y comprueba que coincide con lo enviado.
+ * Se exige para conciliaciones: escribir sin error no basta como prueba de persistencia.
+ */
+async function verifyRemoteMatches(name: Name, expected: string): Promise<void> {
+  const check = await readSnapshot(name);
+  if (check.value === null || canonical(JSON.parse(check.value)) !== canonical(JSON.parse(expected))) {
+    throw new Error('Verificación remota fallida: Supabase no devolvió la misma versión que se envió. Se conserva la copia local para reintentar.');
+  }
+}
+
+async function sync(
+  name: Name,
+  choice?: 'local' | 'remote' | 'merge',
+  opts?: { waitForFresh?: boolean },
+): Promise<SyncOutcome> {
   if (running[name]) {
-    await running[name];
-    if (choice) return sync(name, choice);
-    return;
+    const prior = await running[name]!;
+    if (choice || opts?.waitForFresh) return sync(name, choice, opts);
+    return prior;
   }
 
-  const work = async () => {
+  const done = (state: SyncState, message: string, extra: Partial<SyncOutcome> = {}): SyncOutcome => ({
+    name,
+    state,
+    message,
+    at: new Date().toISOString(),
+    ...extra,
+  });
+
+  const work = async (): Promise<SyncOutcome> => {
     if (useSettingsSync.getState().entries[name].status !== 'conflict' || choice) {
       status(name, { status: 'syncing' });
     }
@@ -158,7 +248,7 @@ async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<
 
       if (before !== localValue(name)) {
         status(name, { status: 'waiting' });
-        return;
+        return done('local_pending', 'Los datos cambiaron durante la sincronización; se reintentará con la versión más reciente.', { stale: true });
       }
 
       const baseline = localStorage.getItem(key(name));
@@ -166,18 +256,20 @@ async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<
 
       if (decision === 'conflict') {
         const report = generateDiffReport(name, before, remote.value!);
+        const message = 'Hay versiones distintas entre este dispositivo y la nube. Examina la comparación detallada antes de decidir.';
         status(name, {
           status: 'conflict',
-          message: 'Hay versiones distintas entre este dispositivo y la nube. Examina la comparación detallada antes de decidir.',
+          message,
           localSummary: summary(name, before),
           remoteSummary: summary(name, remote.value!),
           localValueRaw: before,
           remoteValueRaw: remote.value!,
           diffReport: report,
         });
-        return;
+        return done('conflict', message);
       }
 
+      let uploaded = false;
       if (decision === 'merge' && remote.value !== null) {
         const smart = computeSmartMerge(name, before, remote.value);
         localStorage.setItem(
@@ -186,15 +278,19 @@ async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<
         );
         // Persistencia segura: escribir en Supabase primero antes de modificar el estado local
         await writeSnapshot(name, smart.mergedValue, remote.head);
+        if (name === 'statements') await verifyRemoteMatches(name, smart.mergedValue);
         // Confirmado: aplicar localmente únicamente tras confirmación remota
         apply(name, smart.mergedValue);
         localStorage.setItem(key(name), smart.mergedValue);
         broadcastRealtimeSync(name);
+        uploaded = true;
       } else if (decision === 'upload') {
         localStorage.setItem(`finper_sync_backup_${name}_${Date.now()}`, canonical({ local: JSON.parse(before), remote: remote.value ? JSON.parse(remote.value) : null }));
         await writeSnapshot(name, before, remote.head);
+        if (name === 'statements') await verifyRemoteMatches(name, before);
         localStorage.setItem(key(name), before);
         broadcastRealtimeSync(name);
+        uploaded = true;
       } else if (decision === 'download' && remote.value !== null) {
         apply(name, remote.value);
         localStorage.setItem(key(name), remote.value);
@@ -202,64 +298,62 @@ async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<
         localStorage.setItem(key(name), before);
       }
 
+      const stillInSync = decision !== 'idle' && localValue(name) === (localStorage.getItem(key(name)) ?? before);
       status(name, {
-        status: decision === 'idle' || localValue(name) !== (localStorage.getItem(key(name)) ?? before) ? 'waiting' : 'synced',
+        status: stillInSync ? 'synced' : 'waiting',
         lastSync: new Date().toISOString(),
       });
+
+      if (decision === 'idle') {
+        return done('remote_confirmed', 'No hay datos locales por sincronizar.');
+      }
+      if (!stillInSync) {
+        return done('local_pending', 'Los datos cambiaron durante la sincronización; se reintentará con la versión más reciente.', { stale: true });
+      }
+      return done(
+        'remote_confirmed',
+        uploaded ? 'Confirmado en Supabase: la nube devolvió exactamente la versión enviada.' : 'Este dispositivo coincide con la versión confirmada en Supabase.',
+      );
     } catch (error: any) {
-      const errCode = error?.code || error?.status || '';
-      const rawMsg = error instanceof Error 
-        ? error.message 
-        : (error?.message || error?.error_description || error?.details || (typeof error === 'object' ? JSON.stringify(error) : String(error)));
+      const { kind, userMsg } = classifyError(error);
 
-      let userMsg = 'No se pudo sincronizar. Se conserva la copia local.';
-
-      if (
-        rawMsg.includes('JWT') ||
-        rawMsg.includes('token') ||
-        rawMsg.includes('Sesión no disponible') ||
-        rawMsg.includes('expirada') ||
-        errCode === 401 ||
-        errCode === 'PGRST301'
-      ) {
-        userMsg = 'Sesión expirada o no válida. Vuelve a iniciar sesión para continuar.';
-      } else if (
-        rawMsg.includes('permission denied') ||
-        errCode === '42501' ||
-        errCode === 403
-      ) {
-        userMsg = 'Acceso no autorizado en Supabase (RLS). Tu sesión no tiene permisos de lectura/escritura.';
-      } else if (
-        rawMsg.includes('Otro dispositivo') ||
-        rawMsg.includes('concurrencia') ||
-        rawMsg.includes('Reintenta para comparar')
-      ) {
-        userMsg = 'Conflicto de versiones con otro dispositivo. Pulsa en Sincronizar Todo o compara los datos locales.';
-      } else if (
-        rawMsg.includes('Failed to fetch') ||
-        rawMsg.includes('NetworkError') ||
-        rawMsg.includes('Network request failed') ||
-        rawMsg.toLowerCase().includes('network')
-      ) {
-        userMsg = 'Sin conexión a internet. Los cambios se conservan localmente y se enviarán al reconectar.';
-      } else if (
-        rawMsg.includes('completa') ||
-        rawMsg.includes('incompleta')
-      ) {
-        userMsg = rawMsg;
-      } else if (errCode) {
-        userMsg = `Error de sincronización (${errCode}): ${rawMsg.slice(0, 80)}. Se conserva la copia local.`;
-      } else {
-        userMsg = `Error al sincronizar: ${rawMsg.slice(0, 80)}. Se conserva la copia local.`;
+      if (kind === 'concurrency') {
+        // Otro dispositivo modificó la versión remota: se conserva la local y se prepara la comparación.
+        try {
+          const mine = localValue(name);
+          const fresh = await readSnapshot(name);
+          if (fresh.value !== null && fresh.value !== mine) {
+            status(name, {
+              status: 'conflict',
+              message: userMsg,
+              localSummary: summary(name, mine),
+              remoteSummary: summary(name, fresh.value),
+              localValueRaw: mine,
+              remoteValueRaw: fresh.value,
+              diffReport: generateDiffReport(name, mine, fresh.value),
+            });
+            return done('conflict', userMsg, { errorKind: kind });
+          }
+        } catch {
+          /* si la relectura falla se informa igualmente el conflicto de versiones */
+        }
+        status(name, { status: 'error', message: userMsg });
+        return done('conflict', userMsg, { errorKind: kind });
       }
 
       status(name, { status: 'error', message: userMsg });
+      return done(kind === 'network' ? 'local_pending' : 'sync_failed', userMsg, { errorKind: kind });
     }
   };
 
-  running[name] = work();
+  running[name] = (async () => {
+    if (name === 'statements') useCardStatementStore.getState().markSyncing();
+    const outcome = await work();
+    if (name === 'statements') useCardStatementStore.getState().applySyncOutcome(outcome);
+    return outcome;
+  })();
   try {
-    await running[name];
+    return await running[name]!;
   } finally {
     delete running[name];
   }
@@ -269,7 +363,23 @@ export async function syncPersonalSettings(): Promise<void> {
   await Promise.all([sync('budgets'), sync('projections'), sync('statements'), sync('classifications')]);
 }
 
+/**
+ * Sincroniza un módulo y devuelve el resultado verificable. Si los datos cambian mientras
+ * se sincroniza, reintenta (máx. 2 veces) con la versión más reciente.
+ */
+export async function syncSettingsWithOutcome(name: Name): Promise<SyncOutcome> {
+  let outcome = await sync(name, undefined, { waitForFresh: true });
+  for (let attempt = 0; outcome.stale && attempt < 2; attempt++) {
+    outcome = await sync(name, undefined, { waitForFresh: true });
+  }
+  return outcome;
+}
+
+export const syncStatementsWithOutcome = (): Promise<SyncOutcome> => syncSettingsWithOutcome('statements');
+
 export const resolveSettings = (name: Name, choice: 'local' | 'remote' | 'merge') => sync(name, choice);
+
+registerStatementSyncTransport(syncStatementsWithOutcome);
 
 /**
  * Resuelve un conflicto mediante Conciliación Asistida Financiera:

@@ -78,7 +78,15 @@ interface FinanceState {
   isSyncingCloud: boolean;
   setMonth: (month: string) => void;
   setEntity: (entity: string) => void;
-  addTransaction: (tx: Omit<Transaction, 'id' | 'Mes'> & { id?: string; Mes?: string }) => Transaction;
+  addTransaction: (tx: Omit<Transaction, 'id' | 'Mes'> & { id?: string; Mes?: string; idempotencyToken?: string; syncStatus?: Transaction['syncStatus'] }) => Transaction;
+  registerPaymentTransaction: (
+    tx: Omit<Transaction, 'id' | 'Mes'> & { id?: string; Mes?: string; idempotencyToken?: string; syncStatus?: Transaction['syncStatus'] },
+    options?: { skipImmediateFlush?: boolean }
+  ) => Promise<{
+    transaction: Transaction;
+    persistenceState: 'remote_confirmed' | 'local_pending' | 'sync_failed';
+    message: string;
+  }>;
   updateTransaction: (id: string, updates: Partial<Transaction>) => void;
   confirmTransaction: (id: string) => void;
   deleteTransaction: (id: string) => void;
@@ -130,10 +138,15 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
       montoTotal: txData.montoTotal ?? (detectedCuotas && detectedCuotas > 1 ? Number(txData.Monto) : undefined),
       montoCuota: txData.montoCuota ?? (detectedCuotas && detectedCuotas > 1 ? Math.round((Number(txData.Monto) / detectedCuotas) * 100) / 100 : undefined),
       mesInicioFacturacion: txData.mesInicioFacturacion,
+      syncStatus: txData.syncStatus || 'local_pending',
+      idempotencyToken: txData.idempotencyToken,
     };
 
     set((state) => {
-      const updated = [newTx, ...state.transactions];
+      const existingIdx = state.transactions.findIndex(t => t.id === newTx.id);
+      const updated = existingIdx >= 0
+        ? state.transactions.map((t, idx) => (idx === existingIdx ? newTx : t))
+        : [newTx, ...state.transactions];
       safeSetStorage(LS_TX_KEY, JSON.stringify(updated));
       return { transactions: updated };
     });
@@ -143,6 +156,61 @@ export const useFinanceStore = create<FinanceState>((set, get) => ({
     broadcastRealtimeSync('transactions');
 
     return newTx;
+  },
+
+  registerPaymentTransaction: async (txData, options) => {
+    // 1. Guardar localmente de forma idempotente con estado inicial 'local_pending'
+    const tx = get().addTransaction({
+      ...txData,
+      syncStatus: txData.syncStatus || 'local_pending',
+    });
+
+    if (options?.skipImmediateFlush) {
+      return {
+        transaction: tx,
+        persistenceState: 'local_pending',
+        message: 'Pago guardado en este dispositivo (en cola para sincronizar con la nube).',
+      };
+    }
+
+    // 2. Intentar confirmación inmediata con Supabase
+    try {
+      await flushTransactions(true);
+      const remainingPending = pendingTransactions();
+      const stillPending = remainingPending.find(op => op.id === tx.id);
+
+      if (!stillPending) {
+        // Confirmado exitosamente en Supabase (retirado del outbox)
+        const confirmedTx: Transaction = {
+          ...tx,
+          syncStatus: 'remote_confirmed',
+        };
+        set((state) => {
+          const updated = state.transactions.map(t => (t.id === tx.id ? confirmedTx : t));
+          safeSetStorage(LS_TX_KEY, JSON.stringify(updated));
+          return { transactions: updated };
+        });
+        return {
+          transaction: confirmedTx,
+          persistenceState: 'remote_confirmed',
+          message: 'Pago confirmado por Supabase y sincronizado con la nube.',
+        };
+      } else {
+        // Sigue en la cola outbox (falla de red o sin sesión activa)
+        const stateTag = stillPending.attempts >= 3 ? 'sync_failed' : 'local_pending';
+        return {
+          transaction: tx,
+          persistenceState: stateTag,
+          message: 'Pago guardado localmente en este dispositivo. Se sincronizará automáticamente cuando haya conexión autenticada.',
+        };
+      }
+    } catch {
+      return {
+        transaction: tx,
+        persistenceState: 'local_pending',
+        message: 'Pago guardado localmente en este dispositivo. Pendiente de sincronizar a la nube.',
+      };
+    }
   },
 
   updateTransaction: (id: string, updates: Partial<Transaction>) => {
