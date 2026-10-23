@@ -57,6 +57,7 @@ import {
 } from 'lucide-react';
 import { LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
 import { TodayProjectedExpensesWidget } from '../components/TodayProjectedExpensesWidget';
+import { DailyFinancialBriefingWidget } from '../components/DailyFinancialBriefingWidget';
 import { CasualProjectionsModal } from '../components/CasualProjectionsModal';
 import {
   BarChart,
@@ -635,6 +636,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* ── ⚡ PANTALLA INICIAL: PROYECCIÓN DE GASTOS DE HOY DÍA ── */}
+      <DailyFinancialBriefingWidget />
       <TodayProjectedExpensesWidget onOpenCasualModal={() => setIsCasualModalOpen(true)} />
 
       {/* ── 🗓️ BANNER INFORMATIVO: DÍAS DEL MES ANTERIOR CONSIDERADOS ── */}
