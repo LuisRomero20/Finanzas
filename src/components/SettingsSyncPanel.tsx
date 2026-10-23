@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSettingsSync, resolveSettings, syncPersonalSettings, downloadSyncBackup, downloadDiffReportJson } from '../services/personalSettingsSync';
+import { useSettingsSync, resolveSettings, resolveSettingsAssisted, syncPersonalSettings, downloadSyncBackup, downloadDiffReportJson } from '../services/personalSettingsSync';
 import { DiffComparisonModal } from './DiffComparisonModal';
 import { supabase, getSupabaseConfigHealth, type SupabaseConfigHealth } from '../lib/supabase';
 import { getCurrentUser, getAuthDiagnostic, type AuthDiagnostic } from '../services/authService';
@@ -346,28 +346,30 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                   {/* En caso de versiones distintas (conflicto legítimo): ofrecer comparación detallada y resolución consciente */}
                   {entry.status === 'conflict' && (
                     <div className="flex flex-wrap items-center gap-2 pt-1.5">
-                      {entry.diffReport && (
+                      {entry.diffReport && entry.diffReport.modifiedCount > 0 ? (
                         <button
                           type="button"
                           disabled={syncing}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
+                          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
                           onClick={() => setDiffModalName(name)}
+                          title="Examina y concilia los importes modificados antes de guardar"
                         >
-                          <span>🔍 Comparar diferencias por registro</span>
-                          <span className="px-1.5 py-0.5 rounded-md bg-black/15 text-[10px] font-mono">
-                            {entry.diffReport.localOnlyCount + entry.diffReport.remoteOnlyCount + entry.diffReport.modifiedCount} diffs
+                          <span>🔍 Conciliación Asistida Requerida</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-black/15 text-[10px] font-mono font-bold">
+                            {entry.diffReport.modifiedCount} modificadas · {entry.diffReport.localOnlyCount + entry.diffReport.remoteOnlyCount} exclusivas
                           </span>
                         </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={syncing}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer"
+                          onClick={() => void resolveSettings(name, 'merge')}
+                          title="Combina los registros únicos demostrablemente no conflictivos"
+                        >
+                          <span>✨ Fusión Segura</span>
+                        </button>
                       )}
-                      <button
-                        type="button"
-                        disabled={syncing}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer"
-                        onClick={() => void resolveSettings(name, 'merge')}
-                        title="Combina los registros únicos de ambos extremos sin duplicados"
-                      >
-                        <span>✨ Fusión Inteligente</span>
-                      </button>
                       <button
                         type="button"
                         disabled={syncing}
@@ -419,17 +421,19 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
         </div>
       )}
 
-      {/* Modal de Comparación Detallada de Diferencias */}
+      {/* Modal de Conciliación Financiera Asistida */}
       {diffModalName && (
         <DiffComparisonModal
           isOpen={Boolean(diffModalName)}
           onClose={() => setDiffModalName(null)}
           report={entries[diffModalName]?.diffReport ?? null}
-          onResolve={async (choice) => {
-            await resolveSettings(diffModalName, choice);
+          localRawStr={entries[diffModalName]?.localValueRaw}
+          remoteRawStr={entries[diffModalName]?.remoteValueRaw}
+          onResolveAssisted={async (resolutions, salaryProbResolution) => {
+            await resolveSettingsAssisted(diffModalName, resolutions, salaryProbResolution);
           }}
-          onDownloadBackup={() => {
-            downloadDiffReportJson(diffModalName);
+          onDownloadBackup={(resolutions) => {
+            downloadDiffReportJson(diffModalName, resolutions);
           }}
         />
       )}

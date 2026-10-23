@@ -6,13 +6,15 @@
 
 ## 1. Resumen de las Correcciones en Esta Entrega
 
-En esta revisión pre-merge de **FINPER 2.0.4**:
-1. **Erradicación de Errores HTTP 406:** Se reemplazó el 100% de consultas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`. Ya no verás códigos 406 en DevTools al consultar tarjetas o líneas de crédito ausentes.
-2. **Comparador Detallado de Conflictos (Diff por Registro):** Ahora puedes examinar exactamente qué registros son exclusivos de tu PC, cuáles están en la nube y qué campos difieren antes de decidir qué hacer.
-3. **Fusión Inteligente (Smart Merge):** Puedes combinar de forma segura las 19 partidas locales con las 11 rescatadas de la nube (o las 770 clasificaciones locales con las 29 de la nube) sin duplicaciones.
-4. **Respaldo Descargable Previo:** Puedes descargar ambas versiones completas en un archivo JSON antes de cualquier resolución.
-5. **Protección del Entorno de Desarrollo:** Se añadió el banner visible `DevGuardrailBanner` advirtiendo que localhost está conectado a la base de datos real de Supabase (`njgzhjwfcxdxiibkuuqg`) para **no crear movimientos ficticios de prueba en producción**.
-6. **Tus 2,246 registros históricos y tus 4 movimientos pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) continúan 100% intactos.**
+En esta versión pre-merge de **FINPER 2.0.4**:
+1. **Erradicación de Errores HTTP 406:** Se reemplazó el 100% de consultas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`. Cero errores 406 en DevTools al consultar tarjetas o líneas de crédito ausentes.
+2. **Fusión Financiera Asistida (Safe Assisted Reconciliation):** Se eliminó la sobreescritura automática de importes modificados. Toda partida con diferencias exige una decisión consciente por parte del usuario (`PC`, `Nube` o `Editar Monto`).
+3. **Simulador de Impacto Financiero en Tiempo Real:** El modal muestra el cálculo en vivo de tus ingresos totales, obligaciones totales y la variación neta mensual de liquidez según las decisiones que vas tomando.
+4. **Preservación Estricta de Identificadores:** Partidas con el mismo concepto y mes (ej. pagos mensuales de servicios o cuotas) pero distinto ID ya no se colapsan erróneamente.
+5. **Control de Concurrencia Optimista:** Antes de guardar en Supabase, el sistema verifica que la versión en la nube no haya sido alterada por otro dispositivo mientras revisabas las partidas.
+6. **Respaldo Descargable Previo:** Puedes descargar ambas versiones completas en un archivo JSON antes de cualquier resolución.
+7. **Protección del Entorno de Desarrollo:** El banner `DevGuardrailBanner` advierte prominentemente en localhost que estás conectado a la base de producción real (`njgzhjwfcxdxiibkuuqg`) para **no crear movimientos ficticios de prueba en producción**.
+8. **Tus 2,246 registros históricos y tus 4 movimientos pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) continúan 100% intactos.**
 
 ---
 
@@ -30,7 +32,7 @@ git branch --show-current
 
 ## 3. Paso 2: Ejecutar Pruebas Automatizadas y Compilación Local
 
-Antes de abrir el navegador, valida que la calidad de código y las 181 pruebas pasen limpiamente en tu máquina:
+Antes de abrir el navegador, valida que la calidad de código y las 187 pruebas pasen limpiamente en tu máquina:
 ```powershell
 npm run lint
 npx tsc --noEmit
@@ -40,7 +42,7 @@ npm run build
 *Resultados esperados:*
 - `lint`: 0 errores.
 - `tsc`: 0 errores.
-- `test`: **34 suites aprobadas, 181 tests aprobados (100% éxito)**.
+- `test`: **34 suites aprobadas, 187 tests aprobados (100% éxito)**.
 - `build`: compila en ~9 segundos generando los activos en `dist/`.
 
 ---
@@ -68,39 +70,53 @@ Abre **Microsoft Edge** e ingresa a [http://localhost:5173/](http://localhost:51
 4. Recarga la página con `F5` o `Ctrl + R`.
 5. **Resultado Esperado:** **CERO solicitudes con código 406**.
 6. Limpia el filtro y busca `config-credit-cards-v2` o `config-credit-lines-v2`:  
-   Verás que ahora devuelven código **200 OK** (con valor `null` si no existe la configuración), erradicando las excepciones de la consola.
+   Verás que devuelven código **200 OK** (con valor `null` si no existe la configuración), erradicando las excepciones de la consola.
 
 ---
 
-## 6. Paso 5: Examinar los Conflictos Registro por Registro (Modo Solo-Lectura)
+## 6. Paso 5: Ejecutar la Conciliación Asistida de Proyecciones
 
 En el panel superior de **Sincronización Segura PC / iPhone**:
 1. Haz clic en **Revisar sincronización multidispositivo** para desplegar el panel.
-2. Observarás las tarjetas de:
-   - **Proyecciones & Ingresos Fijos:** Indica la discrepancia (ej. 19 partidas en PC vs 30 en la nube).
-   - **Clasificación de movimientos:** Indica la discrepancia (ej. 770 registros en PC vs 799 en la nube).
-   - **Deudas regularizadas de tarjetas:** 3 registros vs 3 registros.
-3. Haz clic en el botón amarillo:  
-   👉 **"🔍 Comparar diferencias por registro"**.
-4. Se abrirá la nueva ventana modal **Comparación Detallada**:
-   - **Pestaña "Diferencias":** Te muestra solo los registros que difieren.
-   - **Pestaña "Solo en Nube":** Verás las 11 partidas de proyecciones que están en la nube pero no en esta PC, con su concepto, categoría y monto.
-   - **Pestaña "Solo en PC":** Verás las partidas exclusivas de este equipo.
-   - **Pestaña "Modificados":** Te muestra en qué campo exacto difieren (ej. Monto: S/ 500 en PC vs S/ 600 en Nube).
-5. **Prueba de Respaldo Previo:**  
-   Haz clic en **"Descargar Respaldo JSON"**: se descargará inmediatamente un archivo con ambas versiones completas y el reporte de diferencias para tu custodia.
-6. **Opciones de Resolución Disponibles:**
-   - **"✨ Fusión Inteligente" (Recomendada):** Combina todas las partidas sin duplicar obligaciones ni sueldos.
-   - **"Conservar PC":** Sube la versión de tu PC a la nube.
-   - **"Usar Nube":** Descarga la versión de la nube a tu PC.
-   *(Nota: Puedes cerrar el modal con la "X" en cualquier momento sin aplicar ningún cambio).*
+2. En la tarjeta **Proyecciones & Ingresos Fijos** observarás:
+   - PC: 19 partidas | Supabase: 30 partidas.
+   - Botón: 👉 **"🔍 Conciliación Asistida Requerida (5 modificadas)"** *(o botón amarillo de diferencias)*.
+3. Haz clic en el botón para abrir el modal interactivo **Comparación Detallada y Conciliación Asistida**.
+
+### Qué observar dentro del Modal:
+1. **Respaldo Inmediato:** Haz clic en **"Descargar Respaldo JSON"** para guardar una copia de seguridad local de ambas versiones completas.
+2. **Pestaña "Modificados (5)":**
+   Observarás las 5 partidas que diferían en tus capturas:
+   - **Pago de Tarjeta BBVA Bfree:** PC S/ 271.84 vs Nube S/ 272.80.
+   - **Pago de Tarjeta Interbank Amex:** PC S/ 36.60 vs Nube S/ 465.30.
+   - **Pago Tarjeta Ripley:** PC S/ 381.88 vs Nube S/ 374.82.
+   - **Sueldo:** PC S/ 2,259.63 vs Nube S/ 2,384.15.
+   - **Escenarios de Probabilidad de Sueldo:** Difiere el porcentaje asignado.
+3. **Decisiones Asistidas por Partida:**
+   Para cada fila modificada, pulsa el botón correspondiente a tu realidad actual:
+   - Pulsa **"PC (S/ ...)"** si el valor de tu computadora es el más exacto.
+   - Pulsa **"Nube (S/ ...)"** si el valor de la nube es el más reciente.
+   - Pulsa **"Editar"** para tipear manualmente un importe específico.
+4. **Simulador de Impacto Financiero en Vivo:**
+   En la cabecera del modal verás cómo se actualizan instantáneamente:
+   - **Ingresos Totales Resueltos** (ej. S/ 2,384.15).
+   - **Obligaciones Totales Resueltas**.
+   - **Variación Neta Mensual** respecto a lo que tenías en tu PC.
+5. **Pestaña "Solo en Nube (13)" / "Solo en PC (2)":**
+   Verás las partidas que existen únicamente de un lado (ej. Netflix, Seguro Rímac, etc.). Estas se conservarán automáticamente sin colisión.
+6. **Aplicar Conciliación Segura:**
+   - Mientras quede alguna partida modificada sin decisión, el botón mostrará:  
+     `⚠️ Faltan X partidas por conciliar`.
+   - Una vez resueltas las 5 partidas, el botón verde se activará:  
+     👉 **"Aplicar Fusión Asistida Consciente"**.
+   - Al pulsarlo, se verificará la concurrencia optimista contra la nube, se guardará un respaldo previo en tu navegador y se consolidará la información.
 
 ---
 
 ## 7. Paso 6: Cómo Revisar la Aplicación en tu iPhone
 
 Para inspeccionar la aplicación desde tu iPhone sin riesgo:
-1. Con tu iPhone en la **misma red Wi-Fi** que la PC, abre Safari e ingresa la dirección IP que muestra Vite (ej. `http://192.168.1.XX:5173`).
+1. Con tu iPhone en la **misma red Wi-Fi** que la PC, abre Safari e ingresa la dirección IP local de tu PC que muestra Vite (ej. `http://192.168.1.XX:5173`).
 2. Verifica:
    - Carga limpia de la interfaz móvil.
    - Navegación táctil en el dock inferior (General, Registrar, Proyección, Tarjetas, Deudas, Categorías, Métricas).
@@ -109,12 +125,12 @@ Para inspeccionar la aplicación desde tu iPhone sin riesgo:
 
 ---
 
-## 8. Paso 7: Comprobar los Archivos Modificados
+## 8. Paso 7: Comprobar el Historial de Commits
 
 En tu terminal ejecuta:
 ```powershell
 git status
-git log -2 --stat
+git log -3 --stat
 ```
 Verás que todos los cambios están contenidos exclusivamente en la rama `feature/finper-v204-consolidation`.
 
@@ -122,14 +138,15 @@ Verás que todos los cambios están contenidos exclusivamente en la rama `featur
 
 ## 9. Condiciones de Aprobación para Autorizar el Merge
 
-Marca mentalmente las 6 condiciones antes de dar tu aprobación:
+Marca mentalmente las 7 condiciones antes de dar tu aprobación:
 
 - [ ] **1. Errores 406 eliminados:** Filtrando por 406 en DevTools no aparece ninguna solicitud.
-- [ ] **2. Comparación detallada operativa:** El modal permite ver qué registros difieren ítem por ítem.
-- [ ] **3. Respaldo descargable verificado:** El botón descarga el JSON con la comparativa.
-- [ ] **4. Banner de desarrollo visible:** Aparece la advertencia protegiendo la base de datos de producción.
-- [ ] **5. Suite de pruebas aprobada:** 34 suites y 181 tests pasando al 100%.
-- [ ] **6. Cero impacto en datos reales:** Los 2,246 registros históricos y tus 4 movimientos pendientes siguen intactos.
+- [ ] **2. Conciliación asistida operativa:** El modal te permite elegir `PC`, `Nube` o `Editar` para cada una de las 5 partidas modificadas.
+- [ ] **3. Simulador financiero reactivo:** Refleja en tiempo real la variación neta de tus obligaciones e ingresos.
+- [ ] **4. Respaldo descargable verificado:** El botón descarga el archivo JSON con ambas versiones.
+- [ ] **5. Banner de desarrollo visible:** Aparece la advertencia protegiendo la base de datos de producción.
+- [ ] **6. Suite de pruebas aprobada:** 34 suites y 187 tests pasando al 100%.
+- [ ] **7. Cero impacto en datos reales:** Los 2,246 registros históricos y tus 4 movimientos pendientes siguen intactos.
 
 ---
 

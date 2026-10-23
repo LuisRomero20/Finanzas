@@ -1,6 +1,6 @@
 # FINPER 2.0.4 — Lista de Control de Lanzamiento Pre-Merge (Release Checklist)
 
-**Versión:** FINPER 2.0.4 (Consolidación Técnica + Correcciones de Aceptación)  
+**Versión:** FINPER 2.0.4 (Consolidación Técnica + Fusión Financiera Asistida)  
 **Fecha:** 22 de Octubre de 2026  
 **Rama de Trabajo:** `feature/finper-v204-consolidation`  
 **Rama de Destino:** `main`  
@@ -30,12 +30,16 @@
 
 ---
 
-## 3. Resolución Segura de Conflictos y Comparación Detallada
+## 3. Fusión Financiera Asistida y Comparación Detallada
 
 - [x] **Comparación Detallada Ítem por Ítem:** Módulo `diffComparison.ts` calcula diferencias de registros exclusivos, modificados e idénticos.
-- [x] **Modal Interactivo de Diferencias:** `DiffComparisonModal` permite filtrar, buscar e inspeccionar diferencias antes de cualquier escritura.
-- [x] **Fusión Inteligente (Smart Merge):** Combina registros únicos de PC y Nube (ej. 19 locales + 11 rescatadas de la nube en proyecciones; 770 locales + 29 de la nube en clasificaciones) sin duplicar partidas.
-- [x] **Respaldos Previos Descargables:** Botón de descarga JSON de ambas versiones completas y su reporte de diferencias antes de ejecutar cualquier acción.
+- [x] **Modal Interactivo de Conciliación Asistida:** `DiffComparisonModal` permite filtrar, buscar e inspeccionar diferencias antes de cualquier escritura.
+- [x] **Prohibición de Sobreescritura Automática:** `computeSmartMerge` arroja excepción si `modifiedCount > 0`, exigiendo decisión explícita para cada partida modificada (`computeAssistedMerge`).
+- [x] **Decisión Explícita por Registro Modificado:** El usuario puede elegir individualmente: `PC`, `Nube` o `Editar Monto` personalizado.
+- [x] **Preservación de Pagos con Igual Nombre/Mes:** Partidas con el mismo concepto y mes pero distinto ID se conservan íntegramente sin deduplicación errónea.
+- [x] **Simulación Financiera en Tiempo Real:** Caja de pre-flight que simula en vivo el impacto en ingresos, obligaciones totales y variación neta de liquidez mensual.
+- [x] **Control de Concurrencia Optimista:** Verificación contra `remote.head` antes de escribir en Supabase; rechaza la escritura si otro dispositivo modificó el estado durante la conciliación.
+- [x] **Respaldos Previos Descargables y Locales:** Botón de descarga JSON de ambas versiones completas y su reporte de diferencias antes de ejecutar cualquier acción.
 
 ---
 
@@ -52,8 +56,8 @@
 
 - [x] **Linter (`npm run lint`):** 0 errores (12 advertencias documentadas en hooks legados).
 - [x] **Chequeo de Tipos (`npx tsc --noEmit`):** 0 errores de TypeScript en toda la base de código.
-- [x] **Suite Completa de Pruebas (`npm test`):** **34 suites aprobadas (34/34), 181 pruebas aprobadas (181/181, 100% éxito)**.
-- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 9.70 segundos.
+- [x] **Suite Completa de Pruebas (`npm test`):** **34 suites aprobadas (34/34), 187 pruebas aprobadas (187/187, 100% éxito)**.
+- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 9.64 segundos.
 
 ---
 

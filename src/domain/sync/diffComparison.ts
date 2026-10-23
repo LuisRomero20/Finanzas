@@ -2,6 +2,8 @@ export type SyncName = 'budgets' | 'projections' | 'statements' | 'classificatio
 
 export type DiffItemStatus = 'local_only' | 'remote_only' | 'modified' | 'identical';
 
+export type ResolutionDecisionType = 'use_local' | 'use_remote' | 'custom';
+
 export interface FieldDiff {
   fieldName: string;
   localValue: string | number | boolean | null;
@@ -29,8 +31,30 @@ export interface DiffReport {
   modifiedCount: number;
   identicalCount: number;
   items: DetailedDiffItem[];
-  canSmartMerge: boolean;
-  smartMergeSummary: string;
+  canAutoMerge: boolean;
+  autoMergeSummary: string;
+}
+
+export interface ItemResolution {
+  itemId: string;
+  type: ResolutionDecisionType;
+  customAmount?: number;
+  customConcept?: string;
+  customCategory?: string;
+  customMonth?: string;
+}
+
+export interface FinancialImpactSimulation {
+  localTotalIncome: number;
+  remoteTotalIncome: number;
+  resolvedTotalIncome: number;
+  localTotalObligations: number;
+  remoteTotalObligations: number;
+  resolvedTotalObligations: number;
+  netObligationChangeVsLocal: number;
+  netIncomeChangeVsLocal: number;
+  totalItemsCount: number;
+  unresolvedModifiedCount: number;
 }
 
 const DISPLAY_NAMES: Record<SyncName, string> = {
@@ -40,17 +64,13 @@ const DISPLAY_NAMES: Record<SyncName, string> = {
   budgets: 'Presupuestos por Categoría',
 };
 
-/**
- * Normaliza textos para comparaciones seguras de cadenas.
- */
 function normStr(v: unknown): string {
   return String(v ?? '').trim().toLowerCase();
 }
 
 /**
- * Genera un reporte comparativo exhaustivo entre la versión local y remota de una configuración.
- * Permite examinar elemento por elemento qué registros son exclusivos de este dispositivo,
- * cuáles existen solo en la nube y cuáles tienen modificaciones de campos.
+ * Genera un reporte comparativo exhaustivo elemento por elemento.
+ * No asume que elementos con el mismo concepto y mes son duplicados si tienen IDs distintos.
  */
 export function generateDiffReport(
   name: SyncName,
@@ -86,14 +106,16 @@ export function generateDiffReport(
     const localMap = new Map<string, any>();
     const remoteMap = new Map<string, any>();
 
-    // Indexar por ID o firma única
-    for (const item of localItems) {
-      const key = item.id || `${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
+    // Indexar por ID estricto para no colapsar pagos legítimos con igual concepto/mes
+    for (let i = 0; i < localItems.length; i++) {
+      const item = localItems[i];
+      const key = item.id ? String(item.id) : `loc-idx-${i}__${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
       localMap.set(key, item);
     }
 
-    for (const item of remoteItems) {
-      const key = item.id || `${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
+    for (let i = 0; i < remoteItems.length; i++) {
+      const item = remoteItems[i];
+      const key = item.id ? String(item.id) : `rem-idx-${i}__${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
       remoteMap.set(key, item);
     }
 
@@ -429,7 +451,6 @@ export function generateDiffReport(
     }
   }
 
-  // Ordenar ítems: primero modificados, luego exclusivos de local, luego exclusivos de nube, luego idénticos
   const orderWeight: Record<DiffItemStatus, number> = {
     modified: 0,
     local_only: 1,
@@ -451,15 +472,16 @@ export function generateDiffReport(
   const localTotal = localOnlyCount + modifiedCount + identicalCount;
   const remoteTotal = remoteOnlyCount + modifiedCount + identicalCount;
 
-  const canSmartMerge = true;
-  let smartMergeSummary = '';
+  // Solo se permite auto-merge cuando modifiedCount === 0 (cero conflictos de contenido)
+  const canAutoMerge = modifiedCount === 0;
+  let autoMergeSummary = '';
 
-  if (modifiedCount === 0 && (localOnlyCount > 0 || remoteOnlyCount > 0)) {
-    smartMergeSummary = `Fusión segura disponible: une ${localOnlyCount} registros de esta PC con ${remoteOnlyCount} de la nube sin colisiones ni duplicados.`;
+  if (canAutoMerge && (localOnlyCount > 0 || remoteOnlyCount > 0)) {
+    autoMergeSummary = `Fusión no conflictiva disponible: se integran ${localOnlyCount} registros de PC y ${remoteOnlyCount} de la nube sin colisiones.`;
   } else if (modifiedCount > 0) {
-    smartMergeSummary = `Fusión con diferencias de contenido: se conservan todos los registros únicos y para los ${modifiedCount} modificados se prioriza la versión local con respaldo completo previo.`;
+    autoMergeSummary = `Fusión asistida requerida: existen ${modifiedCount} registros con importes o campos diferentes. Debes elegir o editar el valor de cada uno.`;
   } else {
-    smartMergeSummary = 'Las versiones son coincidentes o no presentan conflictos divergentes.';
+    autoMergeSummary = 'Las versiones son idénticas en contenido.';
   }
 
   return {
@@ -472,20 +494,138 @@ export function generateDiffReport(
     modifiedCount,
     identicalCount,
     items,
-    canSmartMerge,
-    smartMergeSummary,
+    canAutoMerge,
+    autoMergeSummary,
   };
 }
 
 /**
- * Realiza una fusión inteligente sin duplicación entre datos locales y remotos.
- * Preserva registros únicos de ambos extremos sin sobrescribir ciegamente.
+ * Simula el impacto financiero de las decisiones tomadas en la conciliación.
  */
-export function computeSmartMerge(
+export function simulateReconciliationImpact(
   name: SyncName,
   localRawStr: string,
   remoteRawStr: string,
-): { mergedValue: string; summary: string; totalItems: number } {
+  resolutions: Record<string, ItemResolution>,
+): FinancialImpactSimulation {
+  const report = generateDiffReport(name, localRawStr, remoteRawStr);
+
+  let localTotalIncome = 0;
+  let remoteTotalIncome = 0;
+  let resolvedTotalIncome = 0;
+
+  let localTotalObligations = 0;
+  let remoteTotalObligations = 0;
+  let resolvedTotalObligations = 0;
+
+  let unresolvedModifiedCount = 0;
+
+  if (name === 'projections') {
+    for (const item of report.items) {
+      if (item.id === '__salary_probability_scenarios__') continue;
+
+      const locMonto = Number(item.localRaw?.monto || 0);
+      const remMonto = Number(item.remoteRaw?.monto || 0);
+      const isIncomeLoc = item.localRaw?.tipo === 'Ingreso';
+      const isIncomeRem = item.remoteRaw?.tipo === 'Ingreso';
+
+      if (item.status === 'local_only') {
+        if (isIncomeLoc) {
+          localTotalIncome += locMonto;
+          resolvedTotalIncome += locMonto;
+        } else {
+          localTotalObligations += locMonto;
+          resolvedTotalObligations += locMonto;
+        }
+      } else if (item.status === 'remote_only') {
+        if (isIncomeRem) {
+          remoteTotalIncome += remMonto;
+          resolvedTotalIncome += remMonto;
+        } else {
+          remoteTotalObligations += remMonto;
+          resolvedTotalObligations += remMonto;
+        }
+      } else if (item.status === 'identical') {
+        if (isIncomeLoc) {
+          localTotalIncome += locMonto;
+          remoteTotalIncome += locMonto;
+          resolvedTotalIncome += locMonto;
+        } else {
+          localTotalObligations += locMonto;
+          remoteTotalObligations += locMonto;
+          resolvedTotalObligations += locMonto;
+        }
+      } else if (item.status === 'modified') {
+        if (isIncomeLoc) localTotalIncome += locMonto;
+        else localTotalObligations += locMonto;
+
+        if (isIncomeRem) remoteTotalIncome += remMonto;
+        else remoteTotalObligations += remMonto;
+
+        const decision = resolutions[item.id];
+        if (!decision) {
+          unresolvedModifiedCount++;
+          // Si no está resuelto, reflejar local provisionalmente
+          if (isIncomeLoc) resolvedTotalIncome += locMonto;
+          else resolvedTotalObligations += locMonto;
+        } else if (decision.type === 'use_local') {
+          if (isIncomeLoc) resolvedTotalIncome += locMonto;
+          else resolvedTotalObligations += locMonto;
+        } else if (decision.type === 'use_remote') {
+          if (isIncomeRem) resolvedTotalIncome += remMonto;
+          else resolvedTotalObligations += remMonto;
+        } else if (decision.type === 'custom') {
+          const customVal = Number(decision.customAmount ?? locMonto);
+          const isCustomIncome = (decision.customConcept ?? item.localRaw?.tipo) === 'Ingreso' || isIncomeLoc;
+          if (isCustomIncome) resolvedTotalIncome += customVal;
+          else resolvedTotalObligations += customVal;
+        }
+      }
+    }
+  }
+
+  return {
+    localTotalIncome: Math.round(localTotalIncome * 100) / 100,
+    remoteTotalIncome: Math.round(remoteTotalIncome * 100) / 100,
+    resolvedTotalIncome: Math.round(resolvedTotalIncome * 100) / 100,
+    localTotalObligations: Math.round(localTotalObligations * 100) / 100,
+    remoteTotalObligations: Math.round(remoteTotalObligations * 100) / 100,
+    resolvedTotalObligations: Math.round(resolvedTotalObligations * 100) / 100,
+    netObligationChangeVsLocal: Math.round((resolvedTotalObligations - localTotalObligations) * 100) / 100,
+    netIncomeChangeVsLocal: Math.round((resolvedTotalIncome - localTotalIncome) * 100) / 100,
+    totalItemsCount: report.items.length,
+    unresolvedModifiedCount,
+  };
+}
+
+/**
+ * Ejecuta la FUSIÓN ASISTIDA:
+ * 1. Exige que todo registro con diferencias tenga una decisión explícita (use_local, use_remote o custom).
+ * 2. NUNCA sobrescribe automáticamente un importe financiero modificado.
+ * 3. Preserva íntegramente los campos no visibles de los snapshots originales.
+ * 4. No deduplica falsamente pagos legítimos con igual concepto y mes pero distinto ID.
+ */
+export function computeAssistedMerge(
+  name: SyncName,
+  localRawStr: string,
+  remoteRawStr: string,
+  resolutions: Record<string, ItemResolution>,
+  salaryProbabilityResolution: 'use_local' | 'use_remote' = 'use_local',
+): { mergedValue: string; summary: string; totalItems: number; simulation: FinancialImpactSimulation } {
+  const report = generateDiffReport(name, localRawStr, remoteRawStr);
+
+  // Verificar que ninguna partida modificada quede sin decisión
+  const unresolved = report.items.filter(i => {
+    if (i.id === '__salary_probability_scenarios__') {
+      return !resolutions[i.id] && !salaryProbabilityResolution;
+    }
+    return i.status === 'modified' && !resolutions[i.id];
+  });
+  if (unresolved.length > 0) {
+    const names = unresolved.map(u => `"${u.title}"`).join(', ');
+    throw new Error(`Conciliación asistida incompleta: hay ${unresolved.length} registro(s) modificado(s) sin decisión explícita (${names}). Elige Local, Nube o edita su valor.`);
+  }
+
   const localParsed = localRawStr ? JSON.parse(localRawStr) : {};
   const remoteParsed = remoteRawStr ? JSON.parse(remoteRawStr) : {};
 
@@ -494,43 +634,77 @@ export function computeSmartMerge(
     const localItems: any[] = Array.isArray(localParsed?.items) ? localParsed.items : [];
     const remoteItems: any[] = Array.isArray(remoteParsed?.items) ? remoteParsed.items : [];
 
-    const mergedMap = new Map<string, any>();
-    const seenSignatures = new Set<string>();
+    const localMap = new Map<string, any>();
+    const remoteMap = new Map<string, any>();
 
-    // Primero incorporar ítems locales
-    for (const item of localItems) {
-      const sig = `${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}__${normStr(item.tipo)}`;
-      const key = item.id || sig;
-      mergedMap.set(key, item);
-      seenSignatures.add(sig);
+    for (let i = 0; i < localItems.length; i++) {
+      const item = localItems[i];
+      const key = item.id ? String(item.id) : `loc-idx-${i}__${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
+      localMap.set(key, item);
     }
 
-    // Incorporar ítems remotos no duplicados
-    for (const item of remoteItems) {
-      const sig = `${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}__${normStr(item.tipo)}`;
-      const key = item.id || sig;
-      if (!mergedMap.has(key) && !seenSignatures.has(sig)) {
-        mergedMap.set(key, item);
-        seenSignatures.add(sig);
+    for (let i = 0; i < remoteItems.length; i++) {
+      const item = remoteItems[i];
+      const key = item.id ? String(item.id) : `rem-idx-${i}__${normStr(item.concepto)}__${normStr(item.mes || item.fecha)}`;
+      remoteMap.set(key, item);
+    }
+
+    const mergedList: any[] = [];
+    const processedKeys = new Set<string>();
+
+    for (const item of report.items) {
+      if (item.id === '__salary_probability_scenarios__') continue;
+      processedKeys.add(item.id);
+
+      const loc = localMap.get(item.id);
+      const rem = remoteMap.get(item.id);
+
+      if (item.status === 'local_only' && loc) {
+        // Preserva el objeto local original íntegro
+        mergedList.push({ ...loc });
+      } else if (item.status === 'remote_only' && rem) {
+        // Preserva el objeto remoto original íntegro
+        mergedList.push({ ...rem });
+      } else if (item.status === 'identical' && loc) {
+        mergedList.push({ ...loc });
+      } else if (item.status === 'modified') {
+        const decision = resolutions[item.id];
+        if (decision.type === 'use_local' && loc) {
+          mergedList.push({ ...loc });
+        } else if (decision.type === 'use_remote' && rem) {
+          mergedList.push({ ...rem });
+        } else if (decision.type === 'custom') {
+          const base = loc || rem;
+          mergedList.push({
+            ...base,
+            monto: decision.customAmount !== undefined ? Number(decision.customAmount) : base.monto,
+            concepto: decision.customConcept !== undefined ? decision.customConcept : base.concepto,
+            categoria: decision.customCategory !== undefined ? decision.customCategory : base.categoria,
+            mes: decision.customMonth !== undefined ? decision.customMonth : base.mes,
+          });
+        }
       }
     }
 
-    // Fusión de escenarios de probabilidad de sueldo
-    const mergedProb = {
-      ...(remoteParsed?.probabilidadSueldoPorMes || {}),
-      ...(localParsed?.probabilidadSueldoPorMes || {}),
-    };
+    // Fusión de escenarios de probabilidad de sueldo según decisión explícita
+    let resolvedProb = { ...(localParsed?.probabilidadSueldoPorMes || {}) };
+    const probDecision = resolutions['__salary_probability_scenarios__']?.type || salaryProbabilityResolution;
+    if (probDecision === 'use_remote') {
+      resolvedProb = { ...(remoteParsed?.probabilidadSueldoPorMes || {}) };
+    }
 
-    const mergedList = Array.from(mergedMap.values());
     const resultObj = {
       items: mergedList,
-      probabilidadSueldoPorMes: mergedProb,
+      probabilidadSueldoPorMes: resolvedProb,
     };
+
+    const simulation = simulateReconciliationImpact(name, localRawStr, remoteRawStr, resolutions);
 
     return {
       mergedValue: JSON.stringify(resultObj),
-      summary: `${mergedList.length} partidas totales combinadas (${localItems.length} locales + ${mergedList.length - localItems.length} rescatadas de la nube)`,
+      summary: `${mergedList.length} partidas conciliadas con resolución asistida consciente`,
       totalItems: mergedList.length,
+      simulation,
     };
   }
 
@@ -539,17 +713,38 @@ export function computeSmartMerge(
     const localMap: Record<string, string> = localParsed && typeof localParsed === 'object' ? localParsed : {};
     const remoteMap: Record<string, string> = remoteParsed && typeof remoteParsed === 'object' ? remoteParsed : {};
 
-    // Combinar sin perder ninguna regla
-    const merged: Record<string, string> = {
-      ...remoteMap,
-      ...localMap, // Local prevalece en caso de discrepancia en la misma regla
-    };
+    const merged: Record<string, string> = { ...remoteMap, ...localMap };
+
+    for (const item of report.items) {
+      if (item.status === 'modified') {
+        const decision = resolutions[item.id];
+        if (decision.type === 'use_remote') {
+          merged[item.id] = remoteMap[item.id];
+        } else if (decision.type === 'custom' && decision.customCategory) {
+          merged[item.id] = decision.customCategory;
+        } else {
+          merged[item.id] = localMap[item.id];
+        }
+      }
+    }
 
     const count = Object.keys(merged).length;
     return {
       mergedValue: JSON.stringify(merged),
-      summary: `${count} clasificaciones totales consolidadas`,
+      summary: `${count} clasificaciones conciliadas con resolución consciente`,
       totalItems: count,
+      simulation: {
+        localTotalIncome: 0,
+        remoteTotalIncome: 0,
+        resolvedTotalIncome: 0,
+        localTotalObligations: 0,
+        remoteTotalObligations: 0,
+        resolvedTotalObligations: 0,
+        netObligationChangeVsLocal: 0,
+        netIncomeChangeVsLocal: 0,
+        totalItemsCount: count,
+        unresolvedModifiedCount: 0,
+      },
     };
   }
 
@@ -558,16 +753,41 @@ export function computeSmartMerge(
     const localMap: Record<string, any> = localParsed && typeof localParsed === 'object' ? localParsed : {};
     const remoteMap: Record<string, any> = remoteParsed && typeof remoteParsed === 'object' ? remoteParsed : {};
 
-    const merged = {
-      ...remoteMap,
-      ...localMap,
-    };
+    const merged: Record<string, any> = { ...remoteMap, ...localMap };
+
+    for (const item of report.items) {
+      if (item.status === 'modified') {
+        const decision = resolutions[item.id];
+        if (decision.type === 'use_remote') {
+          merged[item.id] = { ...remoteMap[item.id] };
+        } else if (decision.type === 'custom') {
+          merged[item.id] = {
+            ...localMap[item.id],
+            finalDebt: decision.customAmount !== undefined ? Number(decision.customAmount) : localMap[item.id].finalDebt,
+          };
+        } else {
+          merged[item.id] = { ...localMap[item.id] };
+        }
+      }
+    }
 
     const count = Object.keys(merged).length;
     return {
       mergedValue: JSON.stringify(merged),
-      summary: `${count} regularizaciones consolidadas`,
+      summary: `${count} regularizaciones conciliadas con resolución consciente`,
       totalItems: count,
+      simulation: {
+        localTotalIncome: 0,
+        remoteTotalIncome: 0,
+        resolvedTotalIncome: 0,
+        localTotalObligations: 0,
+        remoteTotalObligations: 0,
+        resolvedTotalObligations: 0,
+        netObligationChangeVsLocal: 0,
+        netIncomeChangeVsLocal: 0,
+        totalItemsCount: count,
+        unresolvedModifiedCount: 0,
+      },
     };
   }
 
@@ -577,28 +797,79 @@ export function computeSmartMerge(
   const localModes = localParsed?.budgetModes || {};
   const remoteModes = remoteParsed?.budgetModes || {};
 
-  const mergedBudgets = {
-    ...remoteBudgets,
-    ...localBudgets,
-  };
+  const mergedBudgets = { ...remoteBudgets, ...localBudgets };
+  const mergedModes = { ...remoteModes, ...localModes };
 
-  const mergedModes = {
-    ...remoteModes,
-    ...localModes,
-  };
+  for (const item of report.items) {
+    if (item.status === 'modified') {
+      const decision = resolutions[item.id];
+      if (decision.type === 'use_remote') {
+        mergedBudgets[item.id] = remoteBudgets[item.id];
+        mergedModes[item.id] = remoteModes[item.id];
+      } else if (decision.type === 'custom') {
+        if (decision.customAmount !== undefined) mergedBudgets[item.id] = Number(decision.customAmount);
+        if (decision.customCategory) mergedModes[item.id] = decision.customCategory;
+      }
+    }
+  }
 
   const count = Object.keys(mergedBudgets).length;
   return {
     mergedValue: JSON.stringify({ budgets: mergedBudgets, budgetModes: mergedModes }),
-    summary: `${count} presupuestos por categoría consolidados`,
+    summary: `${count} presupuestos conciliados con resolución consciente`,
     totalItems: count,
+    simulation: {
+      localTotalIncome: 0,
+      remoteTotalIncome: 0,
+      resolvedTotalIncome: 0,
+      localTotalObligations: 0,
+      remoteTotalObligations: 0,
+      resolvedTotalObligations: 0,
+      netObligationChangeVsLocal: 0,
+      netIncomeChangeVsLocal: 0,
+      totalItemsCount: count,
+      unresolvedModifiedCount: 0,
+    },
   };
 }
 
 /**
- * Prepara un objeto descargable de respaldo completo para exportación JSON antes de cualquier resolución.
+ * Fusión automática segura: SOLO permitida si modifiedCount === 0.
+ * Si existen registros modificados, arroja excepción para forzar la conciliación asistida.
  */
-export function buildDownloadableDiffBackup(report: DiffReport, localRaw: string, remoteRaw: string) {
+export function computeSmartMerge(
+  name: SyncName,
+  localRawStr: string,
+  remoteRawStr: string,
+): { mergedValue: string; summary: string; totalItems: number } {
+  const report = generateDiffReport(name, localRawStr, remoteRawStr);
+
+  if (report.modifiedCount > 0) {
+    throw new Error(
+      `Fusión automática rechazada por seguridad: existen ${report.modifiedCount} partidas modificadas con importes diferentes. Utiliza la Fusión Asistida para elegir o editar el valor de cada una.`
+    );
+  }
+
+  // Si no hay registros modificados, todos los ítems son o idénticos o exclusivos de un lado.
+  // Es demostrablemente seguro unirlos.
+  const emptyResolutions: Record<string, ItemResolution> = {};
+  const result = computeAssistedMerge(name, localRawStr, remoteRawStr, emptyResolutions);
+  return {
+    mergedValue: result.mergedValue,
+    summary: result.summary,
+    totalItems: result.totalItems,
+  };
+}
+
+/**
+ * Prepara el objeto de respaldo completo con todas las versiones y metadatos.
+ */
+export function buildDownloadableDiffBackup(
+  report: DiffReport,
+  localRaw: string,
+  remoteRaw: string,
+  resolutions?: Record<string, ItemResolution>,
+) {
   return {
     timestamp: new Date().toISOString(),
     module: report.name,
@@ -611,6 +882,7 @@ export function buildDownloadableDiffBackup(report: DiffReport, localRaw: string
       modifiedCount: report.modifiedCount,
       identicalCount: report.identicalCount,
     },
+    resolutionsApplied: resolutions || null,
     diffItems: report.items,
     snapshots: {
       local: localRaw ? JSON.parse(localRaw) : null,

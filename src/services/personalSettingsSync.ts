@@ -2,7 +2,16 @@ import { create } from 'zustand';
 import { useBudgetStore, DEFAULT_BUDGETS } from '../store/budgetStore';
 import { useProjectionStore, INITIAL_PROJECTIONS, fetchProjectionsFromSupabase } from '../store/projectionStore';
 import { canonical, decideSync, readSnapshot, writeSnapshot } from './settingsSnapshot';
-import { generateDiffReport, computeSmartMerge, buildDownloadableDiffBackup, type DiffReport } from '../domain/sync/diffComparison';
+import {
+  generateDiffReport,
+  computeSmartMerge,
+  computeAssistedMerge,
+  buildDownloadableDiffBackup,
+  type DiffReport,
+  type ItemResolution,
+  type FinancialImpactSimulation,
+} from '../domain/sync/diffComparison';
+import { getValidatedSession } from './authService';
 import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
@@ -260,15 +269,96 @@ export async function syncPersonalSettings(): Promise<void> {
 
 export const resolveSettings = (name: Name, choice: 'local' | 'remote' | 'merge') => sync(name, choice);
 
-export function downloadDiffReportJson(name: Name): void {
+/**
+ * Resuelve un conflicto mediante Conciliación Asistida Financiera:
+ * 1. Verifica autenticación GoTrue antes de escribir.
+ * 2. Comprueba optimísticamente que remote.head en Supabase no haya cambiado.
+ * 3. Exige resolución explícita para cada registro modificado (cero sobreescritura automática).
+ * 4. Guarda un respaldo previo verificable en localStorage.
+ * 5. Aplica localmente y publica en Supabase.
+ */
+export async function resolveSettingsAssisted(
+  name: Name,
+  resolutions: Record<string, ItemResolution>,
+  salaryProbabilityResolution: 'use_local' | 'use_remote' = 'use_local'
+): Promise<{ success: boolean; simulation: FinancialImpactSimulation }> {
+  // 1. Verificación estricta de sesión
+  const session = await getValidatedSession();
+  if (!session?.user?.id) {
+    throw new Error('No hay sesión autenticada activa. Inicia sesión para guardar cambios en la nube.');
+  }
+
+  // 2. Si hay otra sincronización en curso, esperar
+  if (running[name]) {
+    await running[name];
+  }
+
+  status(name, { status: 'syncing' });
+
+  try {
+    const before = localValue(name);
+    const remote = await readSnapshot(name);
+
+    if (remote.value === null) {
+      throw new Error('No se encontró copia en la nube para conciliar.');
+    }
+
+    // 3. Ejecutar la fusión asistida asegurando decisiones para todas las modificadas
+    const assisted = computeAssistedMerge(
+      name,
+      before,
+      remote.value,
+      resolutions,
+      salaryProbabilityResolution
+    );
+
+    // 4. Guardar respaldo previo verificable en localStorage
+    localStorage.setItem(
+      `finper_sync_backup_${name}_assisted_${Date.now()}`,
+      canonical({
+        local: JSON.parse(before),
+        remote: JSON.parse(remote.value),
+        merged: JSON.parse(assisted.mergedValue),
+        resolutions,
+        simulation: assisted.simulation,
+        timestamp: new Date().toISOString(),
+      })
+    );
+
+    // 5. Aplicar localmente primero
+    apply(name, assisted.mergedValue);
+
+    // 6. Escribir en Supabase con control de concurrencia optimista contra remote.head
+    await writeSnapshot(name, assisted.mergedValue, remote.head);
+
+    // 7. Actualizar línea base de sincronización
+    localStorage.setItem(key(name), assisted.mergedValue);
+    broadcastRealtimeSync(name);
+
+    status(name, {
+      status: 'synced',
+      lastSync: new Date().toISOString(),
+    });
+
+    return { success: true, simulation: assisted.simulation };
+  } catch (err: any) {
+    status(name, {
+      status: 'error',
+      message: err?.message || 'Error al aplicar conciliación asistida',
+    });
+    throw err;
+  }
+}
+
+export function downloadDiffReportJson(name: Name, resolutions?: Record<string, ItemResolution>): void {
   const entry = useSettingsSync.getState().entries[name];
   if (!entry?.diffReport || !entry?.localValueRaw || !entry?.remoteValueRaw) return;
-  const backup = buildDownloadableDiffBackup(entry.diffReport, entry.localValueRaw, entry.remoteValueRaw);
+  const backup = buildDownloadableDiffBackup(entry.diffReport, entry.localValueRaw, entry.remoteValueRaw, resolutions);
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `finper-diff-${name}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `finper-conciliacion-${name}-${new Date().toISOString().slice(0, 10)}.json`;
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

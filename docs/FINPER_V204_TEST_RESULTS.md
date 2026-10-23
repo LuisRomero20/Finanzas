@@ -2,7 +2,7 @@
 
 **Fecha de Ejecución:** 22 de Octubre de 2026  
 **Rama:** `feature/finper-v204-consolidation`  
-**Commit Base:** `b05c28a`  
+**Commit Base:** `c619857`  
 **Entorno de Pruebas:** Node.js v22.14.0 en Windows 11 x64  
 **Framework de Pruebas:** Vitest v2.1.9 con jsdom  
 **Compilador:** TypeScript 5.5 + Vite 5.4.21  
@@ -15,12 +15,12 @@
 | :--- | :--- | :---: | :--- |
 | **Linter / Estilo** | `npm run lint` | **PASÓ (0 errores)** | 0 errores, 12 advertencias documentadas (hooks preexistentes) |
 | **Chequeo de Tipos** | `npx tsc --noEmit` | **PASÓ (0 errores)** | 0 errores de compilación estricta de TypeScript |
-| **Suite de Pruebas** | `npm test` | **PASÓ (100%)** | **34 suites aprobadas (34/34), 181 tests aprobados (181/181)** |
-| **Compilación de Producción** | `npm run build` | **PASÓ (0 errores)** | Bundle generado exitosamente en `dist/` en 9.70 segundos |
+| **Suite de Pruebas** | `npm test` | **PASÓ (100%)** | **34 suites aprobadas (34/34), 187 tests aprobados (187/187)** |
+| **Compilación de Producción** | `npm run build` | **PASÓ (0 errores)** | Bundle generado exitosamente en `dist/` en 9.64 segundos |
 
 ---
 
-## 2. Detalle de Cobertura por Suites de Prueba (34 Suites / 181 Tests)
+## 2. Detalle de Cobertura por Suites de Prueba (34 Suites / 187 Tests)
 
 ### Nuevas Suites Incorporadas en las Correcciones Pre-Merge de FINPER 2.0.4:
 1. `src/domain/__tests__/optionalConfigQueriesV204.test.ts` (8 tests)
@@ -30,13 +30,24 @@
    - Diferenciación de errores RLS de permisos (`42501` / HTTP 403) frente a errores de conexión.
    - Tolerancia a JSON corrupto en `concepto` con diagnóstico seguro (`parse_error`).
    - Verificación de no-regresión para: `fetchCardsConfigFromSupabase`, `fetchCreditLinesConfigFromSupabase`, `fetchBridgeConfigFromSupabase`, `fetchSavingsGoalsFromSupabase`.
-2. `src/domain/__tests__/diffComparisonV204.test.ts` (4 tests)
+2. `src/domain/__tests__/diffComparisonV204.test.ts` (10 tests)
    - Comparación profunda por registro de proyecciones (caso real: 19 partidas en PC vs 30 en la nube).
-   - Detección de las 11 partidas exclusivas de la nube y 2 partidas con diferencias de campo.
-   - Comparación masiva de clasificaciones (caso real: 770 locales vs 799 en la nube con rescate de 29 reglas).
-   - Detección de modificaciones en estados de cuenta/deudas regularizadas incluso con idéntica cantidad de filas (3 vs 3).
-   - Fusión inteligente (`computeSmartMerge`) que consolida partidas sin generar duplicaciones.
-   - Generación de respaldo descargable pre-resolución (`buildDownloadableDiffBackup`).
+   - Detección de las 11 partidas exclusivas de la nube y 5 registros modificados con diferencias de campo.
+   - **Rechazo estricto de auto-merge cuando existen registros modificados (`modifiedCount > 0`):** prohíbe sobreescrituras ciegas en valores financieros.
+   - **Fusión inteligente permitida únicamente cuando no hay conflictos (`modifiedCount === 0`):** une de forma aditiva partidas sin colisiones.
+   - **Preservación estricta de pagos legítimos distintos:** no colapsa partidas con idéntico concepto, mes y tipo si tienen IDs diferentes (ej. múltiples membresías de gimnasio).
+   - **Conciliación Asistida Obligatoria (`computeAssistedMerge`):** arroja excepción explícita si alguna partida modificada queda sin decisión.
+   - **Resolución fidedigna de los 5 conflictos reales reportados por el usuario:**
+     * Interbank Amex (PC S/ 36.60 vs Nube S/ 465.30) -> elección de Nube y preservación de metadatos de cuotas.
+     * BBVA Bfree (PC S/ 271.84 vs Nube S/ 272.80) -> elección de PC y preservación de metadatos locales.
+     * Ripley (PC S/ 381.88 vs Nube S/ 374.82) -> edición personalizada de monto (`custom`).
+     * Sueldo Mensual (PC S/ 2,259.63 vs Nube S/ 2,384.15) -> elección de Nube.
+     * Escenarios de Probabilidad de Sueldo -> elección explícita de escenario Nube.
+     * Rescate seguro de partidas exclusivas de la nube (ej. Netflix, Seguro Rímac).
+   - **Simulación financiera en tiempo real (`simulateReconciliationImpact`):** cálculo exacto de ingresos proyectados, obligaciones y variación neta de liquidez mensual frente a la versión local.
+   - **Conciliación asistida de Clasificaciones:** rescate de 29 categorías exclusivas de la nube y resolución consciente para diferencias.
+   - **Conciliación asistida de Deudas Regularizadas (Statements):** resolución por tarjeta y preservación de fechas de corte y límites.
+   - **Respaldo JSON descargable pre-resolución (`buildDownloadableDiffBackup`):** incluye metadata de resoluciones aplicadas y snapshots completos de ambas fuentes.
 
 ### Suites de Consolidación Base de FINPER 2.0.4:
 3. `src/domain/__tests__/authConsolidationV204.test.ts` (5 tests)
