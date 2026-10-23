@@ -30,6 +30,7 @@ import { BackupRestoreModal } from "./components/BackupRestoreModal";
 import { BottomNavBar } from "./components/BottomNavBar";
 import { UniversalSearchModal } from "./components/UniversalSearchModal";
 import { SettingsSyncPanel } from './components/SettingsSyncPanel';
+import { DevGuardrailBanner } from './components/DevGuardrailBanner';
 import { AuthModal } from './components/AuthModal';
 
 // Lazy-loaded routes for high-performance code-splitting
@@ -125,6 +126,7 @@ export default function App() {
         />
         <Notifications />
         <main className="w-full max-w-[1750px] mx-auto px-4 sm:px-8 lg:px-12 pb-28 md:pb-8 pt-[calc(4rem+env(safe-area-inset-top,0px))] sm:pt-[calc(4.75rem+env(safe-area-inset-top,0px))] animate-in fade-in duration-200">
+          <DevGuardrailBanner />
           <SettingsSyncPanel currentUser={currentUser} onOpenAuth={() => setIsAuthOpen(true)} />
           <Suspense fallback={<PageLoader />}>
             {tab === "Finanzas General" && <Dashboard />}

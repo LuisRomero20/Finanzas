@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useSettingsSync, resolveSettings, syncPersonalSettings, downloadSyncBackup } from '../services/personalSettingsSync';
+import { useSettingsSync, resolveSettings, syncPersonalSettings, downloadSyncBackup, downloadDiffReportJson } from '../services/personalSettingsSync';
+import { DiffComparisonModal } from './DiffComparisonModal';
 import { supabase, getSupabaseConfigHealth, type SupabaseConfigHealth } from '../lib/supabase';
 import { getCurrentUser, getAuthDiagnostic, type AuthDiagnostic } from '../services/authService';
 import { getPendingOutboxCount, flushPendingPaymentsOutbox } from '../services/pendingPaymentsOutbox';
@@ -21,6 +22,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
   const [isManualSyncing, setIsManualSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
   const [isClearingCache, setIsClearingCache] = useState(false);
+  const [diffModalName, setDiffModalName] = useState<Name | null>(null);
   const configHealth: SupabaseConfigHealth = getSupabaseConfigHealth();
 
   useEffect(() => {
@@ -341,22 +343,46 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
                     </div>
                   )}
 
-                  {/* En caso de versiones distintas (conflicto legítimo): ofrecer resolución consciente */}
+                  {/* En caso de versiones distintas (conflicto legítimo): ofrecer comparación detallada y resolución consciente */}
                   {entry.status === 'conflict' && (
-                    <div className="flex flex-wrap gap-2 pt-1">
+                    <div className="flex flex-wrap items-center gap-2 pt-1.5">
+                      {entry.diffReport && (
+                        <button
+                          type="button"
+                          disabled={syncing}
+                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs shadow-xs cursor-pointer disabled:opacity-50"
+                          onClick={() => setDiffModalName(name)}
+                        >
+                          <span>🔍 Comparar diferencias por registro</span>
+                          <span className="px-1.5 py-0.5 rounded-md bg-black/15 text-[10px] font-mono">
+                            {entry.diffReport.localOnlyCount + entry.diffReport.remoteOnlyCount + entry.diffReport.modifiedCount} diffs
+                          </span>
+                        </button>
+                      )}
                       <button
+                        type="button"
                         disabled={syncing}
-                        className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-sm disabled:opacity-50 cursor-pointer"
-                        onClick={() => void resolveSettings(name, 'local')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-xs disabled:opacity-50 cursor-pointer"
+                        onClick={() => void resolveSettings(name, 'merge')}
+                        title="Combina los registros únicos de ambos extremos sin duplicados"
                       >
-                        Compartir este dispositivo a la nube
+                        <span>✨ Fusión Inteligente</span>
                       </button>
                       <button
+                        type="button"
                         disabled={syncing}
-                        className="px-3 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
+                        onClick={() => void resolveSettings(name, 'local')}
+                      >
+                        Conservar PC
+                      </button>
+                      <button
+                        type="button"
+                        disabled={syncing}
+                        className="px-2.5 py-1.5 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 font-bold text-xs disabled:opacity-50 cursor-pointer"
                         onClick={() => void resolveSettings(name, 'remote')}
                       >
-                        Usar versión de la nube
+                        Usar Nube
                       </button>
                     </div>
                   )}
@@ -391,6 +417,21 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal de Comparación Detallada de Diferencias */}
+      {diffModalName && (
+        <DiffComparisonModal
+          isOpen={Boolean(diffModalName)}
+          onClose={() => setDiffModalName(null)}
+          report={entries[diffModalName]?.diffReport ?? null}
+          onResolve={async (choice) => {
+            await resolveSettings(diffModalName, choice);
+          }}
+          onDownloadBackup={() => {
+            downloadDiffReportJson(diffModalName);
+          }}
+        />
       )}
     </section>
   );

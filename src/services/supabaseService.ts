@@ -250,23 +250,91 @@ export async function saveCardsConfigToSupabase(cards: any[]): Promise<boolean> 
   }
 }
 
+export type ConfigQueryStatus =
+  | 'found'
+  | 'not_found'
+  | 'permission_denied'
+  | 'network_error'
+  | 'multiple_rows'
+  | 'parse_error';
+
+export interface OptionalConfigResult<T> {
+  data: T | null;
+  status: ConfigQueryStatus;
+  statusCode?: number;
+  error?: string;
+}
+
 /**
- * Obtiene la configuración de tarjetas de crédito desde Supabase.
+ * Consulta un registro opcional de configuración en 'transacciones' utilizando .maybeSingle().
+ * Previene respuestas HTTP 406 (Not Acceptable) cuando el registro aún no existe en Supabase.
+ * Diferencia con precisión entre: registro inexistente, error RLS de permisos (403/42501),
+ * fallo de red, colisión de múltiples filas o error de deserialización JSON.
  */
-export async function fetchCardsConfigFromSupabase(): Promise<any[] | null> {
+export async function fetchOptionalConfigRow<T>(
+  configId: string,
+  parser: (rawConcepto: string) => T | null,
+  debugLabel = configId
+): Promise<OptionalConfigResult<T>> {
   try {
-    const { data, error } = await supabase
+    const { data, error, status } = await supabase
       .from('transacciones')
       .select('*')
-      .eq('id', 'config-credit-cards-v2')
-      .single();
+      .eq('id', configId)
+      .maybeSingle();
 
-    if (error || !data || !data.concepto) return null;
-    const parsed = JSON.parse(data.concepto);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
+    if (error) {
+      const errCode = (error as any)?.code;
+      const errMsg = error.message || '';
+
+      if (errCode === 'PGRST116' || errMsg.includes('multiple') || errMsg.includes('0 or 1 row')) {
+        console.warn(`[Supabase Config] Múltiples filas encontradas para ${debugLabel}. Se requiere deduplicación.`);
+        return { data: null, status: 'multiple_rows', statusCode: status, error: errMsg };
+      }
+
+      if (errCode === '42501' || status === 403 || status === 401) {
+        console.warn(`[Supabase Config] Permiso denegado por RLS al consultar ${debugLabel} (${errCode || status}): ${errMsg}`);
+        return { data: null, status: 'permission_denied', statusCode: status, error: errMsg };
+      }
+
+      console.warn(`[Supabase Config] Error consultando ${debugLabel} (${errCode || status}): ${errMsg}`);
+      return { data: null, status: 'network_error', statusCode: status, error: errMsg };
+    }
+
+    if (!data || !data.concepto) {
+      return { data: null, status: 'not_found', statusCode: status };
+    }
+
+    try {
+      const parsed = parser(data.concepto);
+      if (parsed === null) {
+        console.warn(`[Supabase Config] Formato no compatible en ${debugLabel}`);
+        return { data: null, status: 'parse_error', statusCode: status, error: 'Formato no compatible' };
+      }
+      return { data: parsed, status: 'found', statusCode: status };
+    } catch (parseErr: any) {
+      console.warn(`[Supabase Config] Error al procesar JSON en ${debugLabel}:`, parseErr?.message);
+      return { data: null, status: 'parse_error', statusCode: status, error: parseErr?.message };
+    }
+  } catch (err: any) {
+    console.warn(`[Supabase Config] Error inesperado de red al consultar ${debugLabel}:`, err?.message || err);
+    return { data: null, status: 'network_error', error: err?.message };
   }
+}
+
+/**
+ * Obtiene la configuración de tarjetas de crédito desde Supabase (.maybeSingle() para evitar 406).
+ */
+export async function fetchCardsConfigFromSupabase(): Promise<any[] | null> {
+  const result = await fetchOptionalConfigRow<any[]>(
+    'config-credit-cards-v2',
+    (raw) => {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    },
+    'Tarjetas de Crédito (config-credit-cards-v2)'
+  );
+  return result.data;
 }
 
 /**
@@ -298,23 +366,19 @@ export async function saveCreditLinesConfigToSupabase(lines: Record<string, numb
 }
 
 /**
- * Obtiene la configuración de líneas de crédito desde Supabase.
+ * Obtiene la configuración de líneas de crédito desde Supabase (.maybeSingle() para evitar 406).
  */
 export async function fetchCreditLinesConfigFromSupabase(): Promise<{ lines: Record<string, number>; labels: Record<string, string> } | null> {
-  try {
-    const { data, error } = await supabase
-      .from('transacciones')
-      .select('*')
-      .eq('id', 'config-credit-lines-v2')
-      .single();
-
-    if (error || !data || !data.concepto) return null;
-    const parsed = JSON.parse(data.concepto);
-    if (parsed && typeof parsed.lines === 'object') return parsed;
-    return null;
-  } catch {
-    return null;
-  }
+  const result = await fetchOptionalConfigRow<{ lines: Record<string, number>; labels: Record<string, string> }>(
+    'config-credit-lines-v2',
+    (raw) => {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.lines === 'object') return parsed;
+      return null;
+    },
+    'Líneas de Crédito (config-credit-lines-v2)'
+  );
+  return result.data;
 }
 
 /**
@@ -429,21 +493,15 @@ export async function saveBridgeConfigToSupabase(configs: Record<string, any>): 
 }
 
 /**
- * Obtiene la configuración de días puente de mes anterior de Supabase.
+ * Obtiene la configuración de días puente de mes anterior de Supabase (.maybeSingle() para evitar 406).
  */
 export async function fetchBridgeConfigFromSupabase(): Promise<Record<string, any> | null> {
-  try {
-    const { data, error } = await supabase
-      .from('transacciones')
-      .select('*')
-      .eq('id', 'config-prev-month-bridge')
-      .single();
-
-    if (error || !data || !data.concepto) return null;
-    return JSON.parse(data.concepto);
-  } catch {
-    return null;
-  }
+  const result = await fetchOptionalConfigRow<Record<string, any>>(
+    'config-prev-month-bridge',
+    (raw) => JSON.parse(raw),
+    'Días Puente (config-prev-month-bridge)'
+  );
+  return result.data;
 }
 
 /**
@@ -475,22 +533,18 @@ export async function saveSavingsGoalsToSupabase(goals: any[]): Promise<boolean>
 }
 
 /**
- * Obtiene las metas de ahorro desde Supabase.
+ * Obtiene las metas de ahorro desde Supabase (.maybeSingle() para evitar 406).
  */
 export async function fetchSavingsGoalsFromSupabase(): Promise<any[] | null> {
-  try {
-    const { data, error } = await supabase
-      .from('transacciones')
-      .select('*')
-      .eq('id', 'config-savings-goals-v1')
-      .single();
-
-    if (error || !data || !data.concepto) return null;
-    const parsed = JSON.parse(data.concepto);
-    return Array.isArray(parsed) ? parsed : null;
-  } catch {
-    return null;
-  }
+  const result = await fetchOptionalConfigRow<any[]>(
+    'config-savings-goals-v1',
+    (raw) => {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : null;
+    },
+    'Metas de Ahorro (config-savings-goals-v1)'
+  );
+  return result.data;
 }
 
 /**

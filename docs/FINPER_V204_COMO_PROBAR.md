@@ -4,126 +4,139 @@
 
 ---
 
-## 1. Resumen de lo que vas a probar
+## 1. Resumen de las Correcciones en Esta Entrega
 
-En esta versión **FINPER 2.0.4**:
-- **Se eliminaron los errores de hidratación y parpadeos de sesión** al abrir o recargar la aplicación.
-- **Se blindó el sistema fuera de línea (Outbox):** ahora cualquier gasto o ingreso que registres sin internet se guarda de forma segura con protección contra pérdidas y reintentos automáticos.
-- **Tus 2,246 registros históricos de Supabase siguen intactos.**
-- **Tus 4 movimientos pendientes en la PC (`GYM`, `iCloud`, `Fútbol`, `Salida`) se mantienen a salvo en la cola local.**
-- **Se prepararon los contratos de cálculo de tarjetas de crédito** para las 3 tarjetas: Ripley Mastercard, Interbank Amex Benefit y BBVA Bfree.
+En esta revisión pre-merge de **FINPER 2.0.4**:
+1. **Erradicación de Errores HTTP 406:** Se reemplazó el 100% de consultas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`. Ya no verás códigos 406 en DevTools al consultar tarjetas o líneas de crédito ausentes.
+2. **Comparador Detallado de Conflictos (Diff por Registro):** Ahora puedes examinar exactamente qué registros son exclusivos de tu PC, cuáles están en la nube y qué campos difieren antes de decidir qué hacer.
+3. **Fusión Inteligente (Smart Merge):** Puedes combinar de forma segura las 19 partidas locales con las 11 rescatadas de la nube (o las 770 clasificaciones locales con las 29 de la nube) sin duplicaciones.
+4. **Respaldo Descargable Previo:** Puedes descargar ambas versiones completas en un archivo JSON antes de cualquier resolución.
+5. **Protección del Entorno de Desarrollo:** Se añadió el banner visible `DevGuardrailBanner` advirtiendo que localhost está conectado a la base de datos real de Supabase (`njgzhjwfcxdxiibkuuqg`) para **no crear movimientos ficticios de prueba en producción**.
+6. **Tus 2,246 registros históricos y tus 4 movimientos pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) continúan 100% intactos.**
 
 ---
 
-## 2. Preparación del Entorno en tu PC Windows
+## 2. Paso 1: Abrir la Rama en tu PC Windows
 
-Para probar esta rama sin afectar la versión de producción que está en Vercel:
-
-### Paso 2.1: Abrir la terminal en la carpeta del proyecto
-Abre PowerShell o tu terminal en:
-`c:\Users\Luis Romero\Documents\Proyectos\FinanzasPersonales`
-
-### Paso 2.2: Confirmar que estás en la rama correcta
-Ejecuta:
+Abre PowerShell en la carpeta de tu proyecto y confirma que estás en la rama correcta:
 ```powershell
+cd "c:\Users\Luis Romero\Documents\Proyectos\FinanzasPersonales"
 git status
+git branch --show-current
 ```
-Debe indicar: `On branch feature/finper-v204-consolidation`.
-
-### Paso 2.3: Iniciar el servidor local de desarrollo
-Ejecuta:
-```powershell
-npm run dev -- --host
-```
-Verás un mensaje similar a este:
-```text
-  VITE v5.4.21  ready in 450 ms
-
-  ➜  Local:   http://localhost:5173/
-  ➜  Network: http://192.168.1.XX:5173/
-```
-*(Nota: El parámetro `--host` permite que tu iPhone conectado a la misma red Wi-Fi también pueda abrir la aplicación).*
+*Debe indicar:* `feature/finper-v204-consolidation`.
 
 ---
 
-## 3. Pruebas en tu PC Windows (Microsoft Edge)
+## 3. Paso 2: Ejecutar Pruebas Automatizadas y Compilación Local
 
+Antes de abrir el navegador, valida que la calidad de código y las 181 pruebas pasen limpiamente en tu máquina:
+```powershell
+npm run lint
+npx tsc --noEmit
+npm test
+npm run build
+```
+*Resultados esperados:*
+- `lint`: 0 errores.
+- `tsc`: 0 errores.
+- `test`: **34 suites aprobadas, 181 tests aprobados (100% éxito)**.
+- `build`: compila en ~9 segundos generando los activos en `dist/`.
+
+---
+
+## 4. Paso 3: Iniciar FINPER en Localhost y Verificar la Advertencia de Seguridad
+
+Ejecuta:
+```powershell
+npm run dev
+```
 Abre **Microsoft Edge** e ingresa a [http://localhost:5173/](http://localhost:5173/).
 
-### Caso de Prueba 1: Navegación por los 7 Apartados
-1. Haz clic en el menú lateral o superior para recorrer las 7 secciones:
-   - **General (Dashboard):** Revisa que los balances totales y tarjetas se visualicen sin errores.
-   - **Registrar Movimiento:** Verifica que el formulario cargue con las categorías y entidades habituales.
-   - **Proyecciones:** Comprueba que la tabla de partidas proyectadas cargue correctamente.
-   - **Tarjetas de Crédito:** Entra a la vista de tarjetas y verifica los ciclos y fechas límite.
-   - **Deudas:** Comprueba que la lista de deudas personales y bancarias esté presente.
-   - **Clasificación:** Revisa que el listado de reglas de comercios cargue normalmente.
-   - **Dashboards:** Verifica los gráficos de barras y comparativas mensuales.
-- **Resultado Esperado:** Ninguna pantalla blanca, ningún bloqueo, transición fluida entre páginas.
-
-### Caso de Prueba 2: Resiliencia de Sesión y Recargas Rápidas
-1. Con la sesión iniciada en la PC, presiona `F5` o `Ctrl + R` cinco veces consecutivas rápidamente.
-2. Abre una pestaña nueva en Edge, entra a `http://localhost:5173/` y regresa a la pestaña original.
-- **Resultado Esperado:** La sesión se mantiene estable. No hay cierre de sesión inesperado ni mensajes de token expirado.
-
-### Caso de Prueba 3: Prueba de Registro Fuera de Línea (Outbox Offline)
-1. En Edge, presiona `F12` para abrir las Herramientas de Desarrollador.
-2. Ve a la pestaña **Network (Red)** y en el selector de velocidad (donde dice *No throttling* o *Sin limitación*), selecciona **Offline**.
-3. Ve al apartado **Registrar Movimiento**.
-4. Registra un gasto de prueba:
-   - Concepto: `Prueba Offline Consolidación`
-   - Monto: `15.00`
-   - Categoría: `Otros Gastos`
-   - Entidad: `Efectivo`
-5. Pulsa en **Guardar**.
-6. Observa la notificación: el movimiento se registra de inmediato y aparece en el listado local.
-7. Vuelve a la pestaña Network de F12 y cambia de nuevo a **No throttling (Con conexión)**.
-- **Resultado Esperado:** El sistema detecta el retorno a la red y envía la transacción a Supabase automáticamente en segundo plano sin duplicarla.
-
-### Caso de Prueba 4: Verificación de las 4 Operaciones Pendientes en PC
-1. En Edge, abre la consola con `F12` > pestaña **Console**.
-2. Escribe el siguiente comando y pulsa Enter:
-   ```javascript
-   JSON.parse(localStorage.getItem('finper_transaction_outbox_v1') || '[]')
-   ```
-- **Resultado Esperado:** Verás tus 4 movimientos pendientes originales (`GYM`, `iCloud`, `Fútbol`, `Salida`) conservados con todos sus datos intactos.
+### Verificación del Guardrail de Seguridad:
+1. En la parte superior de la pantalla observarás el nuevo banner ámbar:  
+   **"🛡️ MODO DESARROLLO LOCAL (localhost:5173) · BD PRODUCCIÓN EN VIVO (njgzhjwfcxdxiibkuuqg)"**.
+2. **IMPORTANTE:** Al estar conectado a tu Supabase real, **NO ingreses movimientos ficticios de prueba** (como "Gasto de prueba S/ 10"). Las pruebas de escritura y borrado ya están verificadas al 100% con mocks en la suite automatizada (`npm test`).
 
 ---
 
-## 4. Pruebas en tu iPhone (Safari / PWA)
+## 5. Paso 4: Verificar la Ausencia de Errores HTTP 406 en DevTools
 
-Asegúrate de que tu iPhone esté conectado a la **misma red Wi-Fi** que tu PC.
-
-### Paso 4.1: Conectar desde el iPhone
-1. Mira la dirección de red que arrojó `npm run dev -- --host` en tu PC (ejemplo: `http://192.168.1.35:5173`).
-2. Abre **Safari** en tu iPhone e introduce esa URL.
-
-### Caso de Prueba 5: Experiencia Táctil y PWA en iOS
-1. Inicia sesión con tus credenciales.
-2. Navega entre los apartados usando el menú inferior táctil.
-3. Bloquea la pantalla de tu iPhone durante 15 segundos y vuelve a desbloquearla.
-4. Regresa a Safari o a la PWA.
-- **Resultado Esperado:** La aplicación no pierde el estado, no muestra pantallas en blanco y la sesión continúa activa de inmediato gracias al deduplicador de hidratación.
+1. En Microsoft Edge, presiona `F12` para abrir las Herramientas de Desarrollador.
+2. Ve a la pestaña **Network (Red)**.
+3. En la caja de filtro de texto escribe: `406`.
+4. Recarga la página con `F5` o `Ctrl + R`.
+5. **Resultado Esperado:** **CERO solicitudes con código 406**.
+6. Limpia el filtro y busca `config-credit-cards-v2` o `config-credit-lines-v2`:  
+   Verás que ahora devuelven código **200 OK** (con valor `null` si no existe la configuración), erradicando las excepciones de la consola.
 
 ---
 
-## 5. Lista de Chequeo Final del Usuario (Sign-off)
+## 6. Paso 5: Examinar los Conflictos Registro por Registro (Modo Solo-Lectura)
 
-Marca cada casilla una vez verificada en tus dispositivos:
-
-- [ ] **PC:** Los 7 apartados abren y responden correctamente.
-- [ ] **PC:** Al recargar la página (`F5`), la sesión se mantiene intacta sin parpadeos.
-- [ ] **PC:** Un movimiento registrado en modo offline se guarda y no se pierde.
-- [ ] **PC:** Las 4 operaciones previas (`GYM`, `iCloud`, `Fútbol`, `Salida`) están presentes.
-- [ ] **iPhone:** La aplicación carga en Safari y tolera el bloqueo/desbloqueo de pantalla.
-- [ ] **iPhone:** La navegación táctil entre módulos es fluida y cómoda.
+En el panel superior de **Sincronización Segura PC / iPhone**:
+1. Haz clic en **Revisar sincronización multidispositivo** para desplegar el panel.
+2. Observarás las tarjetas de:
+   - **Proyecciones & Ingresos Fijos:** Indica la discrepancia (ej. 19 partidas en PC vs 30 en la nube).
+   - **Clasificación de movimientos:** Indica la discrepancia (ej. 770 registros en PC vs 799 en la nube).
+   - **Deudas regularizadas de tarjetas:** 3 registros vs 3 registros.
+3. Haz clic en el botón amarillo:  
+   👉 **"🔍 Comparar diferencias por registro"**.
+4. Se abrirá la nueva ventana modal **Comparación Detallada**:
+   - **Pestaña "Diferencias":** Te muestra solo los registros que difieren.
+   - **Pestaña "Solo en Nube":** Verás las 11 partidas de proyecciones que están en la nube pero no en esta PC, con su concepto, categoría y monto.
+   - **Pestaña "Solo en PC":** Verás las partidas exclusivas de este equipo.
+   - **Pestaña "Modificados":** Te muestra en qué campo exacto difieren (ej. Monto: S/ 500 en PC vs S/ 600 en Nube).
+5. **Prueba de Respaldo Previo:**  
+   Haz clic en **"Descargar Respaldo JSON"**: se descargará inmediatamente un archivo con ambas versiones completas y el reporte de diferencias para tu custodia.
+6. **Opciones de Resolución Disponibles:**
+   - **"✨ Fusión Inteligente" (Recomendada):** Combina todas las partidas sin duplicar obligaciones ni sueldos.
+   - **"Conservar PC":** Sube la versión de tu PC a la nube.
+   - **"Usar Nube":** Descarga la versión de la nube a tu PC.
+   *(Nota: Puedes cerrar el modal con la "X" en cualquier momento sin aplicar ningún cambio).*
 
 ---
 
-## 6. Siguiente Paso
+## 7. Paso 6: Cómo Revisar la Aplicación en tu iPhone
 
-Una vez que completes esta revisión y estés satisfecho con el resultado:
-Escribe en el chat:
+Para inspeccionar la aplicación desde tu iPhone sin riesgo:
+1. Con tu iPhone en la **misma red Wi-Fi** que la PC, abre Safari e ingresa la dirección IP que muestra Vite (ej. `http://192.168.1.XX:5173`).
+2. Verifica:
+   - Carga limpia de la interfaz móvil.
+   - Navegación táctil en el dock inferior (General, Registrar, Proyección, Tarjetas, Deudas, Categorías, Métricas).
+   - Bloqueo y desbloqueo de pantalla: la sesión no se cierra y no hay pantallas blancas.
+   - En el panel de sincronización del iPhone, el comparador de diferencias también es 100% responsivo y táctil.
+
+---
+
+## 8. Paso 7: Comprobar los Archivos Modificados
+
+En tu terminal ejecuta:
+```powershell
+git status
+git log -2 --stat
+```
+Verás que todos los cambios están contenidos exclusivamente en la rama `feature/finper-v204-consolidation`.
+
+---
+
+## 9. Condiciones de Aprobación para Autorizar el Merge
+
+Marca mentalmente las 6 condiciones antes de dar tu aprobación:
+
+- [ ] **1. Errores 406 eliminados:** Filtrando por 406 en DevTools no aparece ninguna solicitud.
+- [ ] **2. Comparación detallada operativa:** El modal permite ver qué registros difieren ítem por ítem.
+- [ ] **3. Respaldo descargable verificado:** El botón descarga el JSON con la comparativa.
+- [ ] **4. Banner de desarrollo visible:** Aparece la advertencia protegiendo la base de datos de producción.
+- [ ] **5. Suite de pruebas aprobada:** 34 suites y 181 tests pasando al 100%.
+- [ ] **6. Cero impacto en datos reales:** Los 2,246 registros históricos y tus 4 movimientos pendientes siguen intactos.
+
+---
+
+## 10. Cómo Autorizar el Merge
+
+Cuando hayas concluido tu revisión en PC y/o iPhone y estés conforme con el resultado, escribe en el chat:
+
 > **"Aprobado FINPER 2.0.4, proceder con el merge a main y despliegue a producción"**
 
-*(Nota: Ningún cambio se incorporará a la rama principal de producción hasta recibir tu confirmación expresa).*
+*(Recordatorio: Ningún cambio se incorporará a la rama `main` ni se publicará en Vercel sin tu orden explícita).*

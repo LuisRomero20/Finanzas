@@ -2,18 +2,22 @@ import { create } from 'zustand';
 import { useBudgetStore, DEFAULT_BUDGETS } from '../store/budgetStore';
 import { useProjectionStore, INITIAL_PROJECTIONS, fetchProjectionsFromSupabase } from '../store/projectionStore';
 import { canonical, decideSync, readSnapshot, writeSnapshot } from './settingsSnapshot';
+import { generateDiffReport, computeSmartMerge, buildDownloadableDiffBackup, type DiffReport } from '../domain/sync/diffComparison';
 import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
-type Entry = {
+export type Entry = {
   status: 'waiting' | 'syncing' | 'synced' | 'conflict' | 'error';
   message?: string;
   lastSync?: string;
   localSummary?: string;
   remoteSummary?: string;
+  localValueRaw?: string;
+  remoteValueRaw?: string;
+  diffReport?: DiffReport;
 };
 
 export const useSettingsSync = create<{ entries: Record<Name, Entry> }>(() => ({
@@ -110,7 +114,7 @@ function summary(name: Name, value: string): string {
   }
 }
 
-async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
+async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<void> {
   if (running[name]) {
     await running[name];
     if (choice) return sync(name, choice);
@@ -149,19 +153,33 @@ async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
       }
 
       const baseline = localStorage.getItem(key(name));
-      const decision = choice === 'local' ? 'upload' : choice === 'remote' ? 'download' : decideSync(before, remote.value, baseline, customized(name));
+      const decision = choice === 'local' ? 'upload' : choice === 'remote' ? 'download' : choice === 'merge' ? 'merge' : decideSync(before, remote.value, baseline, customized(name));
 
       if (decision === 'conflict') {
+        const report = generateDiffReport(name, before, remote.value!);
         status(name, {
           status: 'conflict',
-          message: 'Hay versiones distintas entre este dispositivo y la nube. Elige cuál conservar; ambas se guardan en el historial.',
+          message: 'Hay versiones distintas entre este dispositivo y la nube. Examina la comparación detallada antes de decidir.',
           localSummary: summary(name, before),
           remoteSummary: summary(name, remote.value!),
+          localValueRaw: before,
+          remoteValueRaw: remote.value!,
+          diffReport: report,
         });
         return;
       }
 
-      if (decision === 'upload') {
+      if (decision === 'merge' && remote.value !== null) {
+        const smart = computeSmartMerge(name, before, remote.value);
+        localStorage.setItem(
+          `finper_sync_backup_${name}_${Date.now()}`,
+          canonical({ local: JSON.parse(before), remote: JSON.parse(remote.value), merge: JSON.parse(smart.mergedValue) })
+        );
+        apply(name, smart.mergedValue);
+        await writeSnapshot(name, smart.mergedValue, remote.head);
+        localStorage.setItem(key(name), smart.mergedValue);
+        broadcastRealtimeSync(name);
+      } else if (decision === 'upload') {
         localStorage.setItem(`finper_sync_backup_${name}_${Date.now()}`, canonical({ local: JSON.parse(before), remote: remote.value ? JSON.parse(remote.value) : null }));
         await writeSnapshot(name, before, remote.head);
         localStorage.setItem(key(name), before);
@@ -240,7 +258,20 @@ export async function syncPersonalSettings(): Promise<void> {
   await Promise.all([sync('budgets'), sync('projections'), sync('statements'), sync('classifications')]);
 }
 
-export const resolveSettings = (name: Name, choice: 'local' | 'remote') => sync(name, choice);
+export const resolveSettings = (name: Name, choice: 'local' | 'remote' | 'merge') => sync(name, choice);
+
+export function downloadDiffReportJson(name: Name): void {
+  const entry = useSettingsSync.getState().entries[name];
+  if (!entry?.diffReport || !entry?.localValueRaw || !entry?.remoteValueRaw) return;
+  const backup = buildDownloadableDiffBackup(entry.diffReport, entry.localValueRaw, entry.remoteValueRaw);
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `finper-diff-${name}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function watchPersonalSettings(): () => void {
   let timer: ReturnType<typeof setTimeout>;

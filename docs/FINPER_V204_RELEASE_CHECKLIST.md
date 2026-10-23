@@ -1,6 +1,6 @@
 # FINPER 2.0.4 — Lista de Control de Lanzamiento Pre-Merge (Release Checklist)
 
-**Versión:** FINPER 2.0.4  
+**Versión:** FINPER 2.0.4 (Consolidación Técnica + Correcciones de Aceptación)  
 **Fecha:** 22 de Octubre de 2026  
 **Rama de Trabajo:** `feature/finper-v204-consolidation`  
 **Rama de Destino:** `main`  
@@ -12,13 +12,34 @@
 
 - [x] **Sin claves privadas en el repositorio:** Archivos `.env`, `.env.local` y carpetas de credenciales excluidos por `.gitignore`.
 - [x] **Sin `service_role` en frontend:** El cliente solo utiliza la clave pública anónima autorizada.
-- [x] **Aislamiento de Supabase:** Se garantiza conexión exclusiva al proyecto autorizado `njgzhjwfcxdxiibkuuqg.supabase.co`. Rechazo estricto de refs obsoletos (`elsjuyjjkrkyhlylmaip`).
+- [x] **Aislamiento de Supabase:** Conexión exclusiva al proyecto autorizado `njgzhjwfcxdxiibkuuqg.supabase.co`. Rechazo estricto de refs obsoletos (`elsjuyjjkrkyhlylmaip`).
 - [x] **Políticas RLS Activas:** Pruebas automatizadas validan que las políticas de seguridad a nivel de fila (`securityPolicies.test.ts`) aíslan y protegen la información por usuario.
 - [x] **Tokens GoTrue Seguros:** La inyección de autorización se limita estrictamente a la URL de PostgREST del proyecto y no sobrescribe llamadas externas.
+- [x] **Banner Guardrail de Entorno Local:** Advertencia visible `DevGuardrailBanner` en localhost alertando que se está conectado a la base de datos de producción real para evitar mutaciones ficticias.
 
 ---
 
-## 2. Integridad y Preservación de Datos
+## 2. Erradicación de Errores HTTP 406 (PostgREST)
+
+- [x] **Auditoría completa de `.single()`:** Reemplazadas 100% de llamadas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`.
+- [x] **Tarjetas de Crédito:** `fetchCardsConfigFromSupabase` devuelve `null` sin error 406 si la fila no existe.
+- [x] **Líneas de Crédito:** `fetchCreditLinesConfigFromSupabase` devuelve `null` sin error 406 si la fila no existe.
+- [x] **Días Puente:** `fetchBridgeConfigFromSupabase` devuelve `null` sin error 406 si la fila no existe.
+- [x] **Metas de Ahorro:** `fetchSavingsGoalsFromSupabase` devuelve `null` sin error 406 si la fila no existe.
+- [x] **Diferenciación de Errores:** Manejo explícito de ausencia de registro (200 data=null), permisos RLS (403 / 42501), colisión de múltiples filas (PGRST116) y desconexión.
+
+---
+
+## 3. Resolución Segura de Conflictos y Comparación Detallada
+
+- [x] **Comparación Detallada Ítem por Ítem:** Módulo `diffComparison.ts` calcula diferencias de registros exclusivos, modificados e idénticos.
+- [x] **Modal Interactivo de Diferencias:** `DiffComparisonModal` permite filtrar, buscar e inspeccionar diferencias antes de cualquier escritura.
+- [x] **Fusión Inteligente (Smart Merge):** Combina registros únicos de PC y Nube (ej. 19 locales + 11 rescatadas de la nube en proyecciones; 770 locales + 29 de la nube en clasificaciones) sin duplicar partidas.
+- [x] **Respaldos Previos Descargables:** Botón de descarga JSON de ambas versiones completas y su reporte de diferencias antes de ejecutar cualquier acción.
+
+---
+
+## 4. Integridad y Preservación de Datos
 
 - [x] **2,246 Registros Históricos Intactos:** Cero sentencias destructivas (`DROP`, `TRUNCATE`, `DELETE` masivos).
 - [x] **Preservación de Cola Local en PC:** Las 4 transacciones pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) permanecen conservadas en `finper_transaction_outbox_v1`.
@@ -27,16 +48,16 @@
 
 ---
 
-## 3. Calidad de Código y Validación Técnica
+## 5. Calidad de Código y Validación Técnica
 
-- [x] **Linter (`npm run lint`):** 0 errores.
+- [x] **Linter (`npm run lint`):** 0 errores (12 advertencias documentadas en hooks legados).
 - [x] **Chequeo de Tipos (`npx tsc --noEmit`):** 0 errores de TypeScript en toda la base de código.
-- [x] **Suite Completa de Pruebas (`npm test`):** 32 suites pasadas, 169 pruebas aprobadas (100% de éxito).
-- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 8.62 segundos.
+- [x] **Suite Completa de Pruebas (`npm test`):** **34 suites aprobadas (34/34), 181 pruebas aprobadas (181/181, 100% éxito)**.
+- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 9.70 segundos.
 
 ---
 
-## 4. Cobertura de las 7 Secciones del Sistema
+## 6. Cobertura de las 7 Secciones del Sistema
 
 - [x] **General (Dashboard):** Renderizado verificado en `pagesRender.test.tsx` sin crashes.
 - [x] **Registrar Movimiento:** Formulario operativo con encolado local inmediato y persistencia en Outbox.
@@ -48,7 +69,7 @@
 
 ---
 
-## 5. Criterios de Aprobación para Merge
+## 7. Criterios de Aprobación para Merge
 
 - [ ] **Tutorial de Revisión ejecutado por el usuario** (`docs/FINPER_V204_COMO_PROBAR.md`).
 - [ ] **Pruebas satisfactorias en PC Windows (Microsoft Edge).**
