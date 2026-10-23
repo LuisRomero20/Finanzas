@@ -31,6 +31,8 @@ import {
 
 export type FinancialDataState = 'confirmed' | 'calculated' | 'estimated' | 'hypothetical';
 
+export type PurchaseFinancingModality = 'direct' | 'zero_interest_promo' | 'revolving_financed';
+
 export type CreditCardIssuer = 'Ripley' | 'Interbank' | 'BBVA' | 'Otro';
 export type CreditCardNetwork = 'Mastercard' | 'American Express' | 'Visa' | 'Otra';
 export type CurrencyCode = 'PEN' | 'USD';
@@ -112,6 +114,7 @@ export interface SmartInstallmentSchedule {
   firstDueDate: DateOnly;
   lastDueDate: DateOnly;
   isZeroInterestPromo: boolean;
+  modality: PurchaseFinancingModality;
   completeness: ContractualCompleteness;
   rows: SmartInstallmentRow[];
 }
@@ -162,13 +165,18 @@ export const CONTRACTUAL_WARNING_MESSAGE = 'Estimación incompleta: faltan datos
 
 /**
  * Valida si los términos contractuales de una tarjeta están completos para cálculos financieros.
- * Si es una promoción a 0% de interés, la ausencia de TEA no se considera incompleta.
+ * - 'zero_interest_promo' o 'direct': no requieren TEA obligatoria para la simulación inicial.
+ * - 'revolving_financed': requiere TEA y seguro de desgravamen contractuales.
  */
 export function validateCardContractualRates(
   rates?: CardContractualRates,
-  isZeroInterestPromo = false,
+  isZeroInterestPromoOrModality: boolean | PurchaseFinancingModality = false,
 ): ContractualCompleteness {
-  if (isZeroInterestPromo) {
+  const isExempt = typeof isZeroInterestPromoOrModality === 'string'
+    ? (isZeroInterestPromoOrModality === 'zero_interest_promo' || isZeroInterestPromoOrModality === 'direct')
+    : isZeroInterestPromoOrModality;
+
+  if (isExempt) {
     return {
       isComplete: true,
       missingTerms: [],
@@ -245,12 +253,22 @@ export function buildSmartInstallmentSchedule(params: {
   } = params;
 
   const installmentsCount = Math.max(1, Math.floor(params.installmentsCount || 1));
-  const isZeroInterest = Boolean(params.isZeroInterestPromo || installmentsCount === 1 || (rates?.tea === 0));
-  const completeness = validateCardContractualRates(rates, isZeroInterest);
 
-  const tea = isZeroInterest ? 0 : Math.max(0, rates?.tea ?? 0);
+  let modality: PurchaseFinancingModality;
+  if (params.isZeroInterestPromo || rates?.tea === 0) {
+    modality = 'zero_interest_promo';
+  } else if (installmentsCount === 1) {
+    modality = 'direct';
+  } else {
+    modality = 'revolving_financed';
+  }
+
+  const isZeroInterestPromo = modality === 'zero_interest_promo';
+  const completeness = validateCardContractualRates(rates, modality);
+
+  const tea = isZeroInterestPromo ? 0 : Math.max(0, rates?.tea ?? 0);
   const tem = tea > 0 ? convertTeaToTem(tea) : 0;
-  const insuranceRate = isZeroInterest ? 0 : Math.max(0, rates?.debtInsuranceMonthlyRate ?? 0);
+  const insuranceRate = isZeroInterestPromo ? 0 : Math.max(0, rates?.debtInsuranceMonthlyRate ?? 0);
   const fixedMonthlyFee = Math.max(0, rates?.monthlyFixedFee ?? 0);
 
   const initialCycle = calculateBillingCycle(purchaseDate, rule);
@@ -271,14 +289,56 @@ export function buildSmartInstallmentSchedule(params: {
       totalPayable: 0,
       firstDueDate,
       lastDueDate: firstDueDate,
-      isZeroInterestPromo: isZeroInterest,
+      isZeroInterestPromo,
+      modality,
       completeness,
       rows: [],
     };
   }
 
-  // CASO 1: Compra directa (1 cuota) o Promoción sin interés (TEA 0%)
-  if (isZeroInterest) {
+  // CASO 1: Compra directa (1 cuota pagada al vencimiento del ciclo sin financiamiento rotatorio)
+  if (modality === 'direct') {
+    const insurancePayment = roundMoney(amount * insuranceRate);
+    const feesPayment = roundMoney(fixedMonthlyFee);
+    const totalInstallment = roundMoney(amount + insurancePayment + feesPayment);
+
+    const rows: SmartInstallmentRow[] = [{
+      installmentNumber: 1,
+      dueDate: firstDueDate,
+      billingMonth: firstDueDate.slice(0, 7),
+      initialBalance: amount,
+      principalPayment: amount,
+      interestPayment: 0,
+      insurancePayment,
+      feesPayment,
+      totalInstallment,
+      finalBalance: 0,
+      dataStatus,
+    }];
+
+    return {
+      purchaseId,
+      cardId,
+      principal: amount,
+      tea: 0,
+      tem: 0,
+      totalInstallments: 1,
+      currency,
+      totalInterest: 0,
+      totalInsurance: insurancePayment,
+      totalFees: feesPayment,
+      totalPayable: totalInstallment,
+      firstDueDate,
+      lastDueDate: firstDueDate,
+      isZeroInterestPromo: false,
+      modality: 'direct',
+      completeness,
+      rows,
+    };
+  }
+
+  // CASO 2: Promoción a cuotas sin interés (0% TEA contractual)
+  if (modality === 'zero_interest_promo') {
     const allocatedPrincipal = allocateMoney(amount, installmentsCount);
     let currentBalanceMinor = toMinorUnits(amount);
     let totalInsurance = 0;
@@ -332,6 +392,7 @@ export function buildSmartInstallmentSchedule(params: {
       firstDueDate,
       lastDueDate,
       isZeroInterestPromo: true,
+      modality: 'zero_interest_promo',
       completeness,
       rows,
     };
@@ -401,6 +462,7 @@ export function buildSmartInstallmentSchedule(params: {
     firstDueDate,
     lastDueDate,
     isZeroInterestPromo: false,
+    modality: 'revolving_financed',
     completeness,
     rows,
   };

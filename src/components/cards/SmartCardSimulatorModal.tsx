@@ -43,14 +43,38 @@ export const SmartCardSimulatorModal: React.FC<Props> = ({
     return new Date().toISOString().slice(0, 10);
   });
 
-  // Parámetros contractuales opcionales / editables para la simulación
-  const [customTeaStr, setCustomTeaStr] = useState<string>('45.0');
-  const [customInsuranceStr, setCustomInsuranceStr] = useState<string>('0.39');
+  // Parámetros contractuales para la simulación — Sin precargar valores ficticios si no están confirmados
+  const [customTeaStr, setCustomTeaStr] = useState<string>(() => {
+    const initialCard = (defaultCardEntity ? cards.find(c => c.entity === defaultCardEntity) : null) || cards[0];
+    return initialCard?.annualEffectiveRate ? (initialCard.annualEffectiveRate * 100).toFixed(1) : '';
+  });
+  const [customInsuranceStr, setCustomInsuranceStr] = useState<string>(() => {
+    const initialCard = (defaultCardEntity ? cards.find(c => c.entity === defaultCardEntity) : null) || cards[0];
+    return initialCard?.debtInsurance ? (initialCard.debtInsurance * 100).toFixed(2) : '';
+  });
   const [customFeeStr, setCustomFeeStr] = useState<string>('0.00');
 
   const selectedCard = useMemo(() => {
     return cards.find(c => c.id === selectedCardId) || cards[0];
   }, [cards, selectedCardId]);
+
+  const hasConfirmedTea = typeof selectedCard?.annualEffectiveRate === 'number' && selectedCard.annualEffectiveRate > 0;
+  const hasConfirmedInsurance = typeof selectedCard?.debtInsurance === 'number' && selectedCard.debtInsurance > 0;
+
+  const handleCardChange = (newCardId: string) => {
+    setSelectedCardId(newCardId);
+    const target = cards.find(c => c.id === newCardId);
+    if (target?.annualEffectiveRate) {
+      setCustomTeaStr((target.annualEffectiveRate * 100).toFixed(1));
+    } else {
+      setCustomTeaStr('');
+    }
+    if (target?.debtInsurance) {
+      setCustomInsuranceStr((target.debtInsurance * 100).toFixed(2));
+    } else {
+      setCustomInsuranceStr('');
+    }
+  };
 
   const simulationResult = useMemo<SmartSimulationResult | null>(() => {
     if (!selectedCard) return null;
@@ -140,7 +164,7 @@ export const SmartCardSimulatorModal: React.FC<Props> = ({
               </label>
               <select
                 value={selectedCardId}
-                onChange={e => setSelectedCardId(e.target.value)}
+                onChange={e => handleCardChange(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
               >
                 {cards.map(c => (
@@ -240,9 +264,18 @@ export const SmartCardSimulatorModal: React.FC<Props> = ({
             {!isZeroPromo && (
               <div className="pt-2 border-t border-slate-200 dark:border-slate-800 grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                    TEA Compras (%)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                      TEA Compras (%)
+                    </label>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      hasConfirmedTea
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}>
+                      {hasConfirmedTea ? 'Confirmada' : 'Hipotética'}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="0.1"
@@ -250,13 +283,27 @@ export const SmartCardSimulatorModal: React.FC<Props> = ({
                     value={customTeaStr}
                     onChange={e => setCustomTeaStr(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100"
-                    placeholder="45.0"
+                    placeholder={hasConfirmedTea ? '' : 'Ej. 45.0 (hipotética)'}
                   />
+                  {!hasConfirmedTea && (
+                    <span className="text-[9px] text-amber-600 dark:text-amber-400 mt-0.5 block">
+                      Sin TEA contractual fija.
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <label className="block text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
-                    Desgravamen mensual (%)
-                  </label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400">
+                      Desgravamen mensual (%)
+                    </label>
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                      hasConfirmedInsurance
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}>
+                      {hasConfirmedInsurance ? 'Confirmado' : 'Hipotético'}
+                    </span>
+                  </div>
                   <input
                     type="number"
                     step="0.01"
@@ -264,7 +311,7 @@ export const SmartCardSimulatorModal: React.FC<Props> = ({
                     value={customInsuranceStr}
                     onChange={e => setCustomInsuranceStr(e.target.value)}
                     className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 dark:text-slate-100"
-                    placeholder="0.39"
+                    placeholder={hasConfirmedInsurance ? '' : 'Ej. 0.39 (hipotético)'}
                   />
                 </div>
                 <div>

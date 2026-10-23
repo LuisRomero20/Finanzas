@@ -46,35 +46,50 @@ Haz clic en el botón **«Ficha»** de cualquiera de tus tarjetas:
 
 ---
 
-### Paso 4: Probar el Simulador de Cuotas Puro
+### Paso 4: Probar el Simulador de Cuotas Puro y la Distinción de Tasas
 1. En el encabezado superior, haz clic en **«Simulador de Cuotas»**.
 2. Se abrirá la ventana interactiva del simulador.
-3. Prueba una compra en promoción sin intereses:
+3. Observa las tasas contractuales al pie:
+   - Si la tarjeta seleccionada no tiene TEA confirmada en su contrato, el campo de TEA inicia **vacío**, con la etiqueta **«Hipotética»** en ámbar y el texto referencial *(sin precargar 45.0 de forma oculta)*.
+   - Si cambias a una tarjeta con tasa contractual, verás el distintivo **«Confirmada»** en verde.
+4. Prueba una compra en promoción sin intereses:
    - Selecciona **Ripley** o **BBVA**.
    - Ingresa un importe, por ejemplo: `1000`.
    - Selecciona `3 cuotas`.
    - Mantén activa la opción **«0% Interés (Promo)»**.
    - Revisa la tabla inferior: verás cómo divide exactamente el capital en 3 cuotas (S/ 333.34, S/ 333.33, S/ 333.33) con **S/ 0.00 de interés**, y la primera cuota vence en el mes correspondiente según la fecha de compra.
-4. Prueba financiamiento con intereses:
+5. Prueba financiamiento con intereses:
    - Cambia a la opción **«Con Intereses (TEA)»**.
-   - Coloca una TEA (ej. `45%`) y seguro de desgravamen (`0.39%`).
+   - Coloca una TEA hipotética (ej. `45%`) y seguro de desgravamen (`0.39%`).
    - Observa cómo calcula automáticamente las cuotas niveladas (método francés), los intereses totales y el costo total final.
    - Observa el mensaje de seguridad al pie: *"Los datos de esta simulación no se graban"*.
-5. Cierra el simulador haciendo clic en **«Cerrar Simulador»** o en la **X**.
+6. Cierra el simulador haciendo clic en **«Cerrar Simulador»** o en la **X**.
 
 ---
 
-### Paso 5: Probar la Conciliación de Estado de Cuenta Bancario
+### Paso 5: Probar la Conciliación Bancaria Consciente (Sin Valores Asumidos)
 1. En el panel de **BBVA Bfree** o **Interbank Amex**, en el bloque de la tarjeta, haz clic en el botón azul **«Conciliar Banco»**.
 2. Se abrirá el modal de **Conciliación de Estado de Cuenta**:
-   - Muestra el total calculado por FINPER según tus consumos registrados en ese ciclo.
-   - En el campo **«Saldo Total Facturado del Mes (S/)»**, ingresa el saldo que figura en tu estado de cuenta real (o haz una prueba ingresando un monto S/ 20 superior).
+   - Observa que el campo **«Saldo Total Facturado»** inicia **vacío**, mostrando `—` en la tarjeta comparativa para obligar a ingresar el dato real del banco.
+   - Observa que el campo **«Pago Mínimo del Mes»** también inicia **vacío y opcional** *(eliminando el valor arbitrario de 30.00)*.
+   - El botón **«Guardar Conciliación»** permanece deshabilitado hasta que ingreses un saldo válido.
+3. Prueba la protección de saldo S/ 0.00:
+   - Escribe `0` en el saldo facturado.
+   - Observa cómo aparece inmediatamente un aviso de advertencia con una **casilla obligatoria**: *"Confirmo conscientemente que revisé el estado de cuenta oficial del banco y el saldo a pagar para este ciclo es exactamente S/ 0.00"*.
+   - El botón de guardado permanece bloqueado hasta marcar dicha casilla.
+4. Ingresa el saldo real de tu estado de cuenta (o un monto de prueba, ej. `436.21`):
    - Observa el diagnóstico en tiempo real:
-     * Si coincide: marca **«✅ Conciliado exacto»**.
+     * Si coincide con FINPER: marca **«✅ Conciliado exacto»**.
      * Si el banco registra más: te avisa que puede haber comisiones, membresía o consumos pendientes de registrar.
-3. Haz clic en **«Guardar Conciliación»**:
-   - Observa cómo la tarjeta ahora muestra la barra verde de **Deuda Regularizada / Confirmada**.
-   - Si deseas volver al cálculo automático por consumos, simplemente haz clic en **«Restablecer»**.
+5. Guarda la conciliación y comprueba que se actualice la tarjeta sin mutar tus movimientos individuales.
+
+---
+
+### Paso 6: Probar la Regularización de Deuda (Bloqueo de S/ 0.00 Accidental)
+1. Si tienes una tarjeta con deuda pendiente del ciclo anterior, haz clic en **«Regularizar»**.
+2. Verifica los dos candados de seguridad implementados:
+   - **Opción A (Pago con egreso):** Si intentas registrar un pago con S/ 0.00 o dejar el campo vacío, el botón se bloquea y te exige un monto mayor a cero.
+   - **Opción B (Cancelar Directa sin Egreso):** Si existe deuda pendiente y deseas marcarla en S/ 0.00 (por ejemplo si la pagaste por fuera de tus cuentas registradas), la app te exige marcar obligatoriamente el checkbox de confirmación consciente antes de habilitar el botón.
 
 ---
 

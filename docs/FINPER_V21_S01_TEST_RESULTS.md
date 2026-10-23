@@ -11,17 +11,17 @@
 | Métrica | Resultado |
 | :--- | :--- |
 | **Total de Archivos de Prueba (Suites)** | **36 suites aprobadas** (100%) |
-| **Total de Pruebas Unitarias e Integración** | **209 pruebas aprobadas** (100%) |
+| **Total de Pruebas Unitarias e Integración** | **213 pruebas aprobadas** (100%) |
 | **Pruebas Fallidas / Errores** | **0 fallos** |
 | **Errores de Tipos TypeScript (`tsc --noEmit`)** | **0 errores** |
 | **Errores de Linting (`npm run lint`)** | **0 errores** |
-| **Compilación de Producción (`npm run build`)** | **Exitosa (9.25s)** |
+| **Compilación de Producción (`npm run build`)** | **Exitosa (9.91s)** |
 
 ---
 
 ## 2. Detalle de la Suite de Tarjetas Inteligentes (`smartCardsEngineV21.test.ts`)
 
-La nueva suite de 17 pruebas unitarias cubre rigurosamente:
+La nueva suite de 21 pruebas unitarias cubre rigurosamente:
 
 1. **Parameterización y Reglas de Ciclo de las 3 Tarjetas:**
    - [x] Ripley Mastercard (corte 3, pago 1): compras pre-corte vs post-corte.
@@ -56,13 +56,19 @@ La nueva suite de 17 pruebas unitarias cubre rigurosamente:
    - [x] Separación de gasto económico vs desembolso de caja sin doble conteo.
    - [x] Proyección de cuotas futuras en meses calendarios consecutivos.
 
+8. **Distinción Rigurosa de Modalidades de Financiamiento (Audit Fix B):**
+   - [x] Compra directa (1 cuota): modalidad `'direct'`, `isZeroInterestPromo: false`, sin interés de mora al vencimiento.
+   - [x] Promoción multi-cuota 0%: modalidad `'zero_interest_promo'`, `isZeroInterestPromo: true`.
+   - [x] Cuotas con financiamiento rotatorio: modalidad `'revolving_financed'`, `isZeroInterestPromo: false`, cálculo amortizado francés.
+   - [x] Verificación selectiva en `validateCardContractualRates` según la modalidad.
+
 ---
 
 ## 3. Registro de Validación General
 
 ```
 Test Files  36 passed (36)
-     Tests  209 passed (209)
-  Duration  15.06s
+     Tests  213 passed (213)
+  Duration  13.22s
   Result    SUCCESS
 ```

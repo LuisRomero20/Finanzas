@@ -39,10 +39,11 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   // Estado para cancelar con pago
   const [payAmount, setPayAmount] = useState<string>(() => {
     const amt = netToPay > 0 ? netToPay : (liveDebt > 0 ? liveDebt : 0);
-    return amt.toFixed(2);
+    return amt > 0 ? amt.toFixed(2) : '';
   });
   const [payAccount, setPayAccount] = useState<string>('Interbank');
   const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
+  const [confirmExternalZero, setConfirmExternalZero] = useState<boolean>(false);
 
   // Estado para ajuste manual de deuda
   const [customDebt, setCustomDebt] = useState<string>(() => {
@@ -61,7 +62,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
     e.preventDefault();
     const amount = parseFloat(payAmount);
     if (isNaN(amount) || amount <= 0) {
-      alert('Ingresa un monto válido mayor a 0');
+      alert('El monto del pago debe ser estrictamente mayor a S/ 0.00.');
       return;
     }
 
@@ -80,6 +81,11 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
 
   // 2. Manejo: Cancelar Directa a S/ 0 (Sin Egreso)
   const handleDirectCancel = () => {
+    if ((netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero) {
+      alert('Debes confirmar conscientemente que esta deuda fue saldada externamente.');
+      return;
+    }
+
     saveVerifiedStatement({
       id: `cancel-${Date.now()}`,
       cardEntity: card.entity,
@@ -97,7 +103,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       totalAppCargos: calculatedPrevTotal,
       diferenciaGastos: 0,
       verifiedAt: new Date().toISOString(),
-      notes: 'Cancelado directamente por el usuario',
+      notes: 'Cancelado directamente por el usuario (confirmación externa consciente)',
     });
 
     onSuccess(`✨ Deuda de ${card.name} para este ciclo marcada como CANCELADA (S/ 0.00).`);
@@ -273,28 +279,57 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
 
                 <button
                   type="submit"
-                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 cursor-pointer mt-2"
+                  disabled={!(Number(payAmount) > 0)}
+                  className={`w-full text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 mt-2 ${
+                    Number(payAmount) > 0
+                      ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                  }`}
                 >
                   <CheckCircle2 size={14} />
-                  <span>Registrar Pago de {fmt.format(Number(payAmount) || 0)} y Cancelar</span>
+                  <span>
+                    {Number(payAmount) > 0
+                      ? `Registrar Pago de ${fmt.format(Number(payAmount))} y Cancelar`
+                      : 'Ingresa un monto mayor a S/ 0.00'}
+                  </span>
                 </button>
               </form>
 
               {/* Opción B: Cancelar Directa sin Egreso */}
-              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">Opción B: Marcar como Cancelada Directa</h5>
-                    <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Úsala si ya la pagaste por fuera o no deseas generar un egreso en cuentas.
-                    </p>
-                  </div>
+              <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 rounded-2xl p-4 space-y-3">
+                <div>
+                  <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">Opción B: Marcar como Cancelada Directa (Sin Egreso)</h5>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Úsala únicamente si la deuda fue saldada por otros medios o no corresponde generar un egreso en tus cuentas.
+                  </p>
+                </div>
+
+                {(netToPay > 0 || calculatedPrevTotal > 0) && (
+                  <label className="flex items-start gap-2.5 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={confirmExternalZero}
+                      onChange={e => setConfirmExternalZero(e.target.checked)}
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-[11px] font-bold text-amber-900 dark:text-amber-200">
+                      Confirmo conscientemente que la deuda pendiente ({fmt.format(netToPay || calculatedPrevTotal)}) fue cancelada externamente o no corresponde pagar nada en este ciclo.
+                    </span>
+                  </label>
+                )}
+
+                <div className="flex justify-end">
                   <button
                     type="button"
+                    disabled={(netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero}
                     onClick={handleDirectCancel}
-                    className="bg-slate-200 dark:bg-slate-800 hover:bg-emerald-500 hover:text-white dark:hover:bg-emerald-600 text-slate-700 dark:text-slate-300 text-xs font-bold px-3.5 py-2 rounded-xl transition cursor-pointer shrink-0 ml-2"
+                    className={`text-xs font-bold px-3.5 py-2 rounded-xl transition ${
+                      ((netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero)
+                        ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                        : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
+                    }`}
                   >
-                    Marcar S/ 0.00
+                    Marcar S/ 0.00 (Cancelado)
                   </button>
                 </div>
               </div>

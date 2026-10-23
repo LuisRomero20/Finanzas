@@ -3,6 +3,7 @@ import {
   X,
   CreditCard,
   Save,
+  AlertTriangle,
 } from 'lucide-react';
 import type { CardConfig } from '../../store/creditCardStore';
 import { useCreditCardStore } from '../../store/creditCardStore';
@@ -25,12 +26,19 @@ export const CardContractualSheetModal: React.FC<Props> = ({
 }) => {
   const { updateCard } = useCreditCardStore();
 
+  // Estado contractual — Comienza vacío si no está confirmado explícitamente (sin fallbacks arbitrarios)
   const [creditLimitStr, setCreditLimitStr] = useState<string>(() => {
-    return (card?.creditLine || card?.lineaCredito || card?.referenceCreditLine || 1000).toString();
+    const val = card?.creditLine ?? card?.lineaCredito;
+    return typeof val === 'number' && val > 0 ? val.toString() : '';
   });
 
-  const [cutoffDay, setCutoffDay] = useState<number>(() => card?.cycleStartDay ?? 1);
-  const [dueDay, setDueDay] = useState<number>(() => card?.paymentDay ?? 1);
+  const [cutoffDayStr, setCutoffDayStr] = useState<string>(() => {
+    return card?.cycleStartDay ? card.cycleStartDay.toString() : '';
+  });
+
+  const [dueDayStr, setDueDayStr] = useState<string>(() => {
+    return card?.paymentDay ? card.paymentDay.toString() : '';
+  });
 
   const [teaStr, setTeaStr] = useState<string>(() => {
     return card?.annualEffectiveRate ? (card.annualEffectiveRate * 100).toString() : '';
@@ -41,27 +49,44 @@ export const CardContractualSheetModal: React.FC<Props> = ({
   });
 
   const [membershipStr, setMembershipStr] = useState<string>(() => {
-    return card?.membershipFee ? card.membershipFee.toString() : '0';
+    return card?.membershipFee ? card.membershipFee.toString() : '';
   });
 
   const [rulesStatus, setRulesStatus] = useState<'unverified' | 'user_confirmed' | 'statement_confirmed'>(() => {
     return card?.billingRulesStatus ?? 'unverified';
   });
 
+  const [confirmRulesChange, setConfirmRulesChange] = useState<boolean>(false);
+
   if (!isOpen || !card) return null;
+
+  const originalCutoff = card?.cycleStartDay;
+  const originalDue = card?.paymentDay;
+  const cutoffDayNum = parseInt(cutoffDayStr, 10);
+  const dueDayNum = parseInt(dueDayStr, 10);
+  const hasCycleRulesChanged = (!isNaN(cutoffDayNum) && cutoffDayNum !== originalCutoff) || (!isNaN(dueDayNum) && dueDayNum !== originalDue);
+  const canSave = !hasCycleRulesChanged || confirmRulesChange;
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const creditLine = parseFloat(creditLimitStr);
+    if (hasCycleRulesChanged && !confirmRulesChange) {
+      alert('Debes confirmar que deseas cambiar las reglas de ciclo de facturación de esta tarjeta.');
+      return;
+    }
+
+    const creditLine = creditLimitStr.trim() ? parseFloat(creditLimitStr) : undefined;
     const tea = teaStr.trim() ? parseFloat(teaStr) / 100 : undefined;
     const debtInsurance = insuranceStr.trim() ? parseFloat(insuranceStr) / 100 : undefined;
-    const membershipFee = parseFloat(membershipStr) || 0;
+    const membershipFee = membershipStr.trim() ? parseFloat(membershipStr) : undefined;
+
+    const finalCutoff = !isNaN(cutoffDayNum) && cutoffDayNum >= 1 && cutoffDayNum <= 31 ? cutoffDayNum : card.cycleStartDay;
+    const finalDue = !isNaN(dueDayNum) && dueDayNum >= 1 && dueDayNum <= 31 ? dueDayNum : card.paymentDay;
 
     updateCard(card.id, {
-      creditLine: isNaN(creditLine) ? undefined : creditLine,
-      lineaCredito: isNaN(creditLine) ? undefined : creditLine,
-      cycleStartDay: Math.min(31, Math.max(1, cutoffDay)),
-      paymentDay: Math.min(31, Math.max(1, dueDay)),
+      creditLine: creditLine && !isNaN(creditLine) ? creditLine : undefined,
+      lineaCredito: creditLine && !isNaN(creditLine) ? creditLine : undefined,
+      cycleStartDay: finalCutoff,
+      paymentDay: finalDue,
       annualEffectiveRate: tea,
       debtInsurance,
       membershipFee,
@@ -115,7 +140,7 @@ export const CardContractualSheetModal: React.FC<Props> = ({
         <form onSubmit={handleSave} className="overflow-y-auto p-4 sm:p-6 space-y-5 flex-1">
           {/* Referencia Central de Riesgos (Informativo) */}
           {card.referenceCreditLine && (
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-1">
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs space-y-1.5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-slate-500 uppercase tracking-wider text-[10px]">
                   Referencia Central de Riesgos ({card.referenceDate || '30/09/2026'})
@@ -124,9 +149,20 @@ export const CardContractualSheetModal: React.FC<Props> = ({
                   Informativo
                 </span>
               </div>
-              <p className="font-semibold text-slate-700 dark:text-slate-300">
-                Línea Registrada: <strong>{fmt.format(card.referenceCreditLine)}</strong> · Saldo Deudor Ref.: <strong>{fmt.format(card.referenceUsedDebt || 0)}</strong>
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="font-semibold text-slate-700 dark:text-slate-300">
+                  Línea Registrada: <strong>{fmt.format(card.referenceCreditLine)}</strong> · Saldo Deudor Ref.: <strong>{fmt.format(card.referenceUsedDebt || 0)}</strong>
+                </p>
+                {!creditLimitStr && (
+                  <button
+                    type="button"
+                    onClick={() => setCreditLimitStr(card.referenceCreditLine!.toString())}
+                    className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline shrink-0 cursor-pointer"
+                  >
+                    Copiar a contractual
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -143,7 +179,7 @@ export const CardContractualSheetModal: React.FC<Props> = ({
                 value={creditLimitStr}
                 onChange={e => setCreditLimitStr(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                placeholder="1000.00"
+                placeholder="Pendiente (ej. 1000.00)"
               />
             </div>
 
@@ -173,8 +209,9 @@ export const CardContractualSheetModal: React.FC<Props> = ({
                 type="number"
                 min="1"
                 max="31"
-                value={cutoffDay}
-                onChange={e => setCutoffDay(parseInt(e.target.value, 10) || 1)}
+                value={cutoffDayStr}
+                onChange={e => setCutoffDayStr(e.target.value)}
+                placeholder="Ej. 20"
                 className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">Día del mes que cierra facturación</span>
@@ -188,13 +225,36 @@ export const CardContractualSheetModal: React.FC<Props> = ({
                 type="number"
                 min="1"
                 max="31"
-                value={dueDay}
-                onChange={e => setDueDay(parseInt(e.target.value, 10) || 1)}
+                value={dueDayStr}
+                onChange={e => setDueDayStr(e.target.value)}
+                placeholder="Ej. 15"
                 className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">Fecha límite de pago sin mora</span>
             </div>
           </div>
+
+          {/* Advertencia si cambian reglas de ciclo */}
+          {hasCycleRulesChanged && (
+            <div className="p-3.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 rounded-2xl text-xs space-y-2">
+              <div className="flex items-start gap-2 text-amber-800 dark:text-amber-200 font-bold">
+                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <span>Advertencia: Cambio en las Reglas de Ciclo de Facturación</span>
+              </div>
+              <p className="text-amber-700 dark:text-amber-300 text-[11px] leading-relaxed">
+                Modificar el día de corte o de pago alterará las fechas estimadas de vencimiento de las cuotas activas y el flujo proyectado para esta tarjeta.
+              </p>
+              <label className="flex items-center gap-2 pt-1 cursor-pointer font-bold text-slate-800 dark:text-slate-200">
+                <input
+                  type="checkbox"
+                  checked={confirmRulesChange}
+                  onChange={e => setConfirmRulesChange(e.target.checked)}
+                  className="rounded text-amber-600 focus:ring-amber-500 w-4 h-4 cursor-pointer"
+                />
+                <span className="text-xs">Confirmo que estas nuevas fechas corresponden al contrato o estado de cuenta bancario</span>
+              </label>
+            </div>
+          )}
 
           {/* Tasas Contractuales y Seguros */}
           <div className="space-y-3">
@@ -263,7 +323,12 @@ export const CardContractualSheetModal: React.FC<Props> = ({
             </button>
             <button
               type="submit"
-              className="flex items-center gap-1.5 px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer"
+              disabled={!canSave}
+              className={`flex items-center gap-1.5 px-5 py-2 text-white text-xs font-bold rounded-xl shadow-md transition ${
+                canSave
+                  ? 'bg-emerald-600 hover:bg-emerald-700 cursor-pointer'
+                  : 'bg-slate-400 cursor-not-allowed opacity-60'
+              }`}
             >
               <Save size={14} />
               <span>Guardar Ficha</span>

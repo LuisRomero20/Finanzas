@@ -299,4 +299,66 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
       expect(totalFutureOutflow).toBe(600);
     });
   });
+
+  describe('8. Distinción rigurosa de modalidades de financiamiento (Audit Fix B)', () => {
+    it('clasifica una compra a 1 cuota como modalidad "direct" (sin intereses de mora pero no como promo 0%)', () => {
+      const schedule = buildSmartInstallmentSchedule({
+        cardId: 'card-ripley',
+        purchaseDate: '2026-10-02',
+        amount: 350.00,
+        installmentsCount: 1,
+        rule: ripleyRule,
+      });
+
+      expect(schedule.modality).toBe('direct');
+      expect(schedule.isZeroInterestPromo).toBe(false);
+      expect(schedule.totalInterest).toBe(0);
+      expect(schedule.rows[0].installmentNumber).toBe(1);
+    });
+
+    it('clasifica una compra multi-cuota con isZeroInterestPromo como modalidad "zero_interest_promo"', () => {
+      const schedule = buildSmartInstallmentSchedule({
+        cardId: 'card-ripley',
+        purchaseDate: '2026-10-02',
+        amount: 900.00,
+        installmentsCount: 3,
+        rule: ripleyRule,
+        isZeroInterestPromo: true,
+      });
+
+      expect(schedule.modality).toBe('zero_interest_promo');
+      expect(schedule.isZeroInterestPromo).toBe(true);
+      expect(schedule.totalInterest).toBe(0);
+    });
+
+    it('clasifica una compra a más de 1 cuota sin promo como modalidad "revolving_financed"', () => {
+      const schedule = buildSmartInstallmentSchedule({
+        cardId: 'card-bbva',
+        purchaseDate: '2026-10-05',
+        amount: 1200.00,
+        installmentsCount: 4,
+        rule: bbvaRule,
+        rates: {
+          tea: 0.45,
+          debtInsuranceMonthlyRate: 0.0039,
+          monthlyFixedFee: 0,
+        },
+      });
+
+      expect(schedule.modality).toBe('revolving_financed');
+      expect(schedule.isZeroInterestPromo).toBe(false);
+      expect(schedule.totalInterest).toBeGreaterThan(0);
+    });
+
+    it('validateCardContractualRates distingue si falta TEA según la modalidad', () => {
+      // Direct o Zero interest no exigen TEA
+      expect(validateCardContractualRates(undefined, 'direct').isComplete).toBe(true);
+      expect(validateCardContractualRates(undefined, 'zero_interest_promo').isComplete).toBe(true);
+
+      // Revolving financiado exige TEA y seguro
+      const revolvingCheck = validateCardContractualRates(undefined, 'revolving_financed');
+      expect(revolvingCheck.isComplete).toBe(false);
+      expect(revolvingCheck.missingTerms).toContain('tea');
+    });
+  });
 });

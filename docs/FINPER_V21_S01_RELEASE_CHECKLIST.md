@@ -10,8 +10,21 @@
 
 - [x] **Compilación TypeScript sin Errores:** `npx tsc --noEmit` completado con código 0.
 - [x] **Linting ESLint:** `npm run lint` completado con 0 errores.
-- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (9.25s).
-- [x] **Suites de Pruebas Automatizadas:** 36 suites y 209 pruebas unitarias aprobadas al 100%.
+- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (9.91s).
+- [x] **Suites de Pruebas Automatizadas:** 36 suites y 213 pruebas unitarias aprobadas al 100%.
+
+---
+
+## 2. Criterios de Aceptación Obligatorios de la Auditoría Técnica
+
+- [x] **1. Conciliación no guarda saldos desconocidos:** Los campos inician vacíos (`""`), no se asume S/ 0.00 ni el monto de la app; para registrar S/ 0.00 se exige marcar conscientemente el checkbox de certificación bancaria.
+- [x] **2. No existen pagos mínimos inventados:** El campo de pago mínimo inicia vacío y opcional, sin precarga arbitraria de S/ 30.00.
+- [x] **3. Pago S/ 0.00 no puede cancelar una deuda:** Bloqueado registro de pagos <= S/ 0.00. La opción B de cancelación directa sin egreso exige confirmación consciente si existía saldo positivo pendiente.
+- [x] **4. Compra a una cuota no implica automáticamente 0%:** Se separaron formalmente las modalidades `direct` (compra a 1 cuota pagada al vencimiento), `zero_interest_promo` (promoción contractual a 0%) y `revolving_financed` (cuotas con interés financiero).
+- [x] **5. Simulador separa tasas verificadas e hipotéticas:** Si la tarjeta no tiene TEA confirmada, el campo inicia vacío con etiqueta ámbar *"Hipotética"*; no se precarga 45.0% sin sustento.
+- [x] **6. Ficha contractual conserva valores desconocidos:** Eliminados fallbacks arbitrarios (`?? 1` para días de ciclo y `1000` para línea de crédito). Si se modifican los días de corte o pago, se exige confirmación consciente de impacto en cuotas.
+- [x] **7. Pruebas, lint, TypeScript y build aprobados:** 100% pasando (213 pruebas, 0 errores tsc, 0 errores eslint, build exitoso).
+- [x] **8. Interfaz revisada en PC e iPhone:** Componentes adaptables, touch-friendly, con márgenes seguros y modo oscuro.
 
 ---
 

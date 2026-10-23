@@ -73,26 +73,31 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
     return purchasesInCycle.reduce((s, p) => s + p.monto, 0);
   }, [purchasesInCycle]);
 
-  // Entradas de estado de cuenta bancario
+  // Entradas de estado de cuenta bancario — Comienzan vacías para exigir ingreso consciente
   const [statementDebtStr, setStatementDebtStr] = useState<string>(() => {
     if (existingStatement && typeof existingStatement.finalDebt === 'number') {
       return existingStatement.finalDebt.toFixed(2);
     }
-    return defaultCalculatedTotal > 0 ? defaultCalculatedTotal.toFixed(2) : '0.00';
+    return '';
   });
 
   const [minPaymentStr, setMinPaymentStr] = useState<string>(() => {
     if (existingStatement && typeof existingStatement.minPayment === 'number') {
       return existingStatement.minPayment.toFixed(2);
     }
-    return '30.00';
+    return '';
+  });
+
+  const [confirmZeroDebt, setConfirmZeroDebt] = useState<boolean>(() => {
+    return existingStatement?.finalDebt === 0;
   });
 
   const [notes, setNotes] = useState<string>(() => existingStatement?.notes || '');
 
-  // Reporte de Conciliación en tiempo real
+  // Reporte de Conciliación en tiempo real (solo si se ingresó un saldo bancario válido)
   const report = useMemo<ReconciliationReport | null>(() => {
     if (!card || !cycle) return null;
+    if (statementDebtStr.trim() === '') return null;
     const debtConfirmed = parseFloat(statementDebtStr);
     if (isNaN(debtConfirmed) || debtConfirmed < 0) return null;
 
@@ -110,14 +115,31 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
 
   if (!isOpen || !card || !cycle) return null;
 
+  const isDebtZero = statementDebtStr.trim() !== '' && parseFloat(statementDebtStr) === 0;
+  const canSave = statementDebtStr.trim() !== '' && (!isDebtZero || confirmZeroDebt);
+
   const handleSaveReconciliation = (e: React.FormEvent) => {
     e.preventDefault();
+    if (statementDebtStr.trim() === '') {
+      alert('Por favor ingresa el saldo total facturado según tu estado de cuenta.');
+      return;
+    }
+
     const finalDebt = parseFloat(statementDebtStr);
     if (isNaN(finalDebt) || finalDebt < 0) {
       alert('Ingresa un monto de deuda válido');
       return;
     }
-    const minPayment = parseFloat(minPaymentStr);
+
+    if (finalDebt === 0 && !confirmZeroDebt) {
+      alert('Para confirmar una deuda en S/ 0.00 debes marcar la casilla certificando que revisaste el estado de cuenta oficial del banco.');
+      return;
+    }
+
+    const minPaymentParsed = minPaymentStr.trim() ? parseFloat(minPaymentStr) : undefined;
+    const minPayment = (minPaymentParsed !== undefined && !isNaN(minPaymentParsed) && minPaymentParsed >= 0)
+      ? minPaymentParsed
+      : undefined;
 
     saveVerifiedStatement({
       id: `stmt-${Date.now()}`,
@@ -128,8 +150,8 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
       periodStart: cycle.start.toISOString().slice(0, 10),
       periodEnd: cycle.end.toISOString().slice(0, 10),
       finalDebt,
-      minPayment: isNaN(minPayment) ? 0 : minPayment,
-      fileName: 'Estado de Cuenta Conciliado Manualmente',
+      minPayment,
+      fileName: finalDebt === 0 ? 'Estado de Cuenta Conciliado (Saldo S/ 0.00)' : 'Estado de Cuenta Conciliado Manualmente',
       matchedCount: purchasesInCycle.length,
       totalStatementItems: purchasesInCycle.length,
       totalAppItems: purchasesInCycle.length,
@@ -202,15 +224,17 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
 
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Estado de Cuenta</span>
-              <p className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1">
-                {fmt.format(parseFloat(statementDebtStr) || 0)}
+              <p className={`text-xl font-black mt-1 ${statementDebtStr.trim() !== '' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                {statementDebtStr.trim() !== '' ? fmt.format(parseFloat(statementDebtStr) || 0) : '—'}
               </p>
-              <span className="text-[10px] text-slate-400 font-medium">Confirmado en PDF / banco</span>
+              <span className="text-[10px] text-slate-400 font-medium">
+                {statementDebtStr.trim() !== '' ? 'Confirmado en PDF / banco' : 'Pendiente de ingresar'}
+              </span>
             </div>
 
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Discrepancia</span>
-              {report && (
+              {report ? (
                 <p className={`text-xl font-black mt-1 ${
                   report.reconciliationStatus === 'CONCILIADO'
                     ? 'text-emerald-600 dark:text-emerald-400'
@@ -218,15 +242,17 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
                 }`}>
                   {report.variance > 0 ? `+${fmt.format(report.variance)}` : fmt.format(report.variance)}
                 </p>
+              ) : (
+                <p className="text-xl font-black text-slate-400 mt-1">—</p>
               )}
               <span className="text-[10px] text-slate-400 font-medium">
-                {report?.reconciliationStatus === 'CONCILIADO' ? '✅ Conciliado exacto' : '⚠️ Diferencia detectada'}
+                {report ? (report.reconciliationStatus === 'CONCILIADO' ? '✅ Conciliado exacto' : '⚠️ Diferencia detectada') : 'Requiere saldo bancario'}
               </span>
             </div>
           </div>
 
           {/* Diagnóstico Asistido */}
-          {report && (
+          {report ? (
             <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
               report.reconciliationStatus === 'CONCILIADO'
                 ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
@@ -244,6 +270,13 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
                 )}
               </div>
             </div>
+          ) : (
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center gap-3 text-xs text-slate-600 dark:text-slate-300">
+              <span className="text-base shrink-0">📄</span>
+              <p>
+                Ingresa el <strong>Saldo Total Facturado</strong> que figura en tu estado de cuenta oficial para que FINPER compare tus consumos registrados contra el banco.
+              </p>
+            </div>
           )}
 
           {/* Inputs del Estado de Cuenta */}
@@ -260,14 +293,14 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
                 value={statementDebtStr}
                 onChange={e => setStatementDebtStr(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="436.21"
+                placeholder="Ej. 436.21"
               />
               <span className="text-[10px] text-slate-400 mt-1 block">Importe oficial que figura en tu estado de cuenta</span>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
-                Pago Mínimo del Mes (S/)
+                Pago Mínimo del Mes (S/) · Opcional
               </label>
               <input
                 type="number"
@@ -276,10 +309,27 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
                 value={minPaymentStr}
                 onChange={e => setMinPaymentStr(e.target.value)}
                 className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="30.00"
+                placeholder="Según estado de cuenta"
               />
-              <span className="text-[10px] text-slate-400 mt-1 block">Pago mínimo reglamentario SBS</span>
+              <span className="text-[10px] text-slate-400 mt-1 block">Dejar vacío si no deseas registrar pago mínimo</span>
             </div>
+
+            {/* Checkbox consciente para saldo cero */}
+            {isDebtZero && (
+              <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={confirmZeroDebt}
+                    onChange={e => setConfirmZeroDebt(e.target.checked)}
+                    className="mt-0.5 rounded text-blue-600 focus:ring-blue-500"
+                  />
+                  <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                    Confirmo conscientemente que revisé el estado de cuenta oficial del banco y el saldo a pagar para este ciclo es exactamente S/ 0.00 (sin deuda facturada).
+                  </span>
+                </label>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
@@ -349,7 +399,12 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
               </button>
               <button
                 type="submit"
-                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer"
+                disabled={!canSave}
+                className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 text-xs font-bold rounded-xl shadow-md transition ${
+                  canSave
+                    ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
+                }`}
               >
                 <Save size={14} />
                 <span>Guardar Conciliación</span>
