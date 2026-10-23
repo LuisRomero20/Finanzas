@@ -46,7 +46,19 @@ export function isSessionExpired(session: Session | { expires_at?: number } | nu
  *   para que el SDK oficial de GoTrue asuma la administración de la sesión.
  * - En entorno de pruebas unitarias que no mockean auth, provee una sesión de prueba.
  */
+let inFlightValidationPromise: Promise<Session | null> | null = null;
+
 export async function getValidatedSession(): Promise<Session | null> {
+  if (inFlightValidationPromise) {
+    return inFlightValidationPromise;
+  }
+  inFlightValidationPromise = internalGetValidatedSession().finally(() => {
+    inFlightValidationPromise = null;
+  });
+  return inFlightValidationPromise;
+}
+
+async function internalGetValidatedSession(): Promise<Session | null> {
   if (supabase?.auth?.getSession) {
     try {
       const res = await supabase.auth.getSession();
@@ -79,10 +91,12 @@ export async function getValidatedSession(): Promise<Session | null> {
       if (parsed?.access_token && parsed?.refresh_token && !isSessionExpired(parsed)) {
         if (supabase?.auth?.setSession) {
           try {
-            const { data: setRes, error: setError } = await supabase.auth.setSession({
+            const res = await supabase.auth.setSession({
               access_token: parsed.access_token,
               refresh_token: parsed.refresh_token,
             });
+            const setRes = res?.data;
+            const setError = res?.error;
 
             if (!setError && setRes?.session && !isSessionExpired(setRes.session)) {
               if (setRes.session.access_token) updateManagedSdkToken(setRes.session.access_token);
@@ -92,8 +106,12 @@ export async function getValidatedSession(): Promise<Session | null> {
             console.warn('setSession in fallback warning:', e);
           }
         }
-        if (parsed.access_token) updateManagedSdkToken(parsed.access_token);
-        return parsed as Session;
+        const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+        const isTestEnv = typeof process !== 'undefined' && process.env.NODE_ENV === 'test';
+        if ((isOffline || isTestEnv) && parsed.access_token) {
+          updateManagedSdkToken(parsed.access_token);
+          return parsed as Session;
+        }
       } else if (parsed?.refresh_token && supabase?.auth?.refreshSession) {
         try {
           const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession({
@@ -357,13 +375,14 @@ export async function signUpWithEmail(email: string, password: string): Promise<
 
 export async function signOut(): Promise<{ error: string | null }> {
   try {
+    inFlightValidationPromise = null;
     updateManagedSdkToken(null);
     try {
       localStorage.removeItem(AUTH_STORAGE_KEY);
     } catch {}
     if (supabase?.auth?.signOut) {
-      const { error } = await supabase.auth.signOut();
-      if (error) return { error: error.message };
+      const res = await supabase.auth.signOut();
+      if (res && res.error) return { error: res.error.message };
     }
     return { error: null };
   } catch (err: any) {

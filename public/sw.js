@@ -1,8 +1,8 @@
-// FINPER Progressive Web App Service Worker
+// FINPER Progressive Web App Service Worker — v2.0.3
 // Versionado dinámico para forzar actualización inmediata en smartphones y Vercel
-const CACHE_NAME = 'finper-cache-v8-' + Date.now();
+const CACHE_NAME = 'finper-cache-v203-' + Date.now();
 
-self.addEventListener('install', (event) => {
+self.addEventListener('install', () => {
   // Activar inmediatamente sin esperar a que se cierren pestañas
   self.skipWaiting();
 });
@@ -11,12 +11,12 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
-        // Eliminar todas las cachés anteriores para asegurar código fresco
+        // Eliminar absolutamente todas las cachés anteriores para erradicar bundles obsoletos
         keys.map((k) => caches.delete(k))
       );
     })
   );
-  // Reclamar control de todos los clientes (pestañas y PWA en smartphone) inmediatamente
+  // Reclamar control de todos los clientes (pestañas y PWA en iPhone / PC) inmediatamente
   self.clients.claim();
 });
 
@@ -24,11 +24,25 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  if (event.data && event.data.type === 'CLEAR_ALL_CACHES') {
+    caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k))));
+  }
 });
 
 // Estrategia Network-First agresiva: siempre consultar primero a la red
 self.addEventListener('fetch', (event) => {
   const url = event.request.url;
+
+  // 1. Bloqueo explícito de peticiones al dominio obsoleto (elsjuyjjkrkyhlylmaip)
+  if (url.includes('elsjuyjjkrkyhlylmaip')) {
+    event.respondWith(
+      new Response(JSON.stringify({ error: 'Proyecto Supabase obsoleto bloqueado. Proyecto activo: njgzhjwfcxdxiibkuuqg' }), {
+        status: 410,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    );
+    return;
+  }
 
   // NUNCA INTERVENIR en:
   // 1. Peticiones que no sean GET

@@ -2,18 +2,31 @@ import { create } from 'zustand';
 import { useBudgetStore, DEFAULT_BUDGETS } from '../store/budgetStore';
 import { useProjectionStore, INITIAL_PROJECTIONS, fetchProjectionsFromSupabase } from '../store/projectionStore';
 import { canonical, decideSync, readSnapshot, writeSnapshot } from './settingsSnapshot';
+import {
+  generateDiffReport,
+  computeSmartMerge,
+  computeAssistedMerge,
+  buildDownloadableDiffBackup,
+  type DiffReport,
+  type ItemResolution,
+  type FinancialImpactSimulation,
+} from '../domain/sync/diffComparison';
+import { getValidatedSession } from './authService';
 import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
-type Entry = {
+export type Entry = {
   status: 'waiting' | 'syncing' | 'synced' | 'conflict' | 'error';
   message?: string;
   lastSync?: string;
   localSummary?: string;
   remoteSummary?: string;
+  localValueRaw?: string;
+  remoteValueRaw?: string;
+  diffReport?: DiffReport;
 };
 
 export const useSettingsSync = create<{ entries: Record<Name, Entry> }>(() => ({
@@ -110,7 +123,7 @@ function summary(name: Name, value: string): string {
   }
 }
 
-async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
+async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<void> {
   if (running[name]) {
     await running[name];
     if (choice) return sync(name, choice);
@@ -149,19 +162,35 @@ async function sync(name: Name, choice?: 'local' | 'remote'): Promise<void> {
       }
 
       const baseline = localStorage.getItem(key(name));
-      const decision = choice === 'local' ? 'upload' : choice === 'remote' ? 'download' : decideSync(before, remote.value, baseline, customized(name));
+      const decision = choice === 'local' ? 'upload' : choice === 'remote' ? 'download' : choice === 'merge' ? 'merge' : decideSync(before, remote.value, baseline, customized(name));
 
       if (decision === 'conflict') {
+        const report = generateDiffReport(name, before, remote.value!);
         status(name, {
           status: 'conflict',
-          message: 'Hay versiones distintas entre este dispositivo y la nube. Elige cuál conservar; ambas se guardan en el historial.',
+          message: 'Hay versiones distintas entre este dispositivo y la nube. Examina la comparación detallada antes de decidir.',
           localSummary: summary(name, before),
           remoteSummary: summary(name, remote.value!),
+          localValueRaw: before,
+          remoteValueRaw: remote.value!,
+          diffReport: report,
         });
         return;
       }
 
-      if (decision === 'upload') {
+      if (decision === 'merge' && remote.value !== null) {
+        const smart = computeSmartMerge(name, before, remote.value);
+        localStorage.setItem(
+          `finper_sync_backup_${name}_${Date.now()}`,
+          canonical({ local: JSON.parse(before), remote: JSON.parse(remote.value), mergeDraft: JSON.parse(smart.mergedValue) })
+        );
+        // Persistencia segura: escribir en Supabase primero antes de modificar el estado local
+        await writeSnapshot(name, smart.mergedValue, remote.head);
+        // Confirmado: aplicar localmente únicamente tras confirmación remota
+        apply(name, smart.mergedValue);
+        localStorage.setItem(key(name), smart.mergedValue);
+        broadcastRealtimeSync(name);
+      } else if (decision === 'upload') {
         localStorage.setItem(`finper_sync_backup_${name}_${Date.now()}`, canonical({ local: JSON.parse(before), remote: remote.value ? JSON.parse(remote.value) : null }));
         await writeSnapshot(name, before, remote.head);
         localStorage.setItem(key(name), before);
@@ -240,7 +269,111 @@ export async function syncPersonalSettings(): Promise<void> {
   await Promise.all([sync('budgets'), sync('projections'), sync('statements'), sync('classifications')]);
 }
 
-export const resolveSettings = (name: Name, choice: 'local' | 'remote') => sync(name, choice);
+export const resolveSettings = (name: Name, choice: 'local' | 'remote' | 'merge') => sync(name, choice);
+
+/**
+ * Resuelve un conflicto mediante Conciliación Asistida Financiera:
+ * 1. Verifica autenticación GoTrue antes de escribir.
+ * 2. Comprueba optimísticamente que remote.head en Supabase no haya cambiado.
+ * 3. Exige resolución explícita para cada registro modificado (cero sobreescritura automática).
+ * 4. Guarda un respaldo previo verificable en localStorage.
+ * 5. Aplica localmente y publica en Supabase.
+ */
+export async function resolveSettingsAssisted(
+  name: Name,
+  resolutions: Record<string, ItemResolution>,
+  salaryProbabilityResolution?: 'use_local' | 'use_remote',
+  targetMonthStr?: string,
+): Promise<{ success: boolean; simulation: FinancialImpactSimulation }> {
+  // 1. Verificación estricta de sesión
+  const session = await getValidatedSession();
+  if (!session?.user?.id) {
+    throw new Error('No hay sesión autenticada activa. Inicia sesión para guardar cambios en la nube.');
+  }
+
+  // 2. Si hay otra sincronización en curso, esperar
+  if (running[name]) {
+    await running[name];
+  }
+
+  status(name, { status: 'syncing' });
+
+  const before = localValue(name);
+  try {
+    const remote = await readSnapshot(name);
+
+    if (remote.value === null) {
+      throw new Error('No se encontró copia en la nube para conciliar.');
+    }
+
+    // 3. Ejecutar la fusión asistida asegurando decisiones para todas las modificadas
+    const assisted = computeAssistedMerge(
+      name,
+      before,
+      remote.value,
+      resolutions,
+      salaryProbabilityResolution,
+      targetMonthStr,
+    );
+
+    // 4. Guardar respaldo previo verificable en localStorage
+    localStorage.setItem(
+      `finper_sync_backup_${name}_assisted_${Date.now()}`,
+      canonical({
+        local: JSON.parse(before),
+        remote: JSON.parse(remote.value),
+        mergedDraft: JSON.parse(assisted.mergedValue),
+        resolutions,
+        simulation: assisted.simulation,
+        timestamp: new Date().toISOString(),
+      })
+    );
+
+    // 5. ESCRIBIR EN SUPABASE PRIMERO (Borrador enviado con control de concurrencia contra remote.head)
+    // El estado local se mantiene intacto hasta recibir confirmación remota exitosa.
+    await writeSnapshot(name, assisted.mergedValue, remote.head);
+
+    // 6. CONFIRMADO: Aplicar al estado local únicamente tras el éxito remoto
+    apply(name, assisted.mergedValue);
+
+    // 7. Actualizar línea base de sincronización y notificar
+    localStorage.setItem(key(name), assisted.mergedValue);
+    broadcastRealtimeSync(name);
+
+    status(name, {
+      status: 'synced',
+      lastSync: new Date().toISOString(),
+    });
+
+    return { success: true, simulation: assisted.simulation };
+  } catch (err: any) {
+    // Si la escritura remota falla, asegurar que el estado local permanece intacto en `before`
+    try {
+      apply(name, before);
+    } catch {
+      // Ignorar fallo de restauración
+    }
+
+    status(name, {
+      status: 'error',
+      message: err?.message || 'Error al aplicar conciliación asistida. Se conservó el estado local sin cambios.',
+    });
+    throw err;
+  }
+}
+
+export function downloadDiffReportJson(name: Name, resolutions?: Record<string, ItemResolution>): void {
+  const entry = useSettingsSync.getState().entries[name];
+  if (!entry?.diffReport || !entry?.localValueRaw || !entry?.remoteValueRaw) return;
+  const backup = buildDownloadableDiffBackup(entry.diffReport, entry.localValueRaw, entry.remoteValueRaw, resolutions);
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `finper-conciliacion-${name}-${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
 
 export function watchPersonalSettings(): () => void {
   let timer: ReturnType<typeof setTimeout>;

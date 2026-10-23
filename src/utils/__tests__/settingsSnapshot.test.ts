@@ -3,6 +3,10 @@ const memory = vi.hoisted(() => ({ rows: new Map<string, { id: string; concepto:
 vi.mock('../../lib/supabase', () => ({
   SUPABASE_URL: 'https://njgzhjwfcxdxiibkuuqg.supabase.co',
   SUPABASE_PUBLISHABLE_KEY: 'mock-key',
+  TARGET_PROJECT_REF: 'njgzhjwfcxdxiibkuuqg',
+  FINPER_VERSION: '2.0.3',
+  isSupabaseConfigHealthy: () => true,
+  getSupabaseConfigHealth: () => ({ isHealthy: true }),
   updateManagedSdkToken: () => {},
   getManagedSdkToken: () => null,
   supabase: {
