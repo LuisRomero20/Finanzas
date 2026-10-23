@@ -18,7 +18,7 @@ import { useCreditLineStore } from '../store/creditLineStore';
 import { useAppStore } from '../store';
 import { useProjectionStore } from '../store/projectionStore';
 import { useSavingsGoalsStore } from '../store/savingsGoalsStore';
-import { supabase } from '../lib/supabase';
+import { supabase, verifySupabaseConfiguration } from '../lib/supabase';
 import { watchPersonalSettings } from '../services/personalSettingsSync';
 import { flushTransactions } from '../services/transactionOutbox';
 import { flushPendingPaymentsOutbox } from '../services/pendingPaymentsOutbox';
@@ -46,9 +46,14 @@ let lastSyncTimestamp = 0;
 export async function syncAllStoresFromSupabase(force: boolean = false): Promise<void> {
   const now = Date.now();
   if (!force && now - lastSyncTimestamp < 800) return;
-  lastSyncTimestamp = now;
 
   try {
+    // La comprobación es un GET de configuración contra el API gateway. Hasta que
+    // responda correctamente no se vacían colas ni se consulta/persiste información.
+    const configHealth = await verifySupabaseConfiguration();
+    if (!configHealth.isHealthy) return;
+    lastSyncTimestamp = now;
+
     // 1. Despachar primero cualquier operación pendiente en las colas de salida locales
     await Promise.allSettled([
       flushTransactions(),

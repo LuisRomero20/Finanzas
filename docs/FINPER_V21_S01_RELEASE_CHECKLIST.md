@@ -1,6 +1,6 @@
 # FINPER 2.1 — SPRINT 01: LISTA DE VERIFICACIÓN PARA LIBERACIÓN (RELEASE CHECKLIST)
 
-**Fecha:** 22 de octubre de 2026  
+**Fecha:** 23 de octubre de 2026
 **Rama:** `feature/finper-v21-smart-cards-sprint01`  
 **Objetivo:** Garantizar que la versión cumple con todos los controles de calidad, seguridad y no-regresión antes de solicitar autorización de merge.
 
@@ -24,7 +24,7 @@
 - [x] **5. La conciliación se recupera correctamente en otro dispositivo:** `cardStatementStore` y `personalSettingsSync` propagan snapshots canónicos de `statements` a Supabase; el iPhone recupera la conciliación con `verificationStatus` y `documentReference` idénticos.
 - [x] **6. Los conflictos no sobrescriben información:** El comparador `diffComparison` detecta divergencias en saldo, estado de verificación o referencia documental y exige resolución asistida explícita, bloqueando cualquier sobrescritura silenciosa.
 - [x] **7. Tests, lint, TypeScript y build aprobados:** 254 pruebas unitarias e integrales pasando en 37 suites, 0 errores de compilación TypeScript (`tsc`), 0 errores de ESLint y build de producción optimizado.
-- [x] **8. Tutorial Windows e iPhone ejecutado sin alterar producción:** Procedimiento paso a paso para Edge y Safari móvil, con aislamiento total de la base productiva de Supabase (`njgzhjwfcxdxiibkuuqg`) y cero merge a `main`.
+- [x] **8. Validación visual Windows e iPhone ejecutada sin alterar producción:** Safari accedió a Vite mediante la IP local del PC; se revisaron navegación, tarjetas y modal de conciliación. No se pulsó guardado remoto, la base productiva permaneció aislada y no hubo merge a `main`.
 
 ### Cierre de sincronización de conciliaciones (commit de cierre sobre `19109de`)
 
@@ -33,7 +33,8 @@
 - [x] **11. Fuente autoritativa verificada:** se reutiliza `transacciones` (manifiesto + fragmentos); `personal_settings` es solo espejo opcional y no se asume su existencia.
 - [x] **12. Interfaz:** `StatementSyncBadge` muestra *Guardada en este dispositivo / Sincronizando / Confirmada en Supabase / Versiones distintas / Error recuperable* con «Reintentar», separado de `statement_verified` (verificación bancaria).
 - [x] **13. Pruebas aisladas (simuladas):** 16 pruebas nuevas en `statementSyncV21.test.ts` (PC→nube, recuperación en iPhone, fallo de red, conflicto, carrera de escritura, reintento sin duplicar, referencias documentales, recarga, almacenamiento local fallido, tres pagos iguales, Outbox, respuesta perdida, doble envío).
-- [ ] **14. Validación con dispositivos reales (PC + iPhone) en un proyecto Supabase de pruebas:** pendiente de ejecución manual por el usuario (Parte 3 del tutorial). No se ha realizado.
+- [x] **14a. Validación visual con dispositivos reales (PC + iPhone):** navegación móvil, tres tarjetas, menú inferior, datos financieros y apertura del modal comprobados en Safari.
+- [ ] **14b. Persistencia real en un proyecto Supabase de ensayo:** pendiente probar escritura, relectura desde el segundo dispositivo y conflicto simultáneo (Parte 3 del tutorial).
 
 ---
 
@@ -62,6 +63,15 @@
   * Selector por pestañas de tarjeta en vista móvil (`min-h-11`, touch-friendly >= 44px).
   * Sin desbordamiento horizontal (`overflow-x-hidden`).
   * Soporte completo para Modo Oscuro (`dark:bg-[#11191D]`) y Modo Claro.
+  * Evidencia manual: Safari abrió FINPER desde `192.168.18.8`, mostró las tres tarjetas y permitió recorrer el modal de conciliación.
+
+### Mejoras registradas para FINPER 2.1 — Sprint 02
+
+- [ ] Compactar el encabezado del modal de conciliación en pantallas pequeñas y mantener un pie de acciones fijo dentro del modal.
+- [ ] Etiquetar cada vencimiento como **configurado**, **estimado** o **verificado por estado de cuenta**; no presentar ajustes de fin de semana o feriado como reglas bancarias confirmadas.
+- [ ] Reducir la prominencia visual de «Poner como Cancelada» y mantener la acción dentro de `Regularizar`, con saldo, origen del pago y confirmación consciente visibles.
+
+> El botón rápido actual no cancela directamente: abre `Regularizar`. Si existe saldo, la regularización externa exige marcar una confirmación explícita. Por ello el ajuste es de jerarquía visual y no bloquea el Sprint 01.
 
 ---
 
@@ -70,3 +80,4 @@
 - [x] **Cero Mutaciones No Autorizadas:** La base de datos de producción Supabase (`njgzhjwfcxdxiibkuuqg`) se mantuvo 100% intacta.
 - [x] **Rama Aislada:** El trabajo se completó exclusivamente en `feature/finper-v21-smart-cards-sprint01`.
 - [x] **Sin Merge a `main`:** No se ha realizado merge a `main` ni despliegue a producción a la espera de la autorización explícita del usuario.
+- [ ] **Ensayo multidispositivo aislado:** no hay un proyecto FINPER de pruebas confirmado. `ViernesProject` fue descartado porque contiene datos y esquema de otra aplicación; no se modificó.

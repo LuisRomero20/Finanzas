@@ -81,6 +81,7 @@ describe('Non-destructive settings synchronization', () => {
     let finish!: (value: { value: string; head: string }) => void;
     vi.mocked(readSnapshot).mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
     const syncing = syncPersonalSettings();
+    await vi.waitFor(() => expect(finish).toBeTypeOf('function'));
     useBudgetStore.getState().setAllBudgets({ comida: 123 }, { comida: 'manual' });
     finish({ value: budgetValue(90), head: 'revision' });
     await syncing;

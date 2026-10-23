@@ -1,6 +1,6 @@
 # FINPER 2.1 — SPRINT 01: REPORTE DE RESULTADOS DE PRUEBAS TÉCNICAS
 
-**Fecha:** 22 de octubre de 2026  
+**Fecha:** 23 de octubre de 2026
 **Rama:** `feature/finper-v21-smart-cards-sprint01`  
 **Entorno de Ejecución:** Vitest v2.1.9 / Node.js / TypeScript 5.5.3
 
@@ -110,11 +110,32 @@ La suite ampliada de 46 pruebas unitarias cubre rigurosamente:
     - [x] Tres pagos legítimos idénticos (`-seq2`, `-seq3`) sin colisión; Outbox conserva operaciones ante error/excepción; respuesta perdida tras escritura exitosa y doble envío entre dispositivos no duplican filas (doble remoto con semántica *upsert* por id).
 
 > [!NOTE]
-> Estas 16 pruebas usan un doble remoto en memoria. **No sustituyen** la validación con dispositivos reales (Parte 3 del tutorial), que sigue pendiente.
+> Estas 16 pruebas usan un doble remoto en memoria. **No sustituyen** la prueba de persistencia real PC ↔ Supabase de ensayo ↔ iPhone (Parte 3 del tutorial), que sigue pendiente.
+
+## 3. Validación manual en iPhone — 23 de octubre de 2026
+
+| Validación | Resultado |
+| :--- | :--- |
+| Safari accede a FINPER local mediante `192.168.18.8` | Aprobada |
+| Navegación entre las tres tarjetas y menú inferior | Aprobada |
+| Datos facturados, no facturados y próximos vencimientos visibles | Aprobada |
+| Modal de conciliación y sus tres orígenes disponibles | Aprobada |
+| Saldo facturado y pago mínimo comienzan vacíos | Aprobada |
+| Escritura y relectura reales en Supabase de ensayo | Pendiente |
+| Recuperación desde el segundo dispositivo | Pendiente |
+| Conflicto simultáneo PC/iPhone | Pendiente |
+
+La prueba fue deliberadamente visual y no ejecutó escrituras contra producción. El resultado valida la experiencia móvil del Sprint 01, pero no prueba todavía la persistencia remota.
+
+### Observaciones no bloqueantes para Sprint 02
+
+1. El encabezado del modal consume demasiado alto útil en iPhone; se propone compactarlo y fijar el pie de guardado.
+2. Las fechas mostradas deben indicar su procedencia. Los desplazamientos por fin de semana o feriado seguirán siendo estimaciones mientras no exista evidencia bancaria.
+3. «Poner como Cancelada» es visualmente demasiado prominente. La lógica actual ya abre `Regularizar` y exige confirmación para una cancelación externa con saldo; Sprint 02 debe mejorar la jerarquía visual sin debilitar ese control.
 
 ---
 
-## 3. Registro de Validación General
+## 4. Registro de Validación General
 
 ```
 Test Files  37 passed (37)

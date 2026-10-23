@@ -16,6 +16,7 @@ import { broadcastRealtimeSync } from '../utils/syncBus';
 import { useCardStatementStore, registerStatementSyncTransport } from '../store/cardStatementStore';
 import { useFinanceStore } from '../store/financeStore';
 import { CLASIFICACIONES_STORAGE_KEY, getStoredClasificaciones } from '../utils/categoryClassification';
+import { verifySupabaseConfiguration } from '../lib/supabase';
 
 type Name = 'budgets' | 'projections' | 'statements' | 'classifications';
 export type SettingsName = Name;
@@ -221,6 +222,13 @@ async function sync(
   });
 
   const work = async (): Promise<SyncOutcome> => {
+    const configHealth = await verifySupabaseConfiguration();
+    if (!configHealth.isHealthy) {
+      const message = 'Sincronización pausada: la configuración de Supabase todavía no está verificada. No se modificó información financiera.';
+      status(name, { status: 'waiting', message });
+      return done('local_pending', message);
+    }
+
     if (useSettingsSync.getState().entries[name].status !== 'conflict' || choice) {
       status(name, { status: 'syncing' });
     }

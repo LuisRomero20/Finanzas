@@ -1,79 +1,134 @@
 import { describe, expect, it, vi } from 'vitest';
-import * as SupabaseLib from '../../lib/supabase';
+import type * as SupabaseLib from '../../lib/supabase';
 
-describe('FINPER 2.0.3 — Verificación Estricta de Configuración Supabase y Contención de Dominios', async () => {
-  // Importar la implementación real de las utilidades de configuración sin los mocks de prueba
+const toBase64Url = (value: unknown) => btoa(JSON.stringify(value))
+  .replace(/=/g, '')
+  .replace(/\+/g, '-')
+  .replace(/\//g, '_');
+
+const makeLegacyJwt = (ref: string, role = 'anon') => [
+  toBase64Url({ alg: 'HS256', typ: 'JWT' }),
+  toBase64Url({ iss: 'supabase', ref, role, iat: 1, exp: 4_102_444_800 }),
+  'synthetic-signature-for-format-tests',
+].join('.');
+
+describe('FINPER 2.1.1 — configuración pública de Supabase', async () => {
   const actualLib = await vi.importActual<typeof SupabaseLib>('../../lib/supabase');
   const {
+    AUTHORIZED_SUPABASE_URL,
     TARGET_PROJECT_REF,
     FINPER_VERSION,
-    extractProjectRefFromUrl,
+    assertSupabaseWritesAllowed,
     extractProjectRefFromKey,
+    extractProjectRefFromUrl,
+    inspectSupabasePublicKey,
     resolveSupabaseConfig,
-    getSupabaseConfigHealth,
+    verifyResolvedSupabaseConfig,
   } = actualLib;
 
-  const VALID_TARGET_KEY =
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5qZ3poandmY3hkeGlpYmt1dXFnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODgwMjg5MjksImV4cCI6MjEwMzYwNDkyOX0.VQSGP9NSUAI1M_BaOtqhxC4hl8o8jAx7HC0rlrnzMNA';
-  const OBSOLETE_PUBLISHABLE_KEY = 'sb_publishable_hvgD4QA4kOCxTTqEMlFLLg_OjNAeLhu';
+  const MODERN_KEY = 'sb_publishable_1234567890123456789012_12345678';
+  const LEGACY_KEY = makeLegacyJwt(TARGET_PROJECT_REF);
 
-  // 1. Identificador de proyecto oficial
-  it('establece njgzhjwfcxdxiibkuuqg como el único proyecto de referencia autorizado', () => {
+  it('mantiene un único proyecto autorizado sin incorporar credenciales de respaldo', () => {
     expect(TARGET_PROJECT_REF).toBe('njgzhjwfcxdxiibkuuqg');
-    expect(FINPER_VERSION).toBe('2.0.3');
+    expect(AUTHORIZED_SUPABASE_URL).toBe('https://njgzhjwfcxdxiibkuuqg.supabase.co');
+    expect(FINPER_VERSION).toBe('2.1.1');
+
+    const missing = resolveSupabaseConfig({});
+    expect(missing.health.configurationState).toBe('missing');
+    expect(missing.health.isHealthy).toBe(false);
+    expect(missing.key).not.toMatch(/^eyJ/);
+    expect(() => assertSupabaseWritesAllowed(missing.health)).toThrow(/Escrituras detenidas/);
   });
 
-  // 2. Extracción precisa de Project Ref desde URLs
-  it('extrae el project ref correcto de URLs de Supabase y detecta dominios obsoletos', () => {
-    expect(extractProjectRefFromUrl('https://njgzhjwfcxdxiibkuuqg.supabase.co')).toBe('njgzhjwfcxdxiibkuuqg');
-    expect(extractProjectRefFromUrl('https://njgzhjwfcxdxiibkuuqg.supabase.co/rest/v1/')).toBe('njgzhjwfcxdxiibkuuqg');
-    expect(extractProjectRefFromUrl('https://elsjuyjjkrkyhlylmaip.supabase.co')).toBe('elsjuyjjkrkyhlylmaip');
-    expect(extractProjectRefFromUrl('https://google.com')).toBeNull();
-    expect(extractProjectRefFromUrl('')).toBeNull();
-    expect(extractProjectRefFromUrl(undefined)).toBeNull();
+  it('extrae el proyecto de la URL y solo de JWT heredados', () => {
+    expect(extractProjectRefFromUrl(`${AUTHORIZED_SUPABASE_URL}/rest/v1/`)).toBe(TARGET_PROJECT_REF);
+    expect(extractProjectRefFromUrl('https://otro.supabase.co')).toBe('otro');
+    expect(extractProjectRefFromUrl('https://example.com')).toBeNull();
+    expect(extractProjectRefFromKey(LEGACY_KEY)).toBe(TARGET_PROJECT_REF);
+    expect(extractProjectRefFromKey(MODERN_KEY)).toBeNull();
   });
 
-  // 3. Extracción y validación criptográfica de claves públicas
-  it('reconoce el project ref en tokens JWT válidos y rechaza claves obsoletas o no autorizadas', () => {
-    // Clave autorizada
-    const validRef = extractProjectRefFromKey(VALID_TARGET_KEY);
-    expect(validRef).toBe('njgzhjwfcxdxiibkuuqg');
+  it('interpreta una clave publicable moderna como opaca y pendiente de verificación', () => {
+    expect(inspectSupabasePublicKey(MODERN_KEY)).toEqual({
+      format: 'modern_publishable',
+      projectRef: null,
+      role: 'anon',
+    });
 
-    // Clave no-JWT o publishable antigua del proyecto obsoleto elsjuyjjkrkyhlylmaip
-    const obsoleteRef = extractProjectRefFromKey(OBSOLETE_PUBLISHABLE_KEY);
-    expect(obsoleteRef).toBeNull();
-
-    // Claves vacías o corruptas
-    expect(extractProjectRefFromKey('')).toBeNull();
-    expect(extractProjectRefFromKey('not-a-token')).toBeNull();
-    expect(extractProjectRefFromKey(undefined)).toBeNull();
+    const resolved = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      publishableKey: MODERN_KEY,
+    });
+    expect(resolved.health.configurationState).toBe('unverified');
+    expect(resolved.health.keyStatus).toBe('unverified');
+    expect(resolved.health.errorMessage).not.toMatch(/proyecto distinto|no pertenece/i);
   });
 
-  // 4. Diagnóstico seguro sin fuga de tokens
-  it('genera un diagnóstico de configuración que expone identificadores de proyecto sin filtrar claves ni tokens', () => {
-    const health = getSupabaseConfigHealth();
-    expect(health).toHaveProperty('targetProjectRef');
-    expect(health).toHaveProperty('activeProjectRef');
-    expect(health).toHaveProperty('urlStatus');
-    expect(health).toHaveProperty('keyStatus');
-    expect(health).toHaveProperty('isHealthy');
-    expect(health).toHaveProperty('appVersion');
-
-    // Comprobar que targetProjectRef es exactamente el autorizado
-    expect(health.targetProjectRef).toBe('njgzhjwfcxdxiibkuuqg');
-    expect(health.activeProjectRef).toBe('njgzhjwfcxdxiibkuuqg');
-
-    // Comprobar que ningún campo de diagnóstico expone la clave privada o el token
-    const serialized = JSON.stringify(health);
-    expect(serialized).not.toContain(VALID_TARGET_KEY);
-    expect(serialized).not.toContain('eyJhbGci');
+  it('acepta el formato anon JWT heredado, pero exige confirmación del gateway', () => {
+    const resolved = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      legacyAnonKey: LEGACY_KEY,
+    });
+    expect(resolved.health.keyFormat).toBe('legacy_anon_jwt');
+    expect(resolved.health.configurationState).toBe('unverified');
+    expect(resolved.health.isHealthy).toBe(false);
   });
 
-  // 5. Resolución y prevención de fallbacks silenciosos
-  it('resuelve correctamente la configuración activa y garantiza estado saludable en producción', () => {
-    const resolved = resolveSupabaseConfig();
-    expect(resolved.url).toContain('njgzhjwfcxdxiibkuuqg.supabase.co');
-    expect(resolved.key).toBe(VALID_TARGET_KEY);
-    expect(resolved.health.isHealthy).toBe(true);
+  it('bloquea URL, JWT y claves de servidor incompatibles sin filtrar tokens', () => {
+    const wrongUrl = resolveSupabaseConfig({
+      url: 'https://otroproyecto.supabase.co',
+      publishableKey: MODERN_KEY,
+    });
+    expect(wrongUrl.health.configurationState).toBe('mismatched');
+
+    const wrongJwt = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      legacyAnonKey: makeLegacyJwt('otroproyecto'),
+    });
+    expect(wrongJwt.health.keyStatus).toBe('mismatched');
+    expect(wrongJwt.health.isHealthy).toBe(false);
+
+    const secret = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      publishableKey: 'sb_secret_never-put-this-in-a-browser',
+    });
+    expect(secret.health.configurationState).toBe('invalid');
+    expect(JSON.stringify(secret.health)).not.toContain('sb_secret_');
+  });
+
+  it('habilita el funcionamiento normal únicamente cuando el gateway confirma la clave', async () => {
+    const resolved = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      publishableKey: MODERN_KEY,
+    });
+    const fetcher = vi.fn(async () => new Response('{}', { status: 200 })) as unknown as typeof fetch;
+    const health = await verifyResolvedSupabaseConfig(resolved, fetcher);
+
+    expect(fetcher).toHaveBeenCalledWith(`${AUTHORIZED_SUPABASE_URL}/auth/v1/settings`, expect.objectContaining({ method: 'GET' }));
+    expect(health.configurationState).toBe('verified');
+    expect(health.isHealthy).toBe(true);
+    expect(() => assertSupabaseWritesAllowed(health)).not.toThrow();
+  });
+
+  it('mantiene las escrituras bloqueadas ante rechazo real o verificación no disponible', async () => {
+    const resolved = resolveSupabaseConfig({
+      url: AUTHORIZED_SUPABASE_URL,
+      publishableKey: MODERN_KEY,
+    });
+    const rejected = await verifyResolvedSupabaseConfig(
+      resolved,
+      vi.fn(async () => new Response('{}', { status: 401 })) as unknown as typeof fetch,
+    );
+    expect(rejected.configurationState).toBe('mismatched');
+    expect(() => assertSupabaseWritesAllowed(rejected)).toThrow(/Escrituras detenidas/);
+
+    const unavailable = await verifyResolvedSupabaseConfig(
+      resolved,
+      vi.fn(async () => { throw new TypeError('network offline'); }) as unknown as typeof fetch,
+    );
+    expect(unavailable.configurationState).toBe('unverified');
+    expect(unavailable.severity).toBe('warning');
+    expect(unavailable.errorMessage).toMatch(/No se confirmó una discrepancia/);
   });
 });
