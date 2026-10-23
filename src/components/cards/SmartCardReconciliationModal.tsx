@@ -1,0 +1,363 @@
+import React, { useState, useMemo } from 'react';
+import {
+  X,
+  FileCheck2,
+  AlertTriangle,
+  CheckCircle2,
+  Save,
+  RotateCcw,
+} from 'lucide-react';
+import type { CardConfig, Cycle } from '../../utils/creditCardCycles';
+import { useFinanceStore } from '../../store/financeStore';
+import { useCardStatementStore } from '../../store/cardStatementStore';
+import {
+  reconcileCardCycle,
+  type ReconciliationReport,
+} from '../../domain/cards/smartCardEngine';
+import { getCardTxs, getCardPaymentTxs } from '../../utils/creditCardCycles';
+
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  card: CardConfig | null;
+  cycle: Cycle | null;
+  onSuccess: (msg: string) => void;
+}
+
+const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
+
+export const SmartCardReconciliationModal: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  card,
+  cycle,
+  onSuccess,
+}) => {
+  const { transactions } = useFinanceStore();
+  const { saveVerifiedStatement, removeVerifiedStatement, getVerifiedStatement } = useCardStatementStore();
+
+  const cycleKey = card && cycle ? `${card.entity}_${cycle.payDate.toISOString().slice(0, 10)}` : '';
+
+  const existingStatement = useMemo(() => {
+    if (!card || !cycle) return undefined;
+    return getVerifiedStatement(card.entity, cycle.payDate, cycle.end);
+  }, [card, cycle, getVerifiedStatement]);
+
+  // Consumos del ciclo en FINPER
+  const purchasesInCycle = useMemo(() => {
+    if (!card || !cycle) return [];
+    return getCardTxs(transactions, card.entity, cycle.start, cycle.end).map(t => ({
+      id: t.id || `${t.Fecha}-${t.Concepto}-${t.Monto}`,
+      fecha: t.Fecha,
+      concepto: t.Concepto,
+      monto: t.Monto,
+      categoria: t.Categoria,
+      tipo: t.Tipo,
+    }));
+  }, [transactions, card, cycle]);
+
+  // Pagos aplicados al ciclo
+  const paymentsInCycle = useMemo(() => {
+    if (!card || !cycle) return [];
+    return getCardPaymentTxs(transactions, card.entity, cycle.prevPayDate, cycle.payDate).map(t => ({
+      id: t.id || `${t.Fecha}-${t.Concepto}-${t.Monto}`,
+      fecha: t.Fecha,
+      concepto: t.Concepto,
+      monto: t.Monto,
+      categoria: t.Categoria,
+      tipo: t.Tipo,
+    }));
+  }, [transactions, card, cycle]);
+
+  const defaultCalculatedTotal = useMemo(() => {
+    return purchasesInCycle.reduce((s, p) => s + p.monto, 0);
+  }, [purchasesInCycle]);
+
+  // Entradas de estado de cuenta bancario
+  const [statementDebtStr, setStatementDebtStr] = useState<string>(() => {
+    if (existingStatement && typeof existingStatement.finalDebt === 'number') {
+      return existingStatement.finalDebt.toFixed(2);
+    }
+    return defaultCalculatedTotal > 0 ? defaultCalculatedTotal.toFixed(2) : '0.00';
+  });
+
+  const [minPaymentStr, setMinPaymentStr] = useState<string>(() => {
+    if (existingStatement && typeof existingStatement.minPayment === 'number') {
+      return existingStatement.minPayment.toFixed(2);
+    }
+    return '30.00';
+  });
+
+  const [notes, setNotes] = useState<string>(() => existingStatement?.notes || '');
+
+  // Reporte de Conciliación en tiempo real
+  const report = useMemo<ReconciliationReport | null>(() => {
+    if (!card || !cycle) return null;
+    const debtConfirmed = parseFloat(statementDebtStr);
+    if (isNaN(debtConfirmed) || debtConfirmed < 0) return null;
+
+    return reconcileCardCycle({
+      cardEntity: card.entity,
+      cycleKey,
+      statementDebtConfirmed: debtConfirmed,
+      periodStart: cycle.start.toISOString().slice(0, 10),
+      periodEnd: cycle.end.toISOString().slice(0, 10),
+      dueDate: cycle.payDate.toISOString().slice(0, 10),
+      purchasesInCycle,
+      paymentsInCycle,
+    });
+  }, [card, cycle, cycleKey, statementDebtStr, purchasesInCycle, paymentsInCycle]);
+
+  if (!isOpen || !card || !cycle) return null;
+
+  const handleSaveReconciliation = (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalDebt = parseFloat(statementDebtStr);
+    if (isNaN(finalDebt) || finalDebt < 0) {
+      alert('Ingresa un monto de deuda válido');
+      return;
+    }
+    const minPayment = parseFloat(minPaymentStr);
+
+    saveVerifiedStatement({
+      id: `stmt-${Date.now()}`,
+      cardEntity: card.entity,
+      cycleKey,
+      dueDate: cycle.payDate.toISOString().slice(0, 10),
+      cutoffDate: cycle.end.toISOString().slice(0, 10),
+      periodStart: cycle.start.toISOString().slice(0, 10),
+      periodEnd: cycle.end.toISOString().slice(0, 10),
+      finalDebt,
+      minPayment: isNaN(minPayment) ? 0 : minPayment,
+      fileName: 'Estado de Cuenta Conciliado Manualmente',
+      matchedCount: purchasesInCycle.length,
+      totalStatementItems: purchasesInCycle.length,
+      totalAppItems: purchasesInCycle.length,
+      totalStatementCargos: finalDebt,
+      totalAppCargos: defaultCalculatedTotal,
+      diferenciaGastos: report ? report.variance : 0,
+      variance: report ? report.variance : 0,
+      reconciliationStatus: report ? report.reconciliationStatus : 'CONCILIADO',
+      diagnosticMessage: report ? report.diagnosticMessage : undefined,
+      verifiedAt: new Date().toISOString(),
+      notes: notes.trim() || undefined,
+    });
+
+    onSuccess(`✅ ¡Conciliación de ${card.name} guardada exitosamente! Saldo confirmado: ${fmt.format(finalDebt)}.`);
+    onClose();
+  };
+
+  const handleResetReconciliation = () => {
+    if (confirm(`¿Restablecer la conciliación de ${card.name} al cálculo automático por movimientos?`)) {
+      removeVerifiedStatement(cycleKey);
+      removeVerifiedStatement(card.entity);
+      onSuccess(`Deuda de ${card.name} restablecida al cálculo automático de FINPER.`);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div
+        className="bg-white dark:bg-[#11191D] w-full max-w-2xl rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col max-h-[90vh]"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="reconciliation-modal-title"
+      >
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-gradient-to-r from-blue-600/10 via-sky-600/5 to-transparent">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 bg-blue-600 text-white rounded-2xl shadow-sm">
+              <FileCheck2 size={20} />
+            </div>
+            <div>
+              <h2 id="reconciliation-modal-title" className="text-lg font-black text-slate-900 dark:text-white">
+                Conciliación de Estado de Cuenta
+              </h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {card.name} · Ciclo {cycle.start.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })} al {cycle.end.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            aria-label="Cerrar modal"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* Formulario & Comparador */}
+        <form onSubmit={handleSaveReconciliation} className="overflow-y-auto p-4 sm:p-6 space-y-6 flex-1">
+          {/* Tarjeta de Comparación Visual */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800">
+            <div>
+              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Calculado FINPER</span>
+              <p className="text-xl font-black text-slate-800 dark:text-slate-100 mt-1">
+                {fmt.format(defaultCalculatedTotal)}
+              </p>
+              <span className="text-[10px] text-slate-400 font-medium">{purchasesInCycle.length} consumos en ciclo</span>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Estado de Cuenta</span>
+              <p className="text-xl font-black text-blue-600 dark:text-blue-400 mt-1">
+                {fmt.format(parseFloat(statementDebtStr) || 0)}
+              </p>
+              <span className="text-[10px] text-slate-400 font-medium">Confirmado en PDF / banco</span>
+            </div>
+
+            <div>
+              <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Discrepancia</span>
+              {report && (
+                <p className={`text-xl font-black mt-1 ${
+                  report.reconciliationStatus === 'CONCILIADO'
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-amber-600 dark:text-amber-400'
+                }`}>
+                  {report.variance > 0 ? `+${fmt.format(report.variance)}` : fmt.format(report.variance)}
+                </p>
+              )}
+              <span className="text-[10px] text-slate-400 font-medium">
+                {report?.reconciliationStatus === 'CONCILIADO' ? '✅ Conciliado exacto' : '⚠️ Diferencia detectada'}
+              </span>
+            </div>
+          </div>
+
+          {/* Diagnóstico Asistido */}
+          {report && (
+            <div className={`p-3.5 rounded-2xl border flex items-start gap-3 text-xs ${
+              report.reconciliationStatus === 'CONCILIADO'
+                ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200'
+                : 'bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200'
+            }`}>
+              {report.reconciliationStatus === 'CONCILIADO' ? (
+                <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+              ) : (
+                <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              )}
+              <div className="space-y-1">
+                <p className="font-bold">{report.diagnosticMessage}</p>
+                {report.suggestedAction && (
+                  <p className="text-[11px] opacity-90">💡 <strong>Sugerencia:</strong> {report.suggestedAction}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Inputs del Estado de Cuenta */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Saldo Total Facturado del Mes (S/)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={statementDebtStr}
+                onChange={e => setStatementDebtStr(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="436.21"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">Importe oficial que figura en tu estado de cuenta</span>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Pago Mínimo del Mes (S/)
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={minPaymentStr}
+                onChange={e => setMinPaymentStr(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-bold text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="30.00"
+              />
+              <span className="text-[10px] text-slate-400 mt-1 block">Pago mínimo reglamentario SBS</span>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                Notas u Observaciones del Ciclo (opcional)
+              </label>
+              <input
+                type="text"
+                value={notes}
+                onChange={e => setNotes(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2 text-xs font-medium text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej. Incluye membresía anual S/ 80 exonerada por reclamo"
+              />
+            </div>
+          </div>
+
+          {/* Consumos del Periodo para Inspección Rápida */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold text-slate-700 dark:text-slate-300">
+                Consumos Computados por FINPER ({purchasesInCycle.length})
+              </span>
+              <span className="text-[10px] text-slate-400 font-bold">
+                {cycle.start.toISOString().slice(5, 10)} al {cycle.end.toISOString().slice(5, 10)}
+              </span>
+            </div>
+            {purchasesInCycle.length === 0 ? (
+              <p className="text-xs text-slate-400 italic p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl border border-slate-100 dark:border-slate-800">
+                No hay consumos registrados en este ciclo.
+              </p>
+            ) : (
+              <div className="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
+                {purchasesInCycle.map(p => (
+                  <div key={p.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
+                    <div className="min-w-0 pr-2">
+                      <p className="font-bold text-slate-800 dark:text-slate-200 truncate">{p.concepto}</p>
+                      <p className="text-[10px] text-slate-400">{p.fecha} · {p.categoria || 'Gasto'}</p>
+                    </div>
+                    <span className="font-black text-slate-900 dark:text-white tabular-nums shrink-0">
+                      {fmt.format(p.monto)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Botones de Acción */}
+          <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
+            {existingStatement ? (
+              <button
+                type="button"
+                onClick={handleResetReconciliation}
+                className="flex items-center gap-1.5 text-rose-600 dark:text-rose-400 hover:underline text-xs font-bold cursor-pointer"
+              >
+                <RotateCcw size={14} />
+                <span>Restablecer a Cálculo FINPER</span>
+              </button>
+            ) : <div />}
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full sm:w-auto px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl transition cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md transition cursor-pointer"
+              >
+                <Save size={14} />
+                <span>Guardar Conciliación</span>
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};

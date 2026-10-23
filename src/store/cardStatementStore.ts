@@ -17,6 +17,9 @@ export interface VerifiedStatement {
   totalStatementCargos: number;
   totalAppCargos: number;
   diferenciaGastos: number;
+  variance?: number;
+  reconciliationStatus?: 'CONCILIADO' | 'DISCREPANCIA_MAYOR_BANCO' | 'DISCREPANCIA_MAYOR_FINPER';
+  diagnosticMessage?: string;
   verifiedAt: string;
   notes?: string;
 }
