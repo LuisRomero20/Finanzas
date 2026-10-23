@@ -42,6 +42,7 @@ import {
 import { usePendingPaymentsStore } from '../store/pendingPaymentsStore';
 import { LaborBenefitsCalculatorWidget } from '../components/LaborBenefitsCalculatorWidget';
 import { CATEGORIAS_PERSONALES } from '../utils/categoryClassification';
+import { DailyFinancialBriefingWidget } from '../components/DailyFinancialBriefingWidget';
 
 const fmt = new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' });
 
@@ -525,6 +526,9 @@ export const ProyeccionPage: React.FC = () => {
           </button>
         </div>
       )}
+
+      {/* ── BRIEFING FINANCIERO MATUTINO (7:30 A. M. LIMA) ── */}
+      <DailyFinancialBriefingWidget customMonthStr={activeMonthStr} />
 
       {/* ── KPI METRICS ── */}
       <div className="projection-metrics grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-4">
