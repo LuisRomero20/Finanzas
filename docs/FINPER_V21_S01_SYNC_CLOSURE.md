@@ -53,5 +53,6 @@ siguen representando la verificación bancaria y **no** se mezclan con `remote_c
 | :--- | :--- |
 | `statementSyncV21.test.ts` (16 pruebas) | **Simulada**: Supabase = doble en memoria con control optimista; cada dispositivo = módulos independientes + `localStorage` propio. Cero llamadas a producción. |
 | Mutación de control | Verificado: desactivar la relectura verificada hace fallar la prueba 4b. |
-| Sincronización PC ↔ iPhone reales | **Pendiente de ejecución manual** en un proyecto Supabase de pruebas aislado (ver `FINPER_V21_S01_COMO_PROBAR.md`, Parte 3). No se ha ejecutado contra dispositivos reales. |
+| Navegación PC ↔ iPhone reales | **Comprobada visualmente** el 23 de octubre de 2026 mediante Safari y la IP local del PC. |
+| Persistencia PC ↔ Supabase ↔ iPhone | **Pendiente de ejecución manual** en un proyecto Supabase de pruebas aislado (ver `FINPER_V21_S01_COMO_PROBAR.md`, Parte 3). No se ha ejecutado una escritura remota real. |
 | Confirmación bancaria real | Fuera de alcance: `remote_confirmed` solo prueba persistencia informática. |

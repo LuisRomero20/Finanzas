@@ -104,7 +104,7 @@ Haz clic en el botón **«Ficha»** de cualquiera de tus tarjetas:
    - No inventa transacciones de pago bancario en tus cuentas; marca la tarjeta como cancelada por regularización externa exigiendo confirmación consciente si existía deuda pendiente.
 
 > [!NOTE]
-> **Importante para la revisión local:** Puedes interactuar libremente con los modales, verificar los cálculos y el comportamiento dinámico sin pulsar el botón final de guardado, garantizando que tu base de datos de producción se mantenga 100% limpia. Todos los flujos de persistencia y no-regresión están respaldados por las 224 pruebas automatizadas con datos sintéticos.
+> **Importante para la revisión local:** Puedes interactuar libremente con los modales, verificar los cálculos y el comportamiento dinámico sin pulsar el botón final de guardado, garantizando que tu base de datos de producción se mantenga 100% limpia. Todos los flujos de persistencia y no-regresión están respaldados por las 254 pruebas automatizadas con datos sintéticos.
 
 ---
 
@@ -178,7 +178,19 @@ npm run build
 | ¿El simulador calcula correctamente 3 cuotas sin intereses? | [ ] |
 | ¿La conciliación detecta discrepancias contra el saldo del banco? | [ ] |
 | ¿La ficha contractual muestra las fechas de corte y límites de tus 3 tarjetas? | [ ] |
-| ¿En iPhone se navega cómodamente entre tarjetas con botones táctiles? | [ ] |
+| ¿En iPhone se navega cómodamente entre tarjetas con botones táctiles? | [x] |
 | ¿No hay errores en la consola del navegador? | [ ] |
 
 Una vez que completes estas pruebas satisfactoriamente, puedes dar tu **autorización explícita** para proceder con el merge a `main` y el despliegue a producción en Vercel.
+
+### Estado registrado al 23 de octubre de 2026
+
+- [x] Safari accede a FINPER local mediante `192.168.18.8`.
+- [x] Navegación móvil, tres tarjetas, menú inferior y modal de conciliación revisados.
+- [x] Campos bancarios sensibles comienzan vacíos.
+- [ ] Escritura y relectura en Supabase de ensayo.
+- [ ] Recuperación desde el segundo dispositivo.
+- [ ] Conflicto simultáneo y resolución asistida.
+- [ ] Merge a `main` (no autorizado).
+
+No uses `ViernesProject` como ensayo de FINPER: contiene datos y esquema de otra aplicación. El entorno correcto debe ser un proyecto nuevo o una rama de desarrollo aislada, sin datos productivos.
