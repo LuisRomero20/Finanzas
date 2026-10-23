@@ -182,10 +182,12 @@ async function sync(name: Name, choice?: 'local' | 'remote' | 'merge'): Promise<
         const smart = computeSmartMerge(name, before, remote.value);
         localStorage.setItem(
           `finper_sync_backup_${name}_${Date.now()}`,
-          canonical({ local: JSON.parse(before), remote: JSON.parse(remote.value), merge: JSON.parse(smart.mergedValue) })
+          canonical({ local: JSON.parse(before), remote: JSON.parse(remote.value), mergeDraft: JSON.parse(smart.mergedValue) })
         );
-        apply(name, smart.mergedValue);
+        // Persistencia segura: escribir en Supabase primero antes de modificar el estado local
         await writeSnapshot(name, smart.mergedValue, remote.head);
+        // Confirmado: aplicar localmente únicamente tras confirmación remota
+        apply(name, smart.mergedValue);
         localStorage.setItem(key(name), smart.mergedValue);
         broadcastRealtimeSync(name);
       } else if (decision === 'upload') {
@@ -280,7 +282,8 @@ export const resolveSettings = (name: Name, choice: 'local' | 'remote' | 'merge'
 export async function resolveSettingsAssisted(
   name: Name,
   resolutions: Record<string, ItemResolution>,
-  salaryProbabilityResolution: 'use_local' | 'use_remote' = 'use_local'
+  salaryProbabilityResolution?: 'use_local' | 'use_remote',
+  targetMonthStr?: string,
 ): Promise<{ success: boolean; simulation: FinancialImpactSimulation }> {
   // 1. Verificación estricta de sesión
   const session = await getValidatedSession();
@@ -295,8 +298,8 @@ export async function resolveSettingsAssisted(
 
   status(name, { status: 'syncing' });
 
+  const before = localValue(name);
   try {
-    const before = localValue(name);
     const remote = await readSnapshot(name);
 
     if (remote.value === null) {
@@ -309,7 +312,8 @@ export async function resolveSettingsAssisted(
       before,
       remote.value,
       resolutions,
-      salaryProbabilityResolution
+      salaryProbabilityResolution,
+      targetMonthStr,
     );
 
     // 4. Guardar respaldo previo verificable en localStorage
@@ -318,20 +322,21 @@ export async function resolveSettingsAssisted(
       canonical({
         local: JSON.parse(before),
         remote: JSON.parse(remote.value),
-        merged: JSON.parse(assisted.mergedValue),
+        mergedDraft: JSON.parse(assisted.mergedValue),
         resolutions,
         simulation: assisted.simulation,
         timestamp: new Date().toISOString(),
       })
     );
 
-    // 5. Aplicar localmente primero
-    apply(name, assisted.mergedValue);
-
-    // 6. Escribir en Supabase con control de concurrencia optimista contra remote.head
+    // 5. ESCRIBIR EN SUPABASE PRIMERO (Borrador enviado con control de concurrencia contra remote.head)
+    // El estado local se mantiene intacto hasta recibir confirmación remota exitosa.
     await writeSnapshot(name, assisted.mergedValue, remote.head);
 
-    // 7. Actualizar línea base de sincronización
+    // 6. CONFIRMADO: Aplicar al estado local únicamente tras el éxito remoto
+    apply(name, assisted.mergedValue);
+
+    // 7. Actualizar línea base de sincronización y notificar
     localStorage.setItem(key(name), assisted.mergedValue);
     broadcastRealtimeSync(name);
 
@@ -342,9 +347,16 @@ export async function resolveSettingsAssisted(
 
     return { success: true, simulation: assisted.simulation };
   } catch (err: any) {
+    // Si la escritura remota falla, asegurar que el estado local permanece intacto en `before`
+    try {
+      apply(name, before);
+    } catch {
+      // Ignorar fallo de restauración
+    }
+
     status(name, {
       status: 'error',
-      message: err?.message || 'Error al aplicar conciliación asistida',
+      message: err?.message || 'Error al aplicar conciliación asistida. Se conservó el estado local sin cambios.',
     });
     throw err;
   }

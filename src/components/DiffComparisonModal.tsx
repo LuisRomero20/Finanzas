@@ -47,7 +47,7 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
   const [filter, setFilter] = useState<DiffItemStatus | 'all' | 'diffs_only'>('diffs_only');
   const [search, setSearch] = useState('');
   const [resolutions, setResolutions] = useState<Record<string, ItemResolution>>({});
-  const [salaryProbResolution, setSalaryProbResolution] = useState<'use_local' | 'use_remote'>('use_local');
+  const [salaryProbResolution, setSalaryProbResolution] = useState<'use_local' | 'use_remote' | null>(null);
   const [editingCustomId, setEditingCustomId] = useState<string | null>(null);
   const [customAmountInput, setCustomAmountInput] = useState<string>('');
   const [confirmingAssisted, setConfirmingAssisted] = useState(false);
@@ -65,12 +65,18 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
     return report.items.filter(i => i.status === 'modified');
   }, [report]);
 
+  const hasSalaryProbDiff = useMemo(() => {
+    return modifiedItems.some(i => i.id === '__salary_probability_scenarios__');
+  }, [modifiedItems]);
+
   const unresolvedCount = useMemo(() => {
-    return modifiedItems.filter(i => {
+    const regularUnresolved = modifiedItems.filter(i => {
       if (i.id === '__salary_probability_scenarios__') return false;
       return !resolutions[i.id];
     }).length;
-  }, [modifiedItems, resolutions]);
+    const probUnresolved = (hasSalaryProbDiff && !salaryProbResolution && !resolutions['__salary_probability_scenarios__']) ? 1 : 0;
+    return regularUnresolved + probUnresolved;
+  }, [modifiedItems, resolutions, hasSalaryProbDiff, salaryProbResolution]);
 
   const filteredItems = useMemo(() => {
     if (!report) return [];
@@ -99,6 +105,9 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
       ...prev,
       [itemId]: { itemId, type },
     }));
+    if (itemId === '__salary_probability_scenarios__') {
+      setSalaryProbResolution(type);
+    }
     setErrorMessage(null);
   };
 
@@ -127,24 +136,28 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
   const handleSetAllModified = (choice: 'use_local' | 'use_remote') => {
     const next: Record<string, ItemResolution> = { ...resolutions };
     for (const item of modifiedItems) {
-      if (item.id !== '__salary_probability_scenarios__') {
-        next[item.id] = { itemId: item.id, type: choice };
-      }
+      next[item.id] = { itemId: item.id, type: choice };
     }
     setResolutions(next);
-    if (choice === 'use_remote') setSalaryProbResolution('use_remote');
-    else setSalaryProbResolution('use_local');
+    if (hasSalaryProbDiff) {
+      setSalaryProbResolution(choice);
+    }
     setErrorMessage(null);
   };
 
   const handleApplyResolution = async () => {
     if (unresolvedCount > 0) {
-      setErrorMessage(`Hay ${unresolvedCount} partidas modificadas pendientes de decisión. Elige PC, Nube o edita cada una.`);
+      setErrorMessage(`Hay ${unresolvedCount} partida(s) modificada(s) pendientes de decisión. Elige PC, Nube o edita cada una.`);
+      return;
+    }
+    const finalSalaryChoice = resolutions['__salary_probability_scenarios__']?.type as ('use_local' | 'use_remote') || salaryProbResolution || undefined;
+    if (hasSalaryProbDiff && !finalSalaryChoice) {
+      setErrorMessage('Los escenarios de probabilidad de sueldo difieren. Elige explícitamente entre la versión de tu PC o la Nube.');
       return;
     }
     try {
       setErrorMessage(null);
-      await onResolveAssisted(resolutions, salaryProbResolution);
+      await onResolveAssisted(resolutions, finalSalaryChoice);
       setConfirmingAssisted(false);
       onClose();
     } catch (e: any) {
@@ -190,58 +203,79 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
           </button>
         </div>
 
-        {/* Panel de Simulación de Impacto Financiero en Tiempo Real */}
+        {/* Panel de Simulación de Impacto Financiero: Flujo Mensual vs Inventario de Partidas */}
         {simulation && report.name === 'projections' && (
           <div className="px-5 py-3 bg-slate-100/80 dark:bg-slate-900/40 border-b border-slate-200 dark:border-slate-800 shrink-0">
-            <div className="flex items-center justify-between gap-2 mb-2">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
               <span className="font-bold text-[11px] text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
                 <TrendingUp size={14} className="text-emerald-600" />
-                <span>Simulación de Impacto Financiero Pre-Guardado</span>
+                <span>Simulación de Impacto: Flujo Mensual Real vs Total de Partidas</span>
               </span>
               {unresolvedCount > 0 ? (
-                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800">
+                <span className="text-[11px] font-bold text-amber-700 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/80 px-2.5 py-0.5 rounded-full border border-amber-300 dark:border-amber-800 self-start sm:self-auto">
                   ⚠️ {unresolvedCount} partida(s) pendiente(s) de decisión
                 </span>
               ) : (
-                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800 flex items-center gap-1">
-                  <Check size={12} /> Todas las partidas modificadas han sido resueltas
+                <span className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-300 dark:border-emerald-800 flex items-center gap-1 self-start sm:self-auto">
+                  <Check size={12} /> Todas las decisiones completadas
                 </span>
               )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-[11px]">
-              <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Ingresos Proyectados</span>
-                <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                  <span className="text-slate-500 text-[10px]">PC: S/ {simulation.localTotalIncome.toFixed(2)}</span>
-                  <span className="text-sm font-extrabold text-emerald-600">
-                    S/ {simulation.resolvedTotalIncome.toFixed(2)}
-                  </span>
+            {simulation.monthlyCashflow ? (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-[11px]">
+                {/* 1. Flujo Mensual de Ingresos */}
+                <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Flujo Ingresos ({simulation.monthlyCashflow.targetMonth})</span>
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 font-bold">Mes Activo</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-1 mt-1">
+                    <span className="text-slate-500 text-[10px]">PC: S/ {simulation.monthlyCashflow.localActiveIncome.toFixed(2)}</span>
+                    <span className="text-sm font-extrabold text-emerald-600">
+                      S/ {simulation.monthlyCashflow.resolvedActiveIncome.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Obligaciones y Pagos de Tarjetas</span>
-                <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                  <span className="text-slate-500 text-[10px]">PC: S/ {simulation.localTotalObligations.toFixed(2)}</span>
-                  <span className="text-sm font-extrabold text-rose-600">
-                    S/ {simulation.resolvedTotalObligations.toFixed(2)}
-                  </span>
+                {/* 2. Flujo Mensual de Obligaciones */}
+                <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] uppercase font-bold text-slate-400">Obligaciones ({simulation.monthlyCashflow.targetMonth})</span>
+                    <span className="text-[9px] text-slate-400">{simulation.monthlyCashflow.activeItemsCount} vigentes</span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-1 mt-1">
+                    <span className="text-slate-500 text-[10px]">PC: S/ {simulation.monthlyCashflow.localActiveObligations.toFixed(2)}</span>
+                    <span className="text-sm font-extrabold text-rose-600">
+                      S/ {simulation.monthlyCashflow.resolvedActiveObligations.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">Variación Neta vs PC</span>
-                <div className="flex items-baseline justify-between gap-1 mt-0.5">
-                  <span className="text-slate-500 text-[10px]">
-                    {simulation.netObligationChangeVsLocal >= 0 ? '+' : ''}
-                    S/ {simulation.netObligationChangeVsLocal.toFixed(2)} en obligaciones
-                  </span>
-                  <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                    {simulation.totalItemsCount} partidas totales
-                  </span>
+                {/* 3. Liquidez Neta Mensual */}
+                <div className="p-2.5 rounded-2xl bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 shadow-2xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Liquidez Neta Mensual</span>
+                  <div className="flex items-baseline justify-between gap-1 mt-1">
+                    <span className="text-slate-500 text-[10px]">
+                      {simulation.monthlyCashflow.netLiquidityDeltaVsLocal >= 0 ? '+' : ''}
+                      S/ {simulation.monthlyCashflow.netLiquidityDeltaVsLocal.toFixed(2)} vs PC
+                    </span>
+                    <span className={`text-sm font-extrabold ${simulation.monthlyCashflow.resolvedNetLiquidity >= 0 ? 'text-blue-600 dark:text-blue-400' : 'text-amber-600'}`}>
+                      S/ {simulation.monthlyCashflow.resolvedNetLiquidity.toFixed(2)}
+                    </span>
+                  </div>
                 </div>
               </div>
+            ) : null}
+
+            {/* Aclaración explícita y total del catálogo de partidas */}
+            <div className="mt-2 pt-2 border-t border-slate-200/60 dark:border-slate-800/60 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[10px] text-slate-500 dark:text-slate-400">
+              <span>
+                ℹ️ <strong>Flujo de caja mensual:</strong> calculado aplicando recurrencias (únicos/temporales) y excepciones del mes activo.
+              </span>
+              <span className="shrink-0 font-medium text-slate-600 dark:text-slate-300">
+                Catálogo total bruto: S/ {simulation.catalogTotalObligationsResolved.toFixed(2)} ({simulation.totalItemsCount} partidas en base de datos)
+              </span>
             </div>
           </div>
         )}
@@ -416,50 +450,92 @@ export const DiffComparisonModal: React.FC<DiffComparisonModalProps> = ({
                     {/* Controles de Resolución Asistida para partidas modificadas */}
                     {isModified && (
                       <div className="flex flex-wrap items-center gap-1.5 shrink-0 pt-1 sm:pt-0">
-                        {/* Botón PC */}
-                        <button
-                          type="button"
-                          onClick={() => setChoiceFor(item.id, 'use_local')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
-                            decision?.type === 'use_local'
-                              ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
-                              : 'border-slate-300 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          <Laptop size={12} />
-                          <span>PC: {item.differences?.find(d => d.fieldName === 'Monto')?.localValue || 'Local'}</span>
-                          {decision?.type === 'use_local' && <Check size={12} className="ml-0.5" />}
-                        </button>
+                        {item.id === '__salary_probability_scenarios__' ? (
+                          <>
+                            {/* Probabilidad PC */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSalaryProbResolution('use_local');
+                                setChoiceFor(item.id, 'use_local');
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
+                                decision?.type === 'use_local' || salaryProbResolution === 'use_local'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'border-slate-300 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <Laptop size={12} />
+                              <span>Probabilidades PC</span>
+                              {(decision?.type === 'use_local' || salaryProbResolution === 'use_local') && <Check size={12} className="ml-0.5" />}
+                            </button>
 
-                        {/* Botón Nube */}
-                        <button
-                          type="button"
-                          onClick={() => setChoiceFor(item.id, 'use_remote')}
-                          className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
-                            decision?.type === 'use_remote'
-                              ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
-                              : 'border-slate-300 dark:border-slate-700 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-300'
-                          }`}
-                        >
-                          <Cloud size={12} />
-                          <span>Nube: {item.differences?.find(d => d.fieldName === 'Monto')?.remoteValue || 'Nube'}</span>
-                          {decision?.type === 'use_remote' && <Check size={12} className="ml-0.5" />}
-                        </button>
+                            {/* Probabilidad Nube */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSalaryProbResolution('use_remote');
+                                setChoiceFor(item.id, 'use_remote');
+                              }}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
+                                decision?.type === 'use_remote' || salaryProbResolution === 'use_remote'
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                                  : 'border-slate-300 dark:border-slate-700 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <Cloud size={12} />
+                              <span>Probabilidades Nube</span>
+                              {(decision?.type === 'use_remote' || salaryProbResolution === 'use_remote') && <Check size={12} className="ml-0.5" />}
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {/* Botón PC */}
+                            <button
+                              type="button"
+                              onClick={() => setChoiceFor(item.id, 'use_local')}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
+                                decision?.type === 'use_local'
+                                  ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
+                                  : 'border-slate-300 dark:border-slate-700 hover:bg-blue-50 dark:hover:bg-blue-950/40 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <Laptop size={12} />
+                              <span>PC: {item.differences?.find(d => d.fieldName === 'Monto')?.localValue || 'Local'}</span>
+                              {decision?.type === 'use_local' && <Check size={12} className="ml-0.5" />}
+                            </button>
 
-                        {/* Botón Editar Manual */}
-                        <button
-                          type="button"
-                          onClick={() => handleStartCustomEdit(item)}
-                          className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition ${
-                            decision?.type === 'custom'
-                              ? 'bg-amber-600 text-white border-amber-600'
-                              : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
-                          }`}
-                          title="Indicar un importe exacto personalizado"
-                        >
-                          <Edit2 size={12} />
-                          <span>{decision?.type === 'custom' ? `S/ ${decision.customAmount?.toFixed(2)}` : 'Editar'}</span>
-                        </button>
+                            {/* Botón Nube */}
+                            <button
+                              type="button"
+                              onClick={() => setChoiceFor(item.id, 'use_remote')}
+                              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border font-bold text-xs cursor-pointer transition ${
+                                decision?.type === 'use_remote'
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                                  : 'border-slate-300 dark:border-slate-700 hover:bg-purple-50 dark:hover:bg-purple-950/40 text-slate-700 dark:text-slate-300'
+                              }`}
+                            >
+                              <Cloud size={12} />
+                              <span>Nube: {item.differences?.find(d => d.fieldName === 'Monto')?.remoteValue || 'Nube'}</span>
+                              {decision?.type === 'use_remote' && <Check size={12} className="ml-0.5" />}
+                            </button>
+
+                            {/* Botón Editar Manual */}
+                            <button
+                              type="button"
+                              onClick={() => handleStartCustomEdit(item)}
+                              className={`flex items-center gap-1 px-2 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition ${
+                                decision?.type === 'custom'
+                                  ? 'bg-amber-600 text-white border-amber-600'
+                                  : 'border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400'
+                              }`}
+                              title="Indicar un importe exacto personalizado"
+                            >
+                              <Edit2 size={12} />
+                              <span>{decision?.type === 'custom' ? `S/ ${decision.customAmount?.toFixed(2)}` : 'Editar'}</span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>

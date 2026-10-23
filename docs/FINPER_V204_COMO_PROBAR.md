@@ -4,35 +4,39 @@
 
 ---
 
-## 1. Resumen de las Correcciones en Esta Entrega
+## 1. Resumen de las Correcciones del Cierre de Aceptación
 
-En esta versión pre-merge de **FINPER 2.0.4**:
-1. **Erradicación de Errores HTTP 406:** Se reemplazó el 100% de consultas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`. Cero errores 406 en DevTools al consultar tarjetas o líneas de crédito ausentes.
-2. **Fusión Financiera Asistida (Safe Assisted Reconciliation):** Se eliminó la sobreescritura automática de importes modificados. Toda partida con diferencias exige una decisión consciente por parte del usuario (`PC`, `Nube` o `Editar Monto`).
-3. **Simulador de Impacto Financiero en Tiempo Real:** El modal muestra el cálculo en vivo de tus ingresos totales, obligaciones totales y la variación neta mensual de liquidez según las decisiones que vas tomando.
-4. **Preservación Estricta de Identificadores:** Partidas con el mismo concepto y mes (ej. pagos mensuales de servicios o cuotas) pero distinto ID ya no se colapsan erróneamente.
-5. **Control de Concurrencia Optimista:** Antes de guardar en Supabase, el sistema verifica que la versión en la nube no haya sido alterada por otro dispositivo mientras revisabas las partidas.
-6. **Respaldo Descargable Previo:** Puedes descargar ambas versiones completas en un archivo JSON antes de cualquier resolución.
-7. **Protección del Entorno de Desarrollo:** El banner `DevGuardrailBanner` advierte prominentemente en localhost que estás conectado a la base de producción real (`njgzhjwfcxdxiibkuuqg`) para **no crear movimientos ficticios de prueba en producción**.
-8. **Tus 2,246 registros históricos y tus 4 movimientos pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) continúan 100% intactos.**
+En esta entrega de **FINPER 2.0.4**:
+1. **Probabilidad de Sueldo sin Selección Implícita:** Se eliminó cualquier valor predeterminado (`use_local`). Si los escenarios de probabilidad de sueldo difieren entre PC y Nube, el sistema exige una decisión explícita (botón "Probabilidades PC" o "Probabilidades Nube") y bloquea la conciliación hasta resolverla.
+2. **Simulación de Impacto: Flujo Mensual Real vs Inventario de Partidas:**
+   - **Flujo de caja mensual proyectado:** Evalúa el motor financiero con reglas de recurrencia (`fijo`, `temporal`, `unico`), meses de vigencia (`mesInicio`), excepciones del mes activo (`suprimido`, `montoModificado`) y porcentajes de certeza de sueldo.
+   - **Total bruto de catálogo:** Se presenta claramente como inventario de partidas en base de datos para auditoría, diferenciado de la liquidez mensual.
+3. **Persistencia Segura (Commit Posterior a la Confirmación Remota):**
+   - El resultado conciliado se mantiene como borrador en memoria y se envía primero a Supabase con control de concurrencia optimista contra `remote.head`.
+   - El estado local en Zustand / LocalStorage **NO se altera** hasta recibir la confirmación exitosa de Supabase.
+   - Si la llamada remota falla (por corte de red o colisión), el estado local permanece 100% idéntico a su versión previa sin corrupción.
+4. **Erradicación de Errores HTTP 406:** Se reemplazó el 100% de consultas `.single()` por `fetchOptionalConfigRow` con `.maybeSingle()`. Cero errores 406 en DevTools.
+5. **Preservación Estricta de Identificadores:** Partidas con el mismo concepto y mes pero distinto ID se conservan íntegramente sin deduplicación errónea.
+6. **Tus 2,246 registros históricos y tus 4 movimientos pendientes (`GYM`, `iCloud`, `Fútbol`, `Salida`) continúan 100% intactos.**
 
 ---
 
 ## 2. Paso 1: Abrir la Rama en tu PC Windows
 
-Abre PowerShell en la carpeta de tu proyecto y confirma que estás en la rama correcta:
+Abre PowerShell en la carpeta del proyecto y verifica el commit:
 ```powershell
 cd "c:\Users\Luis Romero\Documents\Proyectos\FinanzasPersonales"
 git status
 git branch --show-current
+git log -1 --oneline
 ```
-*Debe indicar:* `feature/finper-v204-consolidation`.
+*Debe indicar:* rama `feature/finper-v204-consolidation`.
 
 ---
 
 ## 3. Paso 2: Ejecutar Pruebas Automatizadas y Compilación Local
 
-Antes de abrir el navegador, valida que la calidad de código y las 187 pruebas pasen limpiamente en tu máquina:
+Antes de abrir el navegador, valida que la calidad de código y las 192 pruebas pasen limpiamente en tu máquina:
 ```powershell
 npm run lint
 npx tsc --noEmit
@@ -42,7 +46,7 @@ npm run build
 *Resultados esperados:*
 - `lint`: 0 errores.
 - `tsc`: 0 errores.
-- `test`: **34 suites aprobadas, 187 tests aprobados (100% éxito)**.
+- `test`: **35 suites aprobadas, 192 tests aprobados (100% éxito)**.
 - `build`: compila en ~9 segundos generando los activos en `dist/`.
 
 ---
@@ -74,42 +78,39 @@ Abre **Microsoft Edge** e ingresa a [http://localhost:5173/](http://localhost:51
 
 ---
 
-## 6. Paso 5: Ejecutar la Conciliación Asistida de Proyecciones
+## 6. Paso 5: Procedimiento de Revisión de la Conciliación Asistida (Modo Seguro)
 
 En el panel superior de **Sincronización Segura PC / iPhone**:
 1. Haz clic en **Revisar sincronización multidispositivo** para desplegar el panel.
 2. En la tarjeta **Proyecciones & Ingresos Fijos** observarás:
    - PC: 19 partidas | Supabase: 30 partidas.
-   - Botón: 👉 **"🔍 Conciliación Asistida Requerida (5 modificadas)"** *(o botón amarillo de diferencias)*.
+   - Botón: 👉 **"🔍 Conciliación Asistida Requerida (5 modificadas)"**.
 3. Haz clic en el botón para abrir el modal interactivo **Comparación Detallada y Conciliación Asistida**.
 
-### Qué observar dentro del Modal:
-1. **Respaldo Inmediato:** Haz clic en **"Descargar Respaldo JSON"** para guardar una copia de seguridad local de ambas versiones completas.
-2. **Pestaña "Modificados (5)":**
-   Observarás las 5 partidas que diferían en tus capturas:
-   - **Pago de Tarjeta BBVA Bfree:** PC S/ 271.84 vs Nube S/ 272.80.
-   - **Pago de Tarjeta Interbank Amex:** PC S/ 36.60 vs Nube S/ 465.30.
-   - **Pago Tarjeta Ripley:** PC S/ 381.88 vs Nube S/ 374.82.
-   - **Sueldo:** PC S/ 2,259.63 vs Nube S/ 2,384.15.
-   - **Escenarios de Probabilidad de Sueldo:** Difiere el porcentaje asignado.
-3. **Decisiones Asistidas por Partida:**
-   Para cada fila modificada, pulsa el botón correspondiente a tu realidad actual:
-   - Pulsa **"PC (S/ ...)"** si el valor de tu computadora es el más exacto.
-   - Pulsa **"Nube (S/ ...)"** si el valor de la nube es el más reciente.
-   - Pulsa **"Editar"** para tipear manualmente un importe específico.
-4. **Simulador de Impacto Financiero en Vivo:**
-   En la cabecera del modal verás cómo se actualizan instantáneamente:
-   - **Ingresos Totales Resueltos** (ej. S/ 2,384.15).
-   - **Obligaciones Totales Resueltas**.
-   - **Variación Neta Mensual** respecto a lo que tenías en tu PC.
-5. **Pestaña "Solo en Nube (13)" / "Solo en PC (2)":**
-   Verás las partidas que existen únicamente de un lado (ej. Netflix, Seguro Rímac, etc.). Estas se conservarán automáticamente sin colisión.
-6. **Aplicar Conciliación Segura:**
-   - Mientras quede alguna partida modificada sin decisión, el botón mostrará:  
-     `⚠️ Faltan X partidas por conciliar`.
-   - Una vez resueltas las 5 partidas, el botón verde se activará:  
-     👉 **"Aplicar Fusión Asistida Consciente"**.
-   - Al pulsarlo, se verificará la concurrencia optimista contra la nube, se guardará un respaldo previo en tu navegador y se consolidará la información.
+### Verificaciones Clave dentro del Modal:
+
+#### A. Respaldo Descargable Previo
+- Haz clic en **"Descargar Respaldo JSON"**: se descargará inmediatamente un archivo con ambas versiones completas y el reporte de diferencias para tu custodia.
+
+#### B. Simulación de Flujo Mensual Real vs Inventario de Partidas
+- Observa la cabecera del modal:
+  * **Flujo Ingresos (Mes Activo):** Suma únicamente las partidas de ingreso vigentes en el mes.
+  * **Obligaciones (Mes Activo):** Suma únicamente las obligaciones vigentes (excluye partidas temporales vencidas o únicas de otros meses).
+  * **Liquidez Neta Mensual:** Ingresos menos Obligaciones del mes activo y variación neta respecto a la PC.
+  * **Catálogo total bruto:** Nota explicativa inferior indicando que el total de catálogo es la suma de base de datos y no el flujo de un mes.
+
+#### C. Exigencia Estricta en Escenarios de Probabilidad de Sueldo
+- En la pestaña **Modificados**, busca la fila **"Escenarios de Probabilidad de Sueldo"**.
+- Observarás que ahora tiene dos botones dedicados:
+  * **"Probabilidades PC"**
+  * **"Probabilidades Nube"**
+- Mientras no pulses uno de ellos, la fila permanecerá resaltada con aviso de decisión pendiente y el botón final de guardado estará bloqueado con:  
+  `⚠️ Faltan X partida(s) por conciliar`.
+
+#### D. Prueba de Simulación en Partidas Modificadas (BBVA, Interbank, Ripley, Sueldo)
+- Pulsa alternadamente entre **PC**, **Nube** o **Editar** en una de las tarjetas:
+  * Observa cómo las tarjetas superiores de flujo mensual recalculan instantáneamente la liquidez neta.
+- **Cierre Seguro sin Guardar:** Cierra el modal con la **"X"** superior derecha sin pulsar el botón verde de confirmación. Tu base de datos y tu estado local permanecerán 100% inalterados.
 
 ---
 
@@ -118,10 +119,10 @@ En el panel superior de **Sincronización Segura PC / iPhone**:
 Para inspeccionar la aplicación desde tu iPhone sin riesgo:
 1. Con tu iPhone en la **misma red Wi-Fi** que la PC, abre Safari e ingresa la dirección IP local de tu PC que muestra Vite (ej. `http://192.168.1.XX:5173`).
 2. Verifica:
-   - Carga limpia de la interfaz móvil.
+   - Carga limpia de la interfaz móvil en Safari.
    - Navegación táctil en el dock inferior (General, Registrar, Proyección, Tarjetas, Deudas, Categorías, Métricas).
    - Bloqueo y desbloqueo de pantalla: la sesión no se cierra y no hay pantallas blancas.
-   - En el panel de sincronización del iPhone, el comparador de diferencias también es 100% responsivo y táctil.
+   - En el panel de sincronización del iPhone, el comparador de diferencias y conciliación asistida es 100% responsivo y táctil.
 
 ---
 
@@ -141,11 +142,11 @@ Verás que todos los cambios están contenidos exclusivamente en la rama `featur
 Marca mentalmente las 7 condiciones antes de dar tu aprobación:
 
 - [ ] **1. Errores 406 eliminados:** Filtrando por 406 en DevTools no aparece ninguna solicitud.
-- [ ] **2. Conciliación asistida operativa:** El modal te permite elegir `PC`, `Nube` o `Editar` para cada una de las 5 partidas modificadas.
-- [ ] **3. Simulador financiero reactivo:** Refleja en tiempo real la variación neta de tus obligaciones e ingresos.
-- [ ] **4. Respaldo descargable verificado:** El botón descarga el archivo JSON con ambas versiones.
-- [ ] **5. Banner de desarrollo visible:** Aparece la advertencia protegiendo la base de datos de producción.
-- [ ] **6. Suite de pruebas aprobada:** 34 suites y 187 tests pasando al 100%.
+- [ ] **2. Conciliación asistida operativa:** El modal exige decidir `PC` o `Nube` para las probabilidades de sueldo y montos de tarjetas.
+- [ ] **3. Simulador financiero reactivo y desglosado:** Distingue el flujo de caja mensual activo del inventario bruto del catálogo.
+- [ ] **4. Persistencia segura verificada:** Orden transaccional verificado por pruebas unitarias (commit posterior a confirmación remota).
+- [ ] **5. Respaldo descargable verificado:** El botón descarga el archivo JSON con ambas versiones.
+- [ ] **6. Suite de pruebas aprobada:** 35 suites y 192 tests pasando al 100%.
 - [ ] **7. Cero impacto en datos reales:** Los 2,246 registros históricos y tus 4 movimientos pendientes siguen intactos.
 
 ---

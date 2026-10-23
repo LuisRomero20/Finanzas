@@ -1,6 +1,6 @@
 # FINPER 2.0.4 — Lista de Control de Lanzamiento Pre-Merge (Release Checklist)
 
-**Versión:** FINPER 2.0.4 (Consolidación Técnica + Fusión Financiera Asistida)  
+**Versión:** FINPER 2.0.4 (Consolidación Técnica + Cierre de Aceptación)  
 **Fecha:** 22 de Octubre de 2026  
 **Rama de Trabajo:** `feature/finper-v204-consolidation`  
 **Rama de Destino:** `main`  
@@ -30,15 +30,17 @@
 
 ---
 
-## 3. Fusión Financiera Asistida y Comparación Detallada
+## 3. Fusión Financiera Asistida y Cierre de Aceptación
 
-- [x] **Comparación Detallada Ítem por Ítem:** Módulo `diffComparison.ts` calcula diferencias de registros exclusivos, modificados e idénticos.
-- [x] **Modal Interactivo de Conciliación Asistida:** `DiffComparisonModal` permite filtrar, buscar e inspeccionar diferencias antes de cualquier escritura.
-- [x] **Prohibición de Sobreescritura Automática:** `computeSmartMerge` arroja excepción si `modifiedCount > 0`, exigiendo decisión explícita para cada partida modificada (`computeAssistedMerge`).
-- [x] **Decisión Explícita por Registro Modificado:** El usuario puede elegir individualmente: `PC`, `Nube` o `Editar Monto` personalizado.
-- [x] **Preservación de Pagos con Igual Nombre/Mes:** Partidas con el mismo concepto y mes pero distinto ID se conservan íntegramente sin deduplicación errónea.
-- [x] **Simulación Financiera en Tiempo Real:** Caja de pre-flight que simula en vivo el impacto en ingresos, obligaciones totales y variación neta de liquidez mensual.
-- [x] **Control de Concurrencia Optimista:** Verificación contra `remote.head` antes de escribir en Supabase; rechaza la escritura si otro dispositivo modificó el estado durante la conciliación.
+- [x] **Cero Selección Implícita en Probabilidades de Sueldo:** Eliminado cualquier default a `use_local`. Si los escenarios difieren, se exige decisión explícita individual (`PC` o `Nube`) y se bloquea el guardado ante omisiones.
+- [x] **Diferenciación de Flujo Mensual Real vs Total de Catálogo:**
+  - **Flujo de caja mensual proyectado:** Calculado aplicando el motor financiero con reglas de recurrencia (`fijo`, `temporal`, `unico`), meses de vigencia y excepciones del mes activo (`suprimido`, `montoModificado`).
+  - **Catálogo total:** Se presenta claramente como inventario bruto de partidas en base de datos, sin confundirlo con la liquidez mensual.
+- [x] **Persistencia Segura (Commit Posterior a la Confirmación Remota):**
+  - El borrador conciliado se envía a Supabase con control de concurrencia optimista contra `remote.head`.
+  - El estado local en Zustand / LocalStorage **NO se altera** hasta recibir la confirmación exitosa de Supabase.
+  - Si la llamada remota falla, el estado local queda garantizado e intacto en su versión previa sin corrupción.
+- [x] **Preservación Estricta de Identificadores:** Partidas con el mismo concepto y mes pero distinto ID se conservan íntegramente sin deduplicación errónea.
 - [x] **Respaldos Previos Descargables y Locales:** Botón de descarga JSON de ambas versiones completas y su reporte de diferencias antes de ejecutar cualquier acción.
 
 ---
@@ -56,8 +58,8 @@
 
 - [x] **Linter (`npm run lint`):** 0 errores (12 advertencias documentadas en hooks legados).
 - [x] **Chequeo de Tipos (`npx tsc --noEmit`):** 0 errores de TypeScript en toda la base de código.
-- [x] **Suite Completa de Pruebas (`npm test`):** **34 suites aprobadas (34/34), 187 pruebas aprobadas (187/187, 100% éxito)**.
-- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 9.64 segundos.
+- [x] **Suite Completa de Pruebas (`npm test`):** **35 suites aprobadas (35/35), 192 pruebas aprobadas (192/192, 100% éxito)**.
+- [x] **Compilación de Producción (`npm run build`):** Vite compila limpiamente en `dist/` en 9.18 segundos.
 
 ---
 
@@ -78,4 +80,5 @@
 - [ ] **Tutorial de Revisión ejecutado por el usuario** (`docs/FINPER_V204_COMO_PROBAR.md`).
 - [ ] **Pruebas satisfactorias en PC Windows (Microsoft Edge).**
 - [ ] **Pruebas satisfactorias en iPhone (Safari / PWA).**
+- [ ] **Validación de conciliación asistida en modo visual sin aplicar cambios.**
 - [ ] **Autorización explícita por escrito del usuario para merge a `main` y despliegue a Vercel.**

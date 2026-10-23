@@ -44,7 +44,32 @@ export interface ItemResolution {
   customMonth?: string;
 }
 
+export interface MonthlyCashflowImpact {
+  targetMonth: string; // 'YYYY-MM'
+  localActiveIncome: number;
+  remoteActiveIncome: number;
+  resolvedActiveIncome: number;
+  localActiveObligations: number;
+  remoteActiveObligations: number;
+  resolvedActiveObligations: number;
+  localNetLiquidity: number;
+  remoteNetLiquidity: number;
+  resolvedNetLiquidity: number;
+  netLiquidityDeltaVsLocal: number;
+  activeItemsCount: number;
+}
+
 export interface FinancialImpactSimulation {
+  // 1. Total Agregado del Catálogo (Inventario Bruto de Partidas)
+  catalogTotalIncomeLocal: number;
+  catalogTotalIncomeRemote: number;
+  catalogTotalIncomeResolved: number;
+  catalogTotalObligationsLocal: number;
+  catalogTotalObligationsRemote: number;
+  catalogTotalObligationsResolved: number;
+  catalogNetChangeVsLocal: number;
+
+  // Compatibilidad hacia atrás
   localTotalIncome: number;
   remoteTotalIncome: number;
   resolvedTotalIncome: number;
@@ -55,6 +80,9 @@ export interface FinancialImpactSimulation {
   netIncomeChangeVsLocal: number;
   totalItemsCount: number;
   unresolvedModifiedCount: number;
+
+  // 2. Flujo de Caja Mensual Proyectado (Calculado con motor de recurrencias)
+  monthlyCashflow?: MonthlyCashflowImpact;
 }
 
 const DISPLAY_NAMES: Record<SyncName, string> = {
@@ -500,13 +528,82 @@ export function generateDiffReport(
 }
 
 /**
+ * Evalúa si una partida proyectada está activa en un mes específico y calcula su importe
+ * efectivo aplicando el motor financiero de recurrencias (fijo, temporal, único), mes de inicio,
+ * excepciones de supresión/modificación y escenarios de probabilidad de sueldo.
+ */
+export function evaluateProjectedItemInMonth(
+  item: any,
+  targetMonthStr: string,
+  salaryProbMap?: Record<string, number>,
+): { isActive: boolean; effectiveAmount: number; tipo: 'Ingreso' | 'Egreso' } {
+  if (!item) return { isActive: false, effectiveAmount: 0, tipo: 'Egreso' };
+
+  const tipo: 'Ingreso' | 'Egreso' = item.tipo === 'Ingreso' ? 'Ingreso' : 'Egreso';
+  const startMonthStr = item.mesInicio || item.mes || targetMonthStr;
+
+  const [startYear, startMonth] = String(startMonthStr).split('-').map(Number);
+  const [targetYear, targetMonth] = String(targetMonthStr).split('-').map(Number);
+
+  if (!startYear || !startMonth || !targetYear || !targetMonth) {
+    return { isActive: true, effectiveAmount: Number(item.monto || 0), tipo };
+  }
+
+  const startDateVal = startYear * 12 + (startMonth - 1);
+  const targetDateVal = targetYear * 12 + (targetMonth - 1);
+
+  // Si el mes objetivo es anterior al mes de inicio de la partida, no aplica
+  if (targetDateVal < startDateVal) {
+    return { isActive: false, effectiveAmount: 0, tipo };
+  }
+
+  const monthsDiff = targetDateVal - startDateVal;
+
+  // Reglas de recurrencia
+  const rec = item.recurrencia || 'fijo';
+  if (rec === 'unico' && monthsDiff !== 0) {
+    return { isActive: false, effectiveAmount: 0, tipo };
+  }
+  if (rec === 'temporal') {
+    const dur = Number(item.mesesDuracion || 1);
+    if (monthsDiff >= dur) {
+      return { isActive: false, effectiveAmount: 0, tipo };
+    }
+  }
+
+  // Reglas de excepciones en el mes objetivo
+  const exc = item.excepciones?.[targetMonthStr];
+  if (exc?.suprimido) {
+    return { isActive: false, effectiveAmount: 0, tipo };
+  }
+
+  let effectiveAmount = exc?.montoModificado !== undefined ? Number(exc.montoModificado) : Number(item.monto || 0);
+
+  // Escenario de probabilidad de sueldo para el mes objetivo
+  if (salaryProbMap && salaryProbMap[targetMonthStr] !== undefined && /sueldo/i.test(item.concepto || '')) {
+    const val = Number(salaryProbMap[targetMonthStr]);
+    if (val <= 100) {
+      effectiveAmount = Math.round((effectiveAmount * (val / 100)) * 100) / 100;
+    } else {
+      effectiveAmount = val;
+    }
+  }
+
+  return { isActive: true, effectiveAmount, tipo };
+}
+
+/**
  * Simula el impacto financiero de las decisiones tomadas en la conciliación.
+ * Diferencia explícitamente:
+ * 1. Total Agregado del Catálogo (Inventario estático de todas las partidas registradas).
+ * 2. Flujo de Caja Mensual Proyectado (Calculado con motor de recurrencias, meses de vigencia y excepciones).
  */
 export function simulateReconciliationImpact(
   name: SyncName,
   localRawStr: string,
   remoteRawStr: string,
   resolutions: Record<string, ItemResolution>,
+  targetMonthStr?: string,
 ): FinancialImpactSimulation {
   const report = generateDiffReport(name, localRawStr, remoteRawStr);
 
@@ -520,6 +617,23 @@ export function simulateReconciliationImpact(
 
   let unresolvedModifiedCount = 0;
 
+  const activeMonth = targetMonthStr || '2026-10';
+  let localActiveIncome = 0;
+  let remoteActiveIncome = 0;
+  let resolvedActiveIncome = 0;
+  let localActiveObligations = 0;
+  let remoteActiveObligations = 0;
+  let resolvedActiveObligations = 0;
+  let activeItemsCount = 0;
+
+  let localParsed: any = {};
+  let remoteParsed: any = {};
+  try { localParsed = JSON.parse(localRawStr); } catch {}
+  try { remoteParsed = JSON.parse(remoteRawStr); } catch {}
+
+  const localProb = localParsed?.probabilidadSueldoPorMes || {};
+  const remoteProb = remoteParsed?.probabilidadSueldoPorMes || {};
+
   if (name === 'projections') {
     for (const item of report.items) {
       if (item.id === '__salary_probability_scenarios__') continue;
@@ -529,6 +643,18 @@ export function simulateReconciliationImpact(
       const isIncomeLoc = item.localRaw?.tipo === 'Ingreso';
       const isIncomeRem = item.remoteRaw?.tipo === 'Ingreso';
 
+      const locMonthly = evaluateProjectedItemInMonth(item.localRaw, activeMonth, localProb);
+      const remMonthly = evaluateProjectedItemInMonth(item.remoteRaw, activeMonth, remoteProb);
+
+      if (locMonthly.isActive) {
+        if (locMonthly.tipo === 'Ingreso') localActiveIncome += locMonthly.effectiveAmount;
+        else localActiveObligations += locMonthly.effectiveAmount;
+      }
+      if (remMonthly.isActive) {
+        if (remMonthly.tipo === 'Ingreso') remoteActiveIncome += remMonthly.effectiveAmount;
+        else remoteActiveObligations += remMonthly.effectiveAmount;
+      }
+
       if (item.status === 'local_only') {
         if (isIncomeLoc) {
           localTotalIncome += locMonto;
@@ -537,6 +663,11 @@ export function simulateReconciliationImpact(
           localTotalObligations += locMonto;
           resolvedTotalObligations += locMonto;
         }
+        if (locMonthly.isActive) {
+          activeItemsCount++;
+          if (locMonthly.tipo === 'Ingreso') resolvedActiveIncome += locMonthly.effectiveAmount;
+          else resolvedActiveObligations += locMonthly.effectiveAmount;
+        }
       } else if (item.status === 'remote_only') {
         if (isIncomeRem) {
           remoteTotalIncome += remMonto;
@@ -544,6 +675,11 @@ export function simulateReconciliationImpact(
         } else {
           remoteTotalObligations += remMonto;
           resolvedTotalObligations += remMonto;
+        }
+        if (remMonthly.isActive) {
+          activeItemsCount++;
+          if (remMonthly.tipo === 'Ingreso') resolvedActiveIncome += remMonthly.effectiveAmount;
+          else resolvedActiveObligations += remMonthly.effectiveAmount;
         }
       } else if (item.status === 'identical') {
         if (isIncomeLoc) {
@@ -554,6 +690,11 @@ export function simulateReconciliationImpact(
           localTotalObligations += locMonto;
           remoteTotalObligations += locMonto;
           resolvedTotalObligations += locMonto;
+        }
+        if (locMonthly.isActive) {
+          activeItemsCount++;
+          if (locMonthly.tipo === 'Ingreso') resolvedActiveIncome += locMonthly.effectiveAmount;
+          else resolvedActiveObligations += locMonthly.effectiveAmount;
         }
       } else if (item.status === 'modified') {
         if (isIncomeLoc) localTotalIncome += locMonto;
@@ -568,23 +709,70 @@ export function simulateReconciliationImpact(
           // Si no está resuelto, reflejar local provisionalmente
           if (isIncomeLoc) resolvedTotalIncome += locMonto;
           else resolvedTotalObligations += locMonto;
+          if (locMonthly.isActive) {
+            activeItemsCount++;
+            if (locMonthly.tipo === 'Ingreso') resolvedActiveIncome += locMonthly.effectiveAmount;
+            else resolvedActiveObligations += locMonthly.effectiveAmount;
+          }
         } else if (decision.type === 'use_local') {
           if (isIncomeLoc) resolvedTotalIncome += locMonto;
           else resolvedTotalObligations += locMonto;
+          if (locMonthly.isActive) {
+            activeItemsCount++;
+            if (locMonthly.tipo === 'Ingreso') resolvedActiveIncome += locMonthly.effectiveAmount;
+            else resolvedActiveObligations += locMonthly.effectiveAmount;
+          }
         } else if (decision.type === 'use_remote') {
           if (isIncomeRem) resolvedTotalIncome += remMonto;
           else resolvedTotalObligations += remMonto;
+          if (remMonthly.isActive) {
+            activeItemsCount++;
+            if (remMonthly.tipo === 'Ingreso') resolvedActiveIncome += remMonthly.effectiveAmount;
+            else resolvedActiveObligations += remMonthly.effectiveAmount;
+          }
         } else if (decision.type === 'custom') {
           const customVal = Number(decision.customAmount ?? locMonto);
           const isCustomIncome = (decision.customConcept ?? item.localRaw?.tipo) === 'Ingreso' || isIncomeLoc;
           if (isCustomIncome) resolvedTotalIncome += customVal;
           else resolvedTotalObligations += customVal;
+
+          const base = item.localRaw || item.remoteRaw;
+          const customItem = { ...base, monto: customVal };
+          const customMonthly = evaluateProjectedItemInMonth(customItem, activeMonth, localProb);
+          if (customMonthly.isActive) {
+            activeItemsCount++;
+            if (customMonthly.tipo === 'Ingreso') resolvedActiveIncome += customMonthly.effectiveAmount;
+            else resolvedActiveObligations += customMonthly.effectiveAmount;
+          }
         }
       }
     }
   }
 
+  const monthlyCashflow: MonthlyCashflowImpact | undefined = name === 'projections' ? {
+    targetMonth: activeMonth,
+    localActiveIncome: Math.round(localActiveIncome * 100) / 100,
+    remoteActiveIncome: Math.round(remoteActiveIncome * 100) / 100,
+    resolvedActiveIncome: Math.round(resolvedActiveIncome * 100) / 100,
+    localActiveObligations: Math.round(localActiveObligations * 100) / 100,
+    remoteActiveObligations: Math.round(remoteActiveObligations * 100) / 100,
+    resolvedActiveObligations: Math.round(resolvedActiveObligations * 100) / 100,
+    localNetLiquidity: Math.round((localActiveIncome - localActiveObligations) * 100) / 100,
+    remoteNetLiquidity: Math.round((remoteActiveIncome - remoteActiveObligations) * 100) / 100,
+    resolvedNetLiquidity: Math.round((resolvedActiveIncome - resolvedActiveObligations) * 100) / 100,
+    netLiquidityDeltaVsLocal: Math.round(((resolvedActiveIncome - resolvedActiveObligations) - (localActiveIncome - localActiveObligations)) * 100) / 100,
+    activeItemsCount,
+  } : undefined;
+
   return {
+    catalogTotalIncomeLocal: Math.round(localTotalIncome * 100) / 100,
+    catalogTotalIncomeRemote: Math.round(remoteTotalIncome * 100) / 100,
+    catalogTotalIncomeResolved: Math.round(resolvedTotalIncome * 100) / 100,
+    catalogTotalObligationsLocal: Math.round(localTotalObligations * 100) / 100,
+    catalogTotalObligationsRemote: Math.round(remoteTotalObligations * 100) / 100,
+    catalogTotalObligationsResolved: Math.round(resolvedTotalObligations * 100) / 100,
+    catalogNetChangeVsLocal: Math.round((resolvedTotalObligations - localTotalObligations) * 100) / 100,
+
     localTotalIncome: Math.round(localTotalIncome * 100) / 100,
     remoteTotalIncome: Math.round(remoteTotalIncome * 100) / 100,
     resolvedTotalIncome: Math.round(resolvedTotalIncome * 100) / 100,
@@ -595,29 +783,42 @@ export function simulateReconciliationImpact(
     netIncomeChangeVsLocal: Math.round((resolvedTotalIncome - localTotalIncome) * 100) / 100,
     totalItemsCount: report.items.length,
     unresolvedModifiedCount,
+    monthlyCashflow,
   };
 }
 
 /**
  * Ejecuta la FUSIÓN ASISTIDA:
  * 1. Exige que todo registro con diferencias tenga una decisión explícita (use_local, use_remote o custom).
- * 2. NUNCA sobrescribe automáticamente un importe financiero modificado.
- * 3. Preserva íntegramente los campos no visibles de los snapshots originales.
- * 4. No deduplica falsamente pagos legítimos con igual concepto y mes pero distinto ID.
+ * 2. Si hay diferencias en escenarios de probabilidad de sueldo, EXIGE decisión explícita sin default implícito.
+ * 3. NUNCA sobrescribe automáticamente un importe financiero modificado.
+ * 4. Preserva íntegramente los campos no visibles de los snapshots originales.
+ * 5. No deduplica falsamente pagos legítimos con igual concepto y mes pero distinto ID.
  */
 export function computeAssistedMerge(
   name: SyncName,
   localRawStr: string,
   remoteRawStr: string,
   resolutions: Record<string, ItemResolution>,
-  salaryProbabilityResolution: 'use_local' | 'use_remote' = 'use_local',
+  salaryProbabilityResolution?: 'use_local' | 'use_remote',
+  targetMonthStr?: string,
 ): { mergedValue: string; summary: string; totalItems: number; simulation: FinancialImpactSimulation } {
   const report = generateDiffReport(name, localRawStr, remoteRawStr);
 
-  // Verificar que ninguna partida modificada quede sin decisión
+  const hasSalaryProbDiff = report.items.some(i => i.id === '__salary_probability_scenarios__');
+  const probDecision = resolutions['__salary_probability_scenarios__']?.type || salaryProbabilityResolution;
+
+  // 1. Exigir decisión explícita si los escenarios de probabilidad de sueldo difieren (cero default implícito)
+  if (hasSalaryProbDiff && !probDecision) {
+    throw new Error(
+      `Conciliación asistida incompleta: los escenarios de probabilidad de sueldo difieren y requieren una decisión explícita ('use_local' o 'use_remote').`
+    );
+  }
+
+  // 2. Verificar que ninguna partida modificada quede sin decisión
   const unresolved = report.items.filter(i => {
     if (i.id === '__salary_probability_scenarios__') {
-      return !resolutions[i.id] && !salaryProbabilityResolution;
+      return !probDecision;
     }
     return i.status === 'modified' && !resolutions[i.id];
   });
@@ -688,9 +889,14 @@ export function computeAssistedMerge(
 
     // Fusión de escenarios de probabilidad de sueldo según decisión explícita
     let resolvedProb = { ...(localParsed?.probabilidadSueldoPorMes || {}) };
-    const probDecision = resolutions['__salary_probability_scenarios__']?.type || salaryProbabilityResolution;
-    if (probDecision === 'use_remote') {
-      resolvedProb = { ...(remoteParsed?.probabilidadSueldoPorMes || {}) };
+    if (hasSalaryProbDiff) {
+      if (probDecision === 'use_remote') {
+        resolvedProb = { ...(remoteParsed?.probabilidadSueldoPorMes || {}) };
+      } else if (probDecision === 'use_local') {
+        resolvedProb = { ...(localParsed?.probabilidadSueldoPorMes || {}) };
+      }
+    } else {
+      resolvedProb = { ...(remoteParsed?.probabilidadSueldoPorMes || {}), ...(localParsed?.probabilidadSueldoPorMes || {}) };
     }
 
     const resultObj = {
@@ -698,7 +904,7 @@ export function computeAssistedMerge(
       probabilidadSueldoPorMes: resolvedProb,
     };
 
-    const simulation = simulateReconciliationImpact(name, localRawStr, remoteRawStr, resolutions);
+    const simulation = simulateReconciliationImpact(name, localRawStr, remoteRawStr, resolutions, targetMonthStr);
 
     return {
       mergedValue: JSON.stringify(resultObj),

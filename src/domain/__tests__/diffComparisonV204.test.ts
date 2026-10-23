@@ -313,6 +313,133 @@ describe('FINPER 2.0.4 — Diff Comparison & Assisted Reconciliation Domain Logi
     expect(parsed['card-ibk'].finalDebt).toBe(1250.50);
   });
 
+  it('strictly rejects assisted merge without explicit decision when salary probabilities differ (zero implicit default)', () => {
+    const localRaw = JSON.stringify({
+      items: [{ id: 'p-1', concepto: 'Luz', monto: 100, tipo: 'Egreso' }],
+      probabilidadSueldoPorMes: { '2026-11': 100 },
+    });
+    const remoteRaw = JSON.stringify({
+      items: [{ id: 'p-1', concepto: 'Luz', monto: 100, tipo: 'Egreso' }],
+      probabilidadSueldoPorMes: { '2026-11': 80 },
+    });
+
+    // Sin decisión explícita de probabilidad de sueldo: debe arrojar error (cero selección implícita)
+    expect(() =>
+      computeAssistedMerge('projections', localRaw, remoteRaw, {})
+    ).toThrowError(/los escenarios de probabilidad de sueldo difieren y requieren una decisi[oó]n expl[ií]cita/i);
+
+    // Con decisión explícita 'use_remote': se aprueba y adopta el 80% de la nube
+    const resultRemote = computeAssistedMerge(
+      'projections',
+      localRaw,
+      remoteRaw,
+      {},
+      'use_remote'
+    );
+    const parsedRemote = JSON.parse(resultRemote.mergedValue);
+    expect(parsedRemote.probabilidadSueldoPorMes['2026-11']).toBe(80);
+
+    // Con decisión explícita 'use_local': se aprueba y conserva el 100% de la PC
+    const resultLocal = computeAssistedMerge(
+      'projections',
+      localRaw,
+      remoteRaw,
+      {},
+      'use_local'
+    );
+    const parsedLocal = JSON.parse(resultLocal.mergedValue);
+    expect(parsedLocal.probabilidadSueldoPorMes['2026-11']).toBe(100);
+  });
+
+  it('evaluates monthly cashflow vs aggregate catalog applying recurrence rules, start dates, and exceptions with evaluateProjectedItemInMonth', async () => {
+    const { evaluateProjectedItemInMonth } = await import('../sync/diffComparison');
+
+    // 1. Partida futura (inicio en 2026-12) evaluada en 2026-10: inactiva
+    const futureItem = { id: 'f-1', mesInicio: '2026-12', monto: 500, tipo: 'Egreso', recurrencia: 'fijo' };
+    expect(evaluateProjectedItemInMonth(futureItem, '2026-10').isActive).toBe(false);
+
+    // 2. Partida única (recurrencia 'unico' en 2026-10): activa en 2026-10, inactiva en 2026-11
+    const oneOff = { id: 'u-1', mesInicio: '2026-10', monto: 300, tipo: 'Egreso', recurrencia: 'unico' };
+    expect(evaluateProjectedItemInMonth(oneOff, '2026-10').isActive).toBe(true);
+    expect(evaluateProjectedItemInMonth(oneOff, '2026-10').effectiveAmount).toBe(300);
+    expect(evaluateProjectedItemInMonth(oneOff, '2026-11').isActive).toBe(false);
+
+    // 3. Partida temporal de 2 meses (2026-10 a 2026-11): activa en mes 0 y 1, inactiva en mes 2 (2026-12)
+    const tempItem = { id: 't-1', mesInicio: '2026-10', monto: 150, tipo: 'Egreso', recurrencia: 'temporal', mesesDuracion: 2 };
+    expect(evaluateProjectedItemInMonth(tempItem, '2026-10').isActive).toBe(true);
+    expect(evaluateProjectedItemInMonth(tempItem, '2026-11').isActive).toBe(true);
+    expect(evaluateProjectedItemInMonth(tempItem, '2026-12').isActive).toBe(false);
+
+    // 4. Partida fija con excepción de supresión en 2026-10
+    const suppressedItem = {
+      id: 's-1',
+      mesInicio: '2026-10',
+      monto: 980,
+      tipo: 'Egreso',
+      recurrencia: 'fijo',
+      excepciones: { '2026-10': { suprimido: true } },
+    };
+    expect(evaluateProjectedItemInMonth(suppressedItem, '2026-10').isActive).toBe(false);
+
+    // 5. Partida con monto modificado puntualmente en 2026-10
+    const modifiedExc = {
+      id: 'm-1',
+      mesInicio: '2026-09',
+      monto: 200,
+      tipo: 'Egreso',
+      recurrencia: 'fijo',
+      excepciones: { '2026-10': { montoModificado: 250 } },
+    };
+    const modResult = evaluateProjectedItemInMonth(modifiedExc, '2026-10');
+    expect(modResult.isActive).toBe(true);
+    expect(modResult.effectiveAmount).toBe(250);
+
+    // 6. Sueldo con porcentaje de certeza (ej. 90% en probabilidadSueldoPorMes)
+    const sueldo = { id: 'sal-1', concepto: 'Sueldo', mesInicio: '2026-10', monto: 2000, tipo: 'Ingreso', recurrencia: 'fijo' };
+    const salResult = evaluateProjectedItemInMonth(sueldo, '2026-10', { '2026-10': 90 });
+    expect(salResult.isActive).toBe(true);
+    expect(salResult.effectiveAmount).toBe(1800); // 90% de 2000
+  });
+
+  it('differentiates true monthly cashflow from aggregate catalog inventory in simulateReconciliationImpact', () => {
+    // Escenario: Partida recurrente activa en 2026-10 (Luz 100), Partida única en 2026-10 (Bono 500)
+    // y Partida futura inactiva en 2026-10 (Matrícula 1200 en 2026-12).
+    const localRaw = JSON.stringify({
+      items: [
+        { id: 'i-sueldo', concepto: 'Sueldo', monto: 2000, tipo: 'Ingreso', mesInicio: '2026-10', recurrencia: 'fijo' },
+        { id: 'e-luz', concepto: 'Luz', monto: 100, tipo: 'Egreso', mesInicio: '2026-10', recurrencia: 'fijo' },
+        { id: 'e-futuro', concepto: 'Matrícula', monto: 1200, tipo: 'Egreso', mesInicio: '2026-12', recurrencia: 'unico' },
+      ],
+    });
+    const remoteRaw = JSON.stringify({
+      items: [
+        { id: 'i-sueldo', concepto: 'Sueldo', monto: 2200, tipo: 'Ingreso', mesInicio: '2026-10', recurrencia: 'fijo' },
+        { id: 'e-luz', concepto: 'Luz', monto: 100, tipo: 'Egreso', mesInicio: '2026-10', recurrencia: 'fijo' },
+        { id: 'e-futuro', concepto: 'Matrícula', monto: 1200, tipo: 'Egreso', mesInicio: '2026-12', recurrencia: 'unico' },
+      ],
+    });
+
+    const sim = simulateReconciliationImpact(
+      'projections',
+      localRaw,
+      remoteRaw,
+      { 'i-sueldo': { itemId: 'i-sueldo', type: 'use_remote' } },
+      '2026-10' // targetMonth
+    );
+
+    // 1. Total agregado del catálogo incluye la partida futura (2000 + 100 + 1200 = obligaciones 1300)
+    expect(sim.catalogTotalObligationsResolved).toBe(1300); // 100 luz + 1200 matrícula futura
+
+    // 2. Flujo mensual de octubre 2026 EXCLUYE la matrícula futura por no estar activa en octubre
+    expect(sim.monthlyCashflow).toBeDefined();
+    expect(sim.monthlyCashflow?.targetMonth).toBe('2026-10');
+    expect(sim.monthlyCashflow?.resolvedActiveIncome).toBe(2200); // Sueldo resuelto
+    expect(sim.monthlyCashflow?.resolvedActiveObligations).toBe(100); // Solo Luz
+    expect(sim.monthlyCashflow?.resolvedNetLiquidity).toBe(2100); // 2200 - 100
+    expect(sim.monthlyCashflow?.localNetLiquidity).toBe(1900); // 2000 - 100
+    expect(sim.monthlyCashflow?.netLiquidityDeltaVsLocal).toBe(200); // +200 de liquidez neta mensual
+  });
+
   it('generates downloadable JSON diff backup structure with resolutions metadata', () => {
     const report = generateDiffReport('budgets', JSON.stringify({ budgets: { A: 100 } }), JSON.stringify({ budgets: { A: 200 } }));
     const resolutions: Record<string, ItemResolution> = {
