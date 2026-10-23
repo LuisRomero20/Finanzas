@@ -131,6 +131,46 @@ Haz clic en el botón **«Ficha»** de cualquiera de tus tarjetas:
 
 ---
 
+## 🔬 PARTE 3: Verificación de sincronización PC ↔ iPhone (entorno AISLADO)
+
+> [!WARNING]
+> **No pruebes escritura de conciliaciones o pagos contra tu Supabase productivo.** Usa un proyecto Supabase de pruebas.
+
+### Paso 1 — Verificar la rama (PowerShell)
+```powershell
+git status
+git fetch origin
+git branch --show-current          # debe ser feature/finper-v21-smart-cards-sprint01
+git log -1 --oneline               # debe coincidir con el commit entregado
+npm run lint
+npx tsc --noEmit
+npm test                           # esperado: 37 archivos, 254 pruebas
+npm run build
+```
+
+### Paso 2 — Apuntar a un proyecto Supabase de pruebas
+1. Crea un proyecto Supabase vacío (no `njgzhjwfcxdxiibkuuqg`) y aplica las migraciones del repositorio.
+2. Crea `.env.local` (ignorado por git) con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` **del proyecto de pruebas** y un usuario de prueba.
+3. `npm run dev -- --host` y abre en Edge `http://localhost:5173`; en el iPhone (misma Wi-Fi) abre la URL de red que muestra Vite en Safari. Inicia sesión con el **mismo usuario de prueba** en ambos.
+
+### Paso 3 — Casos a comprobar (anota el resultado)
+| # | Acción | Resultado esperado |
+| :-: | :--- | :--- |
+| 1 | PC: Tarjetas → *Conciliar Banco* → saldo `100.00` → Guardar | Insignia «Nube: Confirmada en Supabase»; mensaje «Confirmada en Supabase. Verificación bancaria: declarada manualmente…» |
+| 2 | iPhone: abre Tarjetas (o espera unos segundos / vuelve a la app) | Aparece la misma conciliación con el mismo saldo |
+| 3 | PC: desactiva la red (Edge → DevTools → Network → *Offline*) y guarda otra conciliación | «Guardada en este dispositivo» + botón *Reintentar*; **no** dice «Confirmada» |
+| 4 | PC: recarga la página (F5) estando offline | Los datos siguen y el estado continúa «Guardada en este dispositivo» |
+| 5 | PC: reactiva la red y pulsa *Reintentar* | Pasa a «Confirmada en Supabase»; el iPhone la recibe |
+| 6 | iPhone offline: edita la conciliación con saldo `500`; PC online: edítala con `450`; reconecta el iPhone | «Versiones distintas»; Ajustes › Sincronización muestra la comparación; **nada se sobrescribe** hasta que decidas |
+| 7 | Registrar el mismo pago 3 veces el mismo día | Aviso de pago equivalente con secuencia #2 y #3; los tres pagos se conservan |
+
+### Paso 4 — Revisar el Pull Request antes del merge
+1. En GitHub abre el PR de `feature/finper-v21-smart-cards-sprint01` hacia `main` y revisa `docs/FINPER_V21_S01_SYNC_CLOSURE.md`.
+2. Comprueba que Vercel muestre *Success* para el último commit.
+3. **No fusiones** sin completar la tabla anterior y sin tu aprobación explícita.
+
+---
+
 ## ✅ Lista de Comprobación Final
 
 | Control | ¿Aprobado? |

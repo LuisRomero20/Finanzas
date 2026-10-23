@@ -22,6 +22,7 @@ import { SmartCardSimulatorModal } from '../components/cards/SmartCardSimulatorM
 import { SmartCardReconciliationModal } from '../components/cards/SmartCardReconciliationModal';
 import { CardContractualSheetModal } from '../components/cards/CardContractualSheetModal';
 import { MobileDisclosure } from '../components/MobileDisclosure';
+import { StatementSyncBadge } from '../components/cards/StatementSyncBadge';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import { CONTRACTUAL_WARNING_MESSAGE } from '../domain/cards/smartCardEngine';
@@ -430,6 +431,7 @@ export const CronogramaPagos: React.FC = () => {
                         ? `Doc. Verificado (${verifiedStatement.documentReference || verifiedStatement.fileName})`
                         : (verifiedStatement.verificationStatus === 'disputed' ? 'En Disputa' : 'Declarado por Usuario')}
                     </span>
+                    <StatementSyncBadge showMessage={false} />
                   </div>
 
                   <div className="flex items-center gap-3">

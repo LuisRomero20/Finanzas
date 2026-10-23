@@ -72,3 +72,16 @@ Este Pull Request implementa el **Sprint 01 de FINPER 2.1**, dotando a la aplica
 ## ⚠️ Estado de Publicación
 
 **NO FUSIONADO A MAIN.** Queda pendiente la revisión local del usuario siguiendo el tutorial `docs/FINPER_V21_S01_COMO_PROBAR.md` y su autorización explícita antes de cualquier merge.
+
+
+---
+
+## Cierre de sincronización de conciliaciones (auditoría sobre `19109de`)
+
+- **Problema:** `syncStatementsToCloud()` silenciaba errores y se invocaba con `void`; guardar no garantizaba confirmación remota.
+- **Corrección:** resultado estructurado `remote_confirmed | local_pending | sync_failed | conflict`; `remote_confirmed` exige escritura **y relectura idéntica** en la ruta autoritativa (`transacciones`); `personal_settings` queda como espejo opcional.
+- **Persistencia:** guardado local releído, ID/clave estables por ciclo, marcador de pendientes que sobrevive a recargas, sin sobrescribir versiones remotas modificadas por otro dispositivo.
+- **UI:** `StatementSyncBadge` con estados comprensibles y *Reintentar*, separado de la verificación bancaria.
+- **Pruebas:** 254/254 (16 nuevas, **simuladas** con doble remoto en memoria); lint 0 errores; `tsc` 0; build OK.
+- **Pendiente:** validación con dispositivos reales en un Supabase de pruebas (ver tutorial, Parte 3). Detalle en `docs/FINPER_V21_S01_SYNC_CLOSURE.md`.
+- **Sin merge a `main`** hasta aprobación explícita.

@@ -13,6 +13,8 @@ import {
 import type { CardConfig, Cycle } from '../../utils/creditCardCycles';
 import { useFinanceStore } from '../../store/financeStore';
 import { useCardStatementStore } from '../../store/cardStatementStore';
+import { describeStatementSave } from '../../domain/cards/statementSyncFeedback';
+import { StatementSyncBadge } from './StatementSyncBadge';
 import {
   reconcileCardCycle,
   evaluateReconciliationInput,
@@ -38,7 +40,9 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
   onSuccess,
 }) => {
   const { transactions } = useFinanceStore();
-  const { saveVerifiedStatement, removeVerifiedStatement, getVerifiedStatement } = useCardStatementStore();
+  const { saveVerifiedStatementAndSync, removeVerifiedStatement, getVerifiedStatement } = useCardStatementStore();
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const cycleKey = card && cycle ? `${card.entity}_${cycle.payDate.toISOString().slice(0, 10)}` : '';
 
@@ -142,8 +146,9 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
 
   const canSave = reconEval.canSave;
 
-  const handleSaveReconciliation = (e: React.FormEvent) => {
+  const handleSaveReconciliation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return;
 
     if (!reconEval.canSave || reconEval.parsedDebt === null) {
       alert(reconEval.validationError || 'Por favor ingresa un saldo deudor válido.');
@@ -161,8 +166,11 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
           ? 'Conciliación con Diferencia en Disputa'
           : 'Declaración Manual de Usuario (Sin Documento)');
 
-    saveVerifiedStatement({
-      id: existingStatement?.id || `stmt-${Date.now()}`,
+    setIsSaving(true);
+    setSaveError(null);
+    // ID estable por tarjeta y ciclo: reintentar el guardado reemplaza el registro, nunca lo duplica.
+    const result = await saveVerifiedStatementAndSync({
+      id: existingStatement?.id || `stmt-${cycleKey}`,
       cardEntity: card.entity,
       cycleKey,
       dueDate: cycle.payDate.toISOString().slice(0, 10),
@@ -188,11 +196,23 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
       notes: notes.trim() || undefined,
     });
 
-    const statusText = reconEval.verificationStatus === 'statement_verified'
-      ? 'contrastada documentalmente'
-      : (reconEval.verificationStatus === 'disputed' ? 'registrada con discrepancia en disputa' : 'declarada manualmente');
+    setIsSaving(false);
 
-    onSuccess(`✅ ¡Conciliación de ${card.name} ${statusText} con éxito! Saldo registrado: ${fmt.format(reconEval.parsedDebt)}.`);
+    const bankStatusText = reconEval.verificationStatus === 'statement_verified'
+      ? 'contrastada documentalmente'
+      : (reconEval.verificationStatus === 'disputed' ? 'registrada con discrepancia en disputa' : 'declarada manualmente por el usuario');
+
+    const feedback = describeStatementSave(result, {
+      cardName: card.name,
+      amountText: fmt.format(reconEval.parsedDebt),
+      bankStatusText,
+    });
+
+    if (!feedback.canClose) {
+      setSaveError(feedback.message);
+      return;
+    }
+    onSuccess(feedback.message);
     onClose();
   };
 
@@ -507,6 +527,13 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
             )}
           </div>
 
+          {/* Estado de persistencia (independiente de la verificación bancaria) */}
+          <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-200/60 dark:border-slate-800 space-y-1">
+            <p className="text-[10px] font-bold uppercase text-slate-400 dark:text-slate-500">Guardado en la nube (no es verificación bancaria)</p>
+            <StatementSyncBadge />
+            {saveError && <p role="alert" className="text-[11px] font-semibold text-rose-600 dark:text-rose-400">{saveError}</p>}
+          </div>
+
           {/* Botones de Acción */}
           <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
             {existingStatement ? (
@@ -530,15 +557,15 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
               </button>
               <button
                 type="submit"
-                disabled={!canSave}
+                disabled={!canSave || isSaving}
                 className={`w-full sm:w-auto flex items-center justify-center gap-2 px-5 py-2 text-xs font-bold rounded-xl shadow-md transition ${
-                  canSave
+                  canSave && !isSaving
                     ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
                     : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                 }`}
               >
                 <Save size={14} />
-                <span>Guardar Conciliación</span>
+                <span>{isSaving ? 'Guardando y confirmando…' : 'Guardar Conciliación'}</span>
               </button>
             </div>
           </div>

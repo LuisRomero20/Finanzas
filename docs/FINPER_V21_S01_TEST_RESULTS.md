@@ -10,12 +10,12 @@
 
 | Métrica | Resultado |
 | :--- | :--- |
-| **Total de Archivos de Prueba (Suites)** | **36 suites aprobadas** (100%) |
-| **Total de Pruebas Unitarias e Integración** | **238 pruebas aprobadas** (100%) |
+| **Total de Archivos de Prueba (Suites)** | **37 suites aprobadas** (100%) |
+| **Total de Pruebas Unitarias e Integración** | **254 pruebas aprobadas** (100%) |
 | **Pruebas Fallidas / Errores** | **0 fallos** |
 | **Errores de Tipos TypeScript (`tsc --noEmit`)** | **0 errores** |
 | **Errores de Linting (`npm run lint`)** | **0 errores** |
-| **Compilación de Producción (`npm run build`)** | **Exitosa (8.76s)** |
+| **Compilación de Producción (`npm run build`)** | **Exitosa (9.95s)** |
 
 ---
 
@@ -95,13 +95,30 @@ La suite ampliada de 46 pruebas unitarias cubre rigurosamente:
     - [x] `computeAssistedMerge`: resuelve conflictos con saldo corregido ante decisión `custom`.
     - [x] Aislamiento total: suites de prueba corren en entorno sandbox estricto sin peticiones a Supabase productivo.
 
+13. **Cierre de sincronización de conciliaciones (`statementSyncV21.test.ts`, 16 pruebas — SIMULADAS):**
+    - [x] PC crea conciliación → guardada localmente y `remote_confirmed` solo tras releer la nube; sin pendientes.
+    - [x] iPhone (módulos y `localStorage` independientes) recupera la misma conciliación.
+    - [x] Sin red: `local_pending`, sin pérdida local; al reintentar pasa a `remote_confirmed`.
+    - [x] Sesión expirada y escritura aceptada pero no persistida → `sync_failed` (ausencia de excepción ≠ confirmación). *Mutación de control: sin la relectura verificada esta prueba falla.*
+    - [x] Conflicto PC/iPhone detectado con reporte de diferencias; nube y versión local intactas.
+    - [x] Carrera de escritura (head cambiado) → `conflict` / `concurrency` sin pisar la nube.
+    - [x] Reintento sin duplicación (una entrada local y remota; sin escrituras redundantes).
+    - [x] Referencias documentales conservadas; `remote_confirmed` no altera `user_declared`/`statement_verified`.
+    - [x] Recarga: el estado sigue `local_pending` y se confirma después.
+    - [x] Almacenamiento local fallido (excepción o relectura distinta): sin éxito falso y sin sincronizar.
+    - [x] Mensajes de interfaz distintos por estado; solo `remote_confirmed` declara confirmación.
+    - [x] Tres pagos legítimos idénticos (`-seq2`, `-seq3`) sin colisión; Outbox conserva operaciones ante error/excepción; respuesta perdida tras escritura exitosa y doble envío entre dispositivos no duplican filas (doble remoto con semántica *upsert* por id).
+
+> [!NOTE]
+> Estas 16 pruebas usan un doble remoto en memoria. **No sustituyen** la validación con dispositivos reales (Parte 3 del tutorial), que sigue pendiente.
+
 ---
 
 ## 3. Registro de Validación General
 
 ```
-Test Files  36 passed (36)
-     Tests  238 passed (238)
-  Duration  11.60s
+Test Files  37 passed (37)
+     Tests  254 passed (254)
+  Duration  15.02s
   Result    SUCCESS
 ```
