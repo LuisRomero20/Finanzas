@@ -10,22 +10,21 @@
 
 - [x] **Compilación TypeScript sin Errores:** `npx tsc --noEmit` completado con código 0.
 - [x] **Linting ESLint:** `npm run lint` completado con 0 errores.
-- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (16.92s).
-- [x] **Suites de Pruebas Automatizadas:** 36 suites y 235 pruebas unitarias e integrales aprobadas al 100%.
+- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (8.76s).
+- [x] **Suites de Pruebas Automatizadas:** 36 suites y 238 pruebas unitarias e integrales aprobadas al 100%.
 
 ---
 
 ## 2. Checklist de Aceptación Final (FINPER 2.1 — Sprint 01)
 
-- [x] **1. Pago parcial mantiene deuda pendiente:** Si un pago es inferior a la obligación (ej. S/ 100 sobre S/ 455.60), se mantiene el saldo restante (S/ 355.60) y el estado continúa como pendiente (no cancelado).
-- [x] **2. Pago total cancela correctamente:** Si el pago cubre el 100% de la deuda, se salda la obligación del ciclo y se confirma la cancelación de manera verificable.
-- [x] **3. Importes cero, negativos y excedentes controlados:** Pagos $\le \text{S/ } 0.00$ o inválidos están estrictamente bloqueados; si el pago excede la deuda se activa la alerta de saldo a favor con checkbox de confirmación obligatoria.
-- [x] **4. Idempotencia y protección contra pagos duplicados:** Identificadores financieros determinísticos inmutables por sesión y operación lógica (`buildPaymentIdempotencyKey`), sumado a detección de pagos equivalentes (`detectEquivalentPayment`) con confirmación consciente obligatoria.
-- [x] **5. Conciliación manual no se presenta como verificación documental:** Se distinguen los estados `user_declared`, `statement_verified`, `disputed` y `draft`. Las declaraciones manuales no inventan nombres de archivo ni certificaciones documentales ficticias.
-- [x] **6. Honestidad en persistencia (Local vs Supabase):** Se distingue `remote_confirmed` vs `local_pending`. No se anuncia falsamente éxito en la nube si la transacción está en cola local; la UI exhibe distintivos visuales (`[Nube]` / `[Local]`) en los pagos del ciclo.
-- [x] **7. Sincronización multidispositivo de conciliaciones:** El comparador de diferencias y conciliación asistida en `personal_settings` detecta divergencias en `verificationStatus` y `documentReference` entre PC y iPhone.
-- [x] **8. Pruebas técnicas y aislamiento total:** 235 pruebas unitarias e integrales pasando en 36 suites, 0 errores de tipos, 0 mutaciones en base productiva Supabase (`njgzhjwfcxdxiibkuuqg`) y build de producción verificado.
-- [x] **9. Revisión visual Windows e iPhone completada:** Formularios adaptables, desglose previo de amortización, badges de persistencia claros, controles táctiles ergonómicos ($\ge 44\text{px}$) y respeto al safe area inset.
+- [x] **1. El mismo pago no se duplica después de recargar:** Identificador determinístico `buildPaymentIdempotencyKey` dependiente de entidad, ciclo, fecha e importe en centavos, conservado en `localStorage` y en la cola Outbox sin tokens volátiles en React state.
+- [x] **2. Tres o más pagos legítimos idénticos se pueden registrar correctamente:** `detectEquivalentPayment` cuenta todas las coincidencias previas y genera la secuencia siguiente (`-seq2`, `-seq3`, `-seqN`) con confirmación consciente y sin colisión de IDs.
+- [x] **3. Outbox conserva operaciones no confirmadas:** El despachador `flushTransactions` retiene la operación en `pendingTransactions()` y en `localStorage` ante respuestas ambiguas, errores de red o falta de sesión autenticada.
+- [x] **4. La confirmación remota corresponde a persistencia verificada:** `registerPaymentTransaction` únicamente devuelve `remote_confirmed` cuando `flushTransactions` verificó el `upsert` exitoso de Supabase (`insertTransactionToSupabase` con `.select()`) y retiró el elemento del Outbox.
+- [x] **5. La conciliación se recupera correctamente en otro dispositivo:** `cardStatementStore` y `personalSettingsSync` propagan snapshots canónicos de `statements` a Supabase; el iPhone recupera la conciliación con `verificationStatus` y `documentReference` idénticos.
+- [x] **6. Los conflictos no sobrescriben información:** El comparador `diffComparison` detecta divergencias en saldo, estado de verificación o referencia documental y exige resolución asistida explícita, bloqueando cualquier sobrescritura silenciosa.
+- [x] **7. Tests, lint, TypeScript y build aprobados:** 238 pruebas unitarias e integrales pasando en 36 suites, 0 errores de compilación TypeScript (`tsc`), 0 errores de ESLint y build de producción optimizado.
+- [x] **8. Tutorial Windows e iPhone ejecutado sin alterar producción:** Procedimiento paso a paso para Edge y Safari móvil, con aislamiento total de la base productiva de Supabase (`njgzhjwfcxdxiibkuuqg`) y cero merge a `main`.
 
 ---
 

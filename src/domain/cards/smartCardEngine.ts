@@ -922,6 +922,15 @@ export function buildPaymentIdempotencyKey(params: PaymentIdempotencyParams): st
 
 export interface EquivalentPaymentCheck {
   hasEquivalentPayment: boolean;
+  equivalentCount: number;
+  suggestedSequence: number;
+  existingTransactions: Array<{
+    id: string;
+    Fecha: string;
+    Monto: number;
+    Concepto: string;
+    Entidad: string;
+  }>;
   existingTransaction?: {
     id: string;
     Fecha: string;
@@ -934,7 +943,7 @@ export interface EquivalentPaymentCheck {
 
 /**
  * Detecta pagos equivalentes en la misma tarjeta, ciclo, fecha e importe
- * para distinguir reintentos accidentales de pagos legítimos repetidos.
+ * para distinguir reintentos accidentales de pagos legítimos repetidos (1, 2, 3 o N pagos).
  */
 export function detectEquivalentPayment(params: {
   existingPayments: Array<{
@@ -950,24 +959,36 @@ export function detectEquivalentPayment(params: {
   amount: number;
 }): EquivalentPaymentCheck {
   const targetAmount = roundMoney(params.amount);
-  const existing = params.existingPayments.find(tx => {
+  const matching = params.existingPayments.filter(tx => {
     if (tx.Tipo !== 'Egreso') return false;
     if (roundMoney(tx.Monto) !== targetAmount) return false;
     if (tx.Fecha !== params.paymentDate) return false;
-    const concept = tx.Concepto.toLowerCase();
-    const entityMatches =
-      concept.includes(params.cardEntity.toLowerCase()) ||
-      tx.Entidad.toLowerCase() === params.cardEntity.toLowerCase();
-    return entityMatches;
+    const concept = (tx.Concepto || '').toLowerCase();
+    const entity = (tx.Entidad || '').toLowerCase();
+    const targetEntity = params.cardEntity.toLowerCase();
+    return concept.includes(targetEntity) || entity === targetEntity;
   });
 
-  if (existing) {
+  if (matching.length > 0) {
+    const nextSeq = matching.length + 1;
+    const warning = matching.length === 1
+      ? `Ya existe un pago registrado de S/ ${targetAmount.toFixed(2)} el ${params.paymentDate} para esta tarjeta (ID: ${matching[0].id}). Si se trata de un segundo pago legítimo por el mismo importe y fecha, confirma conscientemente para autorizarlo (Secuencia #2).`
+      : `Ya existen ${matching.length} pagos registrados de S/ ${targetAmount.toFixed(2)} el ${params.paymentDate} para esta tarjeta. Si se trata de otro pago legítimo adicional por el mismo importe y fecha, confirma conscientemente para autorizarlo (Secuencia #${nextSeq}).`;
+
     return {
       hasEquivalentPayment: true,
-      existingTransaction: existing,
-      warningMessage: `Ya existe un pago registrado de S/ ${targetAmount.toFixed(2)} el ${params.paymentDate} para esta tarjeta (ID: ${existing.id}). Si se trata de un segundo pago legítimo por el mismo importe y fecha, confirma conscientemente para autorizarlo.`,
+      equivalentCount: matching.length,
+      suggestedSequence: nextSeq,
+      existingTransactions: matching,
+      existingTransaction: matching[0],
+      warningMessage: warning,
     };
   }
 
-  return { hasEquivalentPayment: false };
+  return {
+    hasEquivalentPayment: false,
+    equivalentCount: 0,
+    suggestedSequence: 1,
+    existingTransactions: [],
+  };
 }

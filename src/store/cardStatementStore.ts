@@ -79,6 +79,15 @@ function saveToStorage(data: Record<string, VerifiedStatement>) {
   }
 }
 
+export async function syncStatementsToCloud(): Promise<void> {
+  try {
+    const { syncPersonalSettings } = await import('../services/personalSettingsSync');
+    await syncPersonalSettings();
+  } catch {
+    // Si no hay conexión o sesión activa, permanece local y se sincronizará al reconectar
+  }
+}
+
 export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
   statements: loadFromStorage(),
 
@@ -94,6 +103,7 @@ export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
       return { statements: updated };
     });
     broadcastRealtimeSync('statements');
+    void syncStatementsToCloud();
   },
 
   removeVerifiedStatement: (key) => {
@@ -110,6 +120,7 @@ export const useCardStatementStore = create<CardStatementStore>((set, get) => ({
       return { statements: updated };
     });
     broadcastRealtimeSync('statements');
+    void syncStatementsToCloud();
   },
 
   getVerifiedStatement: (cardEntity, cyclePayDate, cycleEndDate) => {

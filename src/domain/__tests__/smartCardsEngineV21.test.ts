@@ -15,7 +15,8 @@ import {
 import { calculateBillingCycle } from '../cards/billingCycles';
 import { generateDiffReport, computeAssistedMerge } from '../sync/diffComparison';
 import { useFinanceStore } from '../../store/financeStore';
-import { clearTransactionOutboxForTesting } from '../../services/transactionOutbox';
+import { useCardStatementStore } from '../../store/cardStatementStore';
+import { clearTransactionOutboxForTesting, pendingTransactions, enqueueTransaction } from '../../services/transactionOutbox';
 
 describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
   // Configuración de las 3 tarjetas del usuario
@@ -561,28 +562,25 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
         dueDate: '2026-11-01',
         paymentDate: '2026-10-25',
         amount: 350.50,
-        intentToken: 'session-xyz',
       });
       const key2 = buildPaymentIdempotencyKey({
         cardEntity: 'Ripley',
         dueDate: '2026-11-01',
         paymentDate: '2026-10-25',
         amount: 350.50,
-        intentToken: 'session-xyz',
       });
 
-      expect(key1).toBe('pay-ripley-2026-11-01-2026-10-25-35050-session-');
+      expect(key1).toBe('pay-ripley-2026-11-01-2026-10-25-35050');
       expect(key1).toBe(key2);
     });
 
-    it('buildPaymentIdempotencyKey genera identificador diferenciado para un segundo pago legítimo con sequence > 1', () => {
+    it('buildPaymentIdempotencyKey genera identificadores diferenciados para múltiples pagos legítimos (seq2, seq3, seqN)', () => {
       const firstPaymentKey = buildPaymentIdempotencyKey({
         cardEntity: 'BBVA',
         dueDate: '2026-11-05',
         paymentDate: '2026-10-25',
         amount: 200,
         sequence: 1,
-        intentToken: 'token123',
       });
       const secondPaymentKey = buildPaymentIdempotencyKey({
         cardEntity: 'BBVA',
@@ -590,14 +588,23 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
         paymentDate: '2026-10-25',
         amount: 200,
         sequence: 2,
-        intentToken: 'token123',
+      });
+      const thirdPaymentKey = buildPaymentIdempotencyKey({
+        cardEntity: 'BBVA',
+        dueDate: '2026-11-05',
+        paymentDate: '2026-10-25',
+        amount: 200,
+        sequence: 3,
       });
 
-      expect(secondPaymentKey).toContain('-seq2');
+      expect(firstPaymentKey).toBe('pay-bbva-2026-11-05-2026-10-25-20000');
+      expect(secondPaymentKey).toBe('pay-bbva-2026-11-05-2026-10-25-20000-seq2');
+      expect(thirdPaymentKey).toBe('pay-bbva-2026-11-05-2026-10-25-20000-seq3');
       expect(firstPaymentKey).not.toBe(secondPaymentKey);
+      expect(secondPaymentKey).not.toBe(thirdPaymentKey);
     });
 
-    it('detectEquivalentPayment identifica pagos previos equivalentes en fecha, entidad y monto', () => {
+    it('detectEquivalentPayment identifica 1, 2 o N pagos previos equivalentes y sugiere la secuencia siguiente', () => {
       const existingPayments = [
         {
           id: 'pay-tx-1',
@@ -609,24 +616,53 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
         },
       ];
 
-      const checkDup = detectEquivalentPayment({
+      // Caso 1: 1 pago existente -> sugiere secuencia 2
+      const checkOne = detectEquivalentPayment({
         existingPayments,
         cardEntity: 'Interbank',
         paymentDate: '2026-10-23',
         amount: 150.00,
       });
 
-      expect(checkDup.hasEquivalentPayment).toBe(true);
-      expect(checkDup.existingTransaction?.id).toBe('pay-tx-1');
-      expect(checkDup.warningMessage).toContain('Ya existe un pago registrado');
+      expect(checkOne.hasEquivalentPayment).toBe(true);
+      expect(checkOne.equivalentCount).toBe(1);
+      expect(checkOne.suggestedSequence).toBe(2);
+      expect(checkOne.warningMessage).toContain('Secuencia #2');
 
+      // Caso 2: 2 pagos existentes -> sugiere secuencia 3
+      const twoPayments = [
+        ...existingPayments,
+        {
+          id: 'pay-tx-2',
+          Fecha: '2026-10-23',
+          Monto: 150.00,
+          Concepto: 'Segundo pago de Tarjeta Interbank',
+          Entidad: 'Interbank',
+          Tipo: 'Egreso',
+        },
+      ];
+
+      const checkTwo = detectEquivalentPayment({
+        existingPayments: twoPayments,
+        cardEntity: 'Interbank',
+        paymentDate: '2026-10-23',
+        amount: 150.00,
+      });
+
+      expect(checkTwo.hasEquivalentPayment).toBe(true);
+      expect(checkTwo.equivalentCount).toBe(2);
+      expect(checkTwo.suggestedSequence).toBe(3);
+      expect(checkTwo.warningMessage).toContain('Secuencia #3');
+
+      // Caso 3: Fecha distinta -> no hay equivalencia
       const checkDifferent = detectEquivalentPayment({
-        existingPayments,
+        existingPayments: twoPayments,
         cardEntity: 'Interbank',
         paymentDate: '2026-10-24',
         amount: 150.00,
       });
       expect(checkDifferent.hasEquivalentPayment).toBe(false);
+      expect(checkDifferent.suggestedSequence).toBe(1);
     });
 
     it('idempotencia en store: registrar dos veces una transacción con el mismo ID actualiza sin duplicar', () => {
@@ -666,6 +702,64 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
 
       // Limpieza de prueba
       store.deleteTransaction(stableId);
+      clearTransactionOutboxForTesting();
+    });
+
+    it('supervivencia a recargas: un pago guardado localmente conserva su ID y syncStatus tras recarga simulada', () => {
+      clearTransactionOutboxForTesting();
+      const store = useFinanceStore.getState();
+      const testId = 'pay-ripley-2026-11-01-2026-10-23-15000';
+
+      store.addTransaction({
+        id: testId,
+        Tipo: 'Egreso',
+        Categoria: 'Servicio',
+        Concepto: 'Pago Tarjeta Ripley',
+        Monto: 150,
+        Entidad: 'Interbank',
+        Fecha: '2026-10-23',
+        syncStatus: 'local_pending',
+      });
+
+      // Simulación de recarga leyendo directamente desde localStorage
+      const savedRaw = localStorage.getItem('finper_master_transactions_v1');
+      expect(savedRaw).toBeDefined();
+      const parsedList = JSON.parse(savedRaw!);
+      const reloadedTx = parsedList.find((t: any) => t.id === testId);
+
+      expect(reloadedTx).toBeDefined();
+      expect(reloadedTx.id).toBe(testId);
+      expect(reloadedTx.Monto).toBe(150);
+      expect(reloadedTx.syncStatus).toBe('local_pending');
+
+      // Limpieza
+      store.deleteTransaction(testId);
+      clearTransactionOutboxForTesting();
+    });
+
+    it('garantía outbox: retiene operaciones fallidas y reintentos con mismo ID reemplazan la operación sin duplicar cola', () => {
+      clearTransactionOutboxForTesting();
+      const opId = 'pay-bbva-2026-11-05-2026-10-23-20000';
+      const tx = {
+        id: opId,
+        Tipo: 'Egreso' as const,
+        Categoria: 'Servicio' as const,
+        Concepto: 'Pago BBVA',
+        Monto: 200,
+        Entidad: 'BCP',
+        Fecha: '2026-10-23',
+        syncStatus: 'local_pending' as const,
+      };
+
+      enqueueTransaction(opId, tx);
+      expect(pendingTransactions().length).toBe(1);
+
+      // Reintento de la misma operación con el mismo ID
+      enqueueTransaction(opId, { ...tx, Concepto: 'Pago BBVA (Reintento)' });
+      // Outbox debe contener exactamente 1 operación deduplicada
+      expect(pendingTransactions().length).toBe(1);
+      expect(pendingTransactions()[0].transaction?.Concepto).toBe('Pago BBVA (Reintento)');
+
       clearTransactionOutboxForTesting();
     });
 
@@ -721,6 +815,51 @@ describe('FINPER 2.1 — Smart Card Financial Engine (Unit Tests)', () => {
   });
 
   describe('12. Conciliación multidispositivo y resolución asistida en personal_settings', () => {
+    it('flujo multidispositivo: una conciliación creada en PC se propaga a iPhone con estados y evidencias intactas', () => {
+      // 1. En PC: Se registra conciliación oficial de BBVA
+      const pcStatementKey = 'BBVA_2026-11-05';
+      const pcStatement = {
+        id: 'stmt-bbva-nov2026',
+        cardEntity: 'BBVA',
+        cycleKey: pcStatementKey,
+        dueDate: '2026-11-05',
+        cutoffDate: '2026-10-10',
+        finalDebt: 650.00,
+        fileName: 'EECC_BBVA_Nov2026.pdf',
+        documentReference: 'EECC_BBVA_Nov2026.pdf',
+        source: 'statement_file' as const,
+        verificationStatus: 'statement_verified' as const,
+        matchedCount: 5,
+        totalStatementItems: 5,
+        totalAppItems: 5,
+        totalStatementCargos: 650.00,
+        totalAppCargos: 650.00,
+        diferenciaGastos: 0,
+        verifiedAt: new Date().toISOString(),
+      };
+
+      // Guardar en store
+      useCardStatementStore.getState().saveVerifiedStatement(pcStatement);
+
+      // 2. Serialización a snapshot canónico (como lo hace personalSettingsSync al escribir en Supabase)
+      const cloudPayload = JSON.stringify(useCardStatementStore.getState().statements);
+
+      // 3. En iPhone: Simulación de descarga remota y deserialización
+      const iphoneParsed = JSON.parse(cloudPayload);
+      useCardStatementStore.setState({ statements: iphoneParsed });
+
+      // 4. En iPhone: Verificación de que todos los atributos se recuperan idénticamente
+      const iphoneStatement = useCardStatementStore.getState().statements[pcStatementKey];
+      expect(iphoneStatement).toBeDefined();
+      expect(iphoneStatement.finalDebt).toBe(650.00);
+      expect(iphoneStatement.verificationStatus).toBe('statement_verified');
+      expect(iphoneStatement.documentReference).toBe('EECC_BBVA_Nov2026.pdf');
+      expect(iphoneStatement.source).toBe('statement_file');
+
+      // Limpieza
+      useCardStatementStore.getState().clearAll();
+    });
+
     it('generateDiffReport detecta discrepancia de verificationStatus entre PC y Nube', () => {
       const localStatements = {
         'Ripley_2026-11-01': {

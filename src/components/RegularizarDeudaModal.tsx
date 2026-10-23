@@ -55,7 +55,6 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   const [confirmExternalZero, setConfirmExternalZero] = useState<boolean>(false);
   const [confirmExcess, setConfirmExcess] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [intentToken] = useState<string>(() => Math.random().toString(36).slice(2, 10));
   const [allowDuplicatePayment, setAllowDuplicatePayment] = useState<boolean>(false);
 
   // Evaluación financiera determinística del pago
@@ -109,13 +108,13 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       setIsSubmitting(true);
 
       const dueDateStr = prevCycle.payDate.toISOString().slice(0, 10);
+      const sequenceNumber = allowDuplicatePayment ? equivalentCheck.suggestedSequence : 1;
       const opId = buildPaymentIdempotencyKey({
         cardEntity: card.entity,
         dueDate: dueDateStr,
         paymentDate: payDate,
         amount: paymentEval.paymentAmount,
-        sequence: allowDuplicatePayment ? 2 : 1,
-        intentToken,
+        sequence: sequenceNumber,
       });
 
       let concepto = `Pago de Tarjeta ${card.entity}`;
@@ -144,8 +143,8 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       }
 
       const statusTag = res.persistenceState === 'remote_confirmed'
-        ? 'Confirmado en Supabase'
-        : 'Guardado localmente en este dispositivo (pendiente de sincronización en la nube)';
+        ? 'Movimiento contable confirmado por Supabase'
+        : 'Guardado localmente en este dispositivo (en cola de sincronización con la nube)';
 
       onSuccess(`✅ ${paymentEval.summaryMessage} · ${statusTag}`);
       onClose();

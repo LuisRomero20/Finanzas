@@ -559,7 +559,7 @@ export const CronogramaPagos: React.FC = () => {
                                       ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                                       : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
                                   }`}
-                                  title={isRemote ? 'Transacción confirmada en Supabase' : 'Guardado localmente, en cola de sincronización'}
+                                  title={isRemote ? 'Movimiento contable registrado y confirmado en Supabase' : 'Guardado localmente, en cola de sincronización'}
                                 >
                                   {isRemote ? 'Nube' : 'Local'}
                                 </span>
