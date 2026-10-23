@@ -631,3 +631,263 @@ export function aggregateCardObligationsForMonth(
     isConfirmed,
   };
 }
+
+/**
+ * ============================================================================
+ * CLASIFICACIÓN Y EVALUACIÓN DETERMINÍSTICA DE PAGOS DE TARJETAS
+ * ============================================================================
+ */
+export type CardPaymentClassification = 'pago_parcial' | 'pago_total' | 'pago_con_excedente' | 'invalido';
+
+export interface CardPaymentEvaluation {
+  isValid: boolean;
+  classification: CardPaymentClassification;
+  pendingDebt: number;
+  paymentAmount: number;
+  remainingDebt: number;
+  excessAmount: number;
+  requiresExcessConfirmation: boolean;
+  canProceed: boolean;
+  statusBadge: {
+    label: string;
+    variant: 'amber' | 'emerald' | 'blue' | 'rose';
+  };
+  summaryMessage: string;
+  errorMessage?: string;
+}
+
+export function evaluateCardPayment(params: {
+  pendingDebt: number;
+  paymentAmount: number | string;
+  confirmExcess?: boolean;
+}): CardPaymentEvaluation {
+  const pendingDebt = roundMoney(Math.max(0, params.pendingDebt || 0));
+  const rawAmount = typeof params.paymentAmount === 'string'
+    ? parseFloat(params.paymentAmount.trim())
+    : params.paymentAmount;
+
+  if (isNaN(rawAmount) || !Number.isFinite(rawAmount) || rawAmount <= 0) {
+    return {
+      isValid: false,
+      classification: 'invalido',
+      pendingDebt,
+      paymentAmount: 0,
+      remainingDebt: pendingDebt,
+      excessAmount: 0,
+      requiresExcessConfirmation: false,
+      canProceed: false,
+      statusBadge: {
+        label: 'Monto Inválido',
+        variant: 'rose',
+      },
+      summaryMessage: 'El monto del pago debe ser un número positivo mayor a S/ 0.00.',
+      errorMessage: 'El monto ingresado no es válido.',
+    };
+  }
+
+  const paymentAmount = roundMoney(rawAmount);
+
+  // Caso 1: Pago Parcial (paymentAmount < pendingDebt)
+  if (paymentAmount < pendingDebt - 0.005) {
+    const remainingDebt = roundMoney(pendingDebt - paymentAmount);
+    return {
+      isValid: true,
+      classification: 'pago_parcial',
+      pendingDebt,
+      paymentAmount,
+      remainingDebt,
+      excessAmount: 0,
+      requiresExcessConfirmation: false,
+      canProceed: true,
+      statusBadge: {
+        label: `Pago Parcial (Pendiente: S/ ${remainingDebt.toFixed(2)})`,
+        variant: 'amber',
+      },
+      summaryMessage: `Pago parcial de S/ ${paymentAmount.toFixed(2)} registrado. Queda un saldo pendiente de S/ ${remainingDebt.toFixed(2)}.`,
+    };
+  }
+
+  // Caso 2: Pago Total (paymentAmount == pendingDebt)
+  if (Math.abs(paymentAmount - pendingDebt) <= 0.005) {
+    return {
+      isValid: true,
+      classification: 'pago_total',
+      pendingDebt,
+      paymentAmount,
+      remainingDebt: 0,
+      excessAmount: 0,
+      requiresExcessConfirmation: false,
+      canProceed: true,
+      statusBadge: {
+        label: 'Pago Total (Deuda Saldada 100%)',
+        variant: 'emerald',
+      },
+      summaryMessage: `Pago total de S/ ${paymentAmount.toFixed(2)} registrado. La deuda del ciclo quedó cancelada en su totalidad.`,
+    };
+  }
+
+  // Caso 3: Pago Superior al Pendiente (paymentAmount > pendingDebt)
+  const excessAmount = roundMoney(paymentAmount - pendingDebt);
+  const isConfirmed = Boolean(params.confirmExcess);
+  return {
+    isValid: true,
+    classification: 'pago_con_excedente',
+    pendingDebt,
+    paymentAmount,
+    remainingDebt: 0,
+    excessAmount,
+    requiresExcessConfirmation: true,
+    canProceed: isConfirmed,
+    statusBadge: {
+      label: `Excedente: +S/ ${excessAmount.toFixed(2)} a favor`,
+      variant: 'blue',
+    },
+    summaryMessage: `El pago de S/ ${paymentAmount.toFixed(2)} supera la deuda en S/ ${excessAmount.toFixed(2)} (saldo a favor / pago adelantado).`,
+  };
+}
+
+/**
+ * ============================================================================
+ * EVALUACIÓN Y TRAZABILIDAD DE CONCILIACIÓN BANCARIA
+ * ============================================================================
+ */
+export type ReconciliationVerificationStatus = 'draft' | 'user_declared' | 'statement_verified' | 'disputed';
+export type StatementInformationSource = 'manual_entry' | 'statement_file' | 'external';
+
+export interface ReconciliationEvaluation {
+  canSave: boolean;
+  isDebtZero: boolean;
+  requiresZeroConfirmation: boolean;
+  verificationStatus: ReconciliationVerificationStatus;
+  source: StatementInformationSource;
+  parsedDebt: number | null;
+  parsedMinPayment: number | undefined;
+  variance: number;
+  reconciliationStatus: ReconciliationReport['reconciliationStatus'];
+  statusBadge: {
+    label: string;
+    variant: 'amber' | 'emerald' | 'blue' | 'rose' | 'slate';
+  };
+  validationError?: string;
+  displayDocumentRef?: string;
+}
+
+export function evaluateReconciliationInput(params: {
+  statementDebtStr: string;
+  minPaymentStr?: string;
+  calculatedDebt: number;
+  documentReference?: string;
+  isDocumentIdentified?: boolean;
+  confirmZeroDebt?: boolean;
+  isDisputed?: boolean;
+}): ReconciliationEvaluation {
+  const rawDebtStr = params.statementDebtStr.trim();
+  const calculatedDebt = roundMoney(params.calculatedDebt || 0);
+
+  // 1. Campo vacío
+  if (rawDebtStr === '') {
+    return {
+      canSave: false,
+      isDebtZero: false,
+      requiresZeroConfirmation: false,
+      verificationStatus: 'draft',
+      source: 'manual_entry',
+      parsedDebt: null,
+      parsedMinPayment: undefined,
+      variance: 0,
+      reconciliationStatus: 'CONCILIADO',
+      statusBadge: {
+        label: 'Pendiente de Ingresar',
+        variant: 'slate',
+      },
+      validationError: 'Ingresa el saldo total facturado según tu estado de cuenta.',
+    };
+  }
+
+  const parsedDebt = parseFloat(rawDebtStr);
+
+  // 2. Monto numérico inválido
+  if (isNaN(parsedDebt) || !Number.isFinite(parsedDebt) || parsedDebt < 0) {
+    return {
+      canSave: false,
+      isDebtZero: false,
+      requiresZeroConfirmation: false,
+      verificationStatus: 'draft',
+      source: 'manual_entry',
+      parsedDebt: null,
+      parsedMinPayment: undefined,
+      variance: 0,
+      reconciliationStatus: 'CONCILIADO',
+      statusBadge: {
+        label: 'Importe Inválido',
+        variant: 'rose',
+      },
+      validationError: 'El monto ingresado debe ser un número mayor o igual a S/ 0.00.',
+    };
+  }
+
+  const finalDebt = roundMoney(parsedDebt);
+  const isDebtZero = finalDebt === 0;
+  const requiresZeroConfirmation = isDebtZero;
+
+  // Validación de pago mínimo opcional
+  let parsedMinPayment: number | undefined = undefined;
+  if (params.minPaymentStr && params.minPaymentStr.trim() !== '') {
+    const rawMin = parseFloat(params.minPaymentStr.trim());
+    if (!isNaN(rawMin) && Number.isFinite(rawMin) && rawMin >= 0) {
+      parsedMinPayment = roundMoney(rawMin);
+    }
+  }
+
+  // Trazabilidad de verificación
+  let verificationStatus: ReconciliationVerificationStatus = 'user_declared';
+  let source: StatementInformationSource = 'manual_entry';
+  let displayDocumentRef: string | undefined = undefined;
+
+  if (params.isDisputed) {
+    verificationStatus = 'disputed';
+  } else if (params.isDocumentIdentified && params.documentReference && params.documentReference.trim() !== '') {
+    verificationStatus = 'statement_verified';
+    source = 'statement_file';
+    displayDocumentRef = params.documentReference.trim();
+  }
+
+  const variance = roundMoney(finalDebt - calculatedDebt);
+  let reconciliationStatus: ReconciliationReport['reconciliationStatus'] = 'CONCILIADO';
+  if (Math.abs(variance) > 0.05) {
+    reconciliationStatus = variance > 0 ? 'DISCREPANCIA_MAYOR_BANCO' : 'DISCREPANCIA_MAYOR_FINPER';
+  }
+
+  const canSave = !requiresZeroConfirmation || Boolean(params.confirmZeroDebt);
+
+  let badgeVariant: 'amber' | 'emerald' | 'blue' | 'rose' | 'slate' = 'slate';
+  let badgeLabel = 'Declaración Manual';
+
+  if (verificationStatus === 'statement_verified') {
+    badgeVariant = 'emerald';
+    badgeLabel = `Doc. Verificado (${displayDocumentRef})`;
+  } else if (verificationStatus === 'disputed') {
+    badgeVariant = 'rose';
+    badgeLabel = 'En Disputa Bancaria';
+  } else {
+    badgeVariant = 'amber';
+    badgeLabel = 'Declarado por Usuario (Sin Documento)';
+  }
+
+  return {
+    canSave,
+    isDebtZero,
+    requiresZeroConfirmation,
+    verificationStatus,
+    source,
+    parsedDebt: finalDebt,
+    parsedMinPayment,
+    variance,
+    reconciliationStatus,
+    statusBadge: {
+      label: badgeLabel,
+      variant: badgeVariant,
+    },
+    displayDocumentRef,
+  };
+}

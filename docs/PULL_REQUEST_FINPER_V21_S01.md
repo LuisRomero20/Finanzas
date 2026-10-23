@@ -27,15 +27,19 @@ Este Pull Request implementa el **Sprint 01 de FINPER 2.1**, dotando a la aplica
 - Permite simular compras al contado, promociones a 0% de interés y compras financiadas en hasta 36 cuotas.
 - Proyecta el cronograma cuota por cuota y el impacto en el flujo de caja futuro sin generar transacciones ni escribir en bases de datos.
 
-### 4. Conciliación Asistida y Protegida de Estados de Cuenta (`SmartCardReconciliationModal.tsx`)
+### 4. Conciliación Asistida y Trazabilidad Documental (`SmartCardReconciliationModal.tsx`)
 - Entradas vacías por defecto: FINPER no asume deudas ni pagos mínimos inventados (como S/ 30.00).
 - Confirmación consciente para saldo S/ 0.00: exige marcar obligatoriamente una casilla certificando la revisión del estado de cuenta bancario.
-- Diagnóstico asistido en tiempo real: `CONCILIADO`, `DISCREPANCIA_MAYOR_BANCO` o `DISCREPANCIA_MAYOR_FINPER`.
-- Permite guardar el saldo confirmado para el ciclo sin borrar ni alterar los movimientos individuales registrados.
+- 4 Estados explícitos de verificación: `draft`, `user_declared`, `statement_verified` y `disputed`.
+- Sin invención de evidencias ni archivos ficticios: distingue con claridad una declaración manual en app de una contrastación con PDF oficial identificado.
+- Validación numérica unificada entre el botón y el envío del formulario.
 
-### 5. Ficha Contractual de Tarjetas y Regularización de Deuda
+### 5. Integridad de Pagos y Regularización de Deuda (`RegularizarDeudaModal.tsx`)
+- Distinción rigurosa de pagos: pago parcial (mantiene saldo pendiente y estado no cancelado), pago total (cancela al 100%) y pago con excedente (requiere confirmación obligatoria de saldo a favor / pago adelantado).
+- Desglose previo a la confirmación: muestra deuda antes del pago, monto a abonar y saldo restante proyectado.
+- Control de idempotencia y prevención de dobles pagos con identificador financiero estable y bloqueo `isSubmitting`.
+- Opción B (Cancelar Directa sin Egreso): no inventa egresos contables ni comprobantes falsos; registra cancelación externa transparente.
 - Ficha Contractual (`CardContractualSheetModal.tsx`): eliminados fallbacks arbitrarios (`?? 1` y `1000`). Confirmación consciente obligatoria ante modificaciones en días de ciclo de facturación.
-- Regularización de Deuda (`RegularizarDeudaModal.tsx`): prohibido registrar pagos menores o iguales a S/ 0.00. La opción B de cancelación directa sin egreso exige confirmación consciente si existía deuda pendiente.
 - Distinción de Modalidades (`smartCardEngine.ts`): separación explícita entre compras directas (`direct`), promociones a 0% (`zero_interest_promo`) y compras financiadas (`revolving_financed`).
 
 ### 6. Proyecciones Multi-Horizonte Integradas
@@ -45,10 +49,10 @@ Este Pull Request implementa el **Sprint 01 de FINPER 2.1**, dotando a la aplica
 
 ## 🧪 Verificación y Pruebas Automatizadas
 
-- **Vitest:** 36 suites, 213 pruebas aprobadas al 100%.
+- **Vitest:** 36 suites, 224 pruebas aprobadas al 100%.
 - **TypeScript:** 0 errores (`npx tsc --noEmit`).
 - **ESLint:** 0 errores en código fuente (`npm run lint`).
-- **Vite Build:** Compilación limpia para producción (9.91s).
+- **Vite Build:** Compilación limpia para producción (8.82s).
 - **Base de Datos:** 0 mutaciones en la base de producción Supabase (`njgzhjwfcxdxiibkuuqg`).
 
 ---

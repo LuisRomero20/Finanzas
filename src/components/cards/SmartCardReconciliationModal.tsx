@@ -6,12 +6,16 @@ import {
   CheckCircle2,
   Save,
   RotateCcw,
+  FileText,
+  UserCheck,
+  HelpCircle,
 } from 'lucide-react';
 import type { CardConfig, Cycle } from '../../utils/creditCardCycles';
 import { useFinanceStore } from '../../store/financeStore';
 import { useCardStatementStore } from '../../store/cardStatementStore';
 import {
   reconcileCardCycle,
+  evaluateReconciliationInput,
   type ReconciliationReport,
 } from '../../domain/cards/smartCardEngine';
 import { getCardTxs, getCardPaymentTxs } from '../../utils/creditCardCycles';
@@ -92,80 +96,103 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
     return existingStatement?.finalDebt === 0;
   });
 
+  const [verificationMode, setVerificationMode] = useState<'user_declared' | 'statement_verified' | 'disputed'>(() => {
+    if (existingStatement?.verificationStatus) {
+      return existingStatement.verificationStatus === 'draft' ? 'user_declared' : existingStatement.verificationStatus;
+    }
+    return existingStatement?.documentReference ? 'statement_verified' : 'user_declared';
+  });
+
+  const [documentRef, setDocumentRef] = useState<string>(() => {
+    return existingStatement?.documentReference || '';
+  });
+
   const [notes, setNotes] = useState<string>(() => existingStatement?.notes || '');
+
+  // Evaluación unificada de entradas y trazabilidad
+  const reconEval = useMemo(() => {
+    return evaluateReconciliationInput({
+      statementDebtStr,
+      minPaymentStr,
+      calculatedDebt: defaultCalculatedTotal,
+      documentReference: documentRef,
+      isDocumentIdentified: verificationMode === 'statement_verified',
+      confirmZeroDebt,
+      isDisputed: verificationMode === 'disputed',
+    });
+  }, [statementDebtStr, minPaymentStr, defaultCalculatedTotal, documentRef, verificationMode, confirmZeroDebt]);
 
   // Reporte de Conciliación en tiempo real (solo si se ingresó un saldo bancario válido)
   const report = useMemo<ReconciliationReport | null>(() => {
-    if (!card || !cycle) return null;
-    if (statementDebtStr.trim() === '') return null;
-    const debtConfirmed = parseFloat(statementDebtStr);
-    if (isNaN(debtConfirmed) || debtConfirmed < 0) return null;
+    if (!card || !cycle || reconEval.parsedDebt === null) return null;
 
     return reconcileCardCycle({
       cardEntity: card.entity,
       cycleKey,
-      statementDebtConfirmed: debtConfirmed,
+      statementDebtConfirmed: reconEval.parsedDebt,
       periodStart: cycle.start.toISOString().slice(0, 10),
       periodEnd: cycle.end.toISOString().slice(0, 10),
       dueDate: cycle.payDate.toISOString().slice(0, 10),
       purchasesInCycle,
       paymentsInCycle,
     });
-  }, [card, cycle, cycleKey, statementDebtStr, purchasesInCycle, paymentsInCycle]);
+  }, [card, cycle, cycleKey, reconEval.parsedDebt, purchasesInCycle, paymentsInCycle]);
 
   if (!isOpen || !card || !cycle) return null;
 
-  const isDebtZero = statementDebtStr.trim() !== '' && parseFloat(statementDebtStr) === 0;
-  const canSave = statementDebtStr.trim() !== '' && (!isDebtZero || confirmZeroDebt);
+  const canSave = reconEval.canSave;
 
   const handleSaveReconciliation = (e: React.FormEvent) => {
     e.preventDefault();
-    if (statementDebtStr.trim() === '') {
-      alert('Por favor ingresa el saldo total facturado según tu estado de cuenta.');
+
+    if (!reconEval.canSave || reconEval.parsedDebt === null) {
+      alert(reconEval.validationError || 'Por favor ingresa un saldo deudor válido.');
       return;
     }
 
-    const finalDebt = parseFloat(statementDebtStr);
-    if (isNaN(finalDebt) || finalDebt < 0) {
-      alert('Ingresa un monto de deuda válido');
-      return;
-    }
-
-    if (finalDebt === 0 && !confirmZeroDebt) {
+    if (reconEval.isDebtZero && !confirmZeroDebt) {
       alert('Para confirmar una deuda en S/ 0.00 debes marcar la casilla certificando que revisaste el estado de cuenta oficial del banco.');
       return;
     }
 
-    const minPaymentParsed = minPaymentStr.trim() ? parseFloat(minPaymentStr) : undefined;
-    const minPayment = (minPaymentParsed !== undefined && !isNaN(minPaymentParsed) && minPaymentParsed >= 0)
-      ? minPaymentParsed
-      : undefined;
+    const fallbackDocName = reconEval.verificationStatus === 'statement_verified'
+      ? (reconEval.displayDocumentRef || 'Estado de Cuenta Oficial Identificado')
+      : (reconEval.verificationStatus === 'disputed'
+          ? 'Conciliación con Diferencia en Disputa'
+          : 'Declaración Manual de Usuario (Sin Documento)');
 
     saveVerifiedStatement({
-      id: `stmt-${Date.now()}`,
+      id: existingStatement?.id || `stmt-${Date.now()}`,
       cardEntity: card.entity,
       cycleKey,
       dueDate: cycle.payDate.toISOString().slice(0, 10),
       cutoffDate: cycle.end.toISOString().slice(0, 10),
       periodStart: cycle.start.toISOString().slice(0, 10),
       periodEnd: cycle.end.toISOString().slice(0, 10),
-      finalDebt,
-      minPayment,
-      fileName: finalDebt === 0 ? 'Estado de Cuenta Conciliado (Saldo S/ 0.00)' : 'Estado de Cuenta Conciliado Manualmente',
+      finalDebt: reconEval.parsedDebt,
+      minPayment: reconEval.parsedMinPayment,
+      fileName: fallbackDocName,
+      documentReference: reconEval.displayDocumentRef,
+      source: reconEval.source,
+      verificationStatus: reconEval.verificationStatus,
       matchedCount: purchasesInCycle.length,
       totalStatementItems: purchasesInCycle.length,
       totalAppItems: purchasesInCycle.length,
-      totalStatementCargos: finalDebt,
+      totalStatementCargos: reconEval.parsedDebt,
       totalAppCargos: defaultCalculatedTotal,
-      diferenciaGastos: report ? report.variance : 0,
-      variance: report ? report.variance : 0,
-      reconciliationStatus: report ? report.reconciliationStatus : 'CONCILIADO',
+      diferenciaGastos: reconEval.variance,
+      variance: reconEval.variance,
+      reconciliationStatus: reconEval.reconciliationStatus,
       diagnosticMessage: report ? report.diagnosticMessage : undefined,
       verifiedAt: new Date().toISOString(),
       notes: notes.trim() || undefined,
     });
 
-    onSuccess(`✅ ¡Conciliación de ${card.name} guardada exitosamente! Saldo confirmado: ${fmt.format(finalDebt)}.`);
+    const statusText = reconEval.verificationStatus === 'statement_verified'
+      ? 'contrastada documentalmente'
+      : (reconEval.verificationStatus === 'disputed' ? 'registrada con discrepancia en disputa' : 'declarada manualmente');
+
+    onSuccess(`✅ ¡Conciliación de ${card.name} ${statusText} con éxito! Saldo registrado: ${fmt.format(reconEval.parsedDebt)}.`);
     onClose();
   };
 
@@ -193,9 +220,20 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
               <FileCheck2 size={20} />
             </div>
             <div>
-              <h2 id="reconciliation-modal-title" className="text-lg font-black text-slate-900 dark:text-white">
-                Conciliación de Estado de Cuenta
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 id="reconciliation-modal-title" className="text-lg font-black text-slate-900 dark:text-white">
+                  Conciliación de Estado de Cuenta
+                </h2>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  reconEval.statusBadge.variant === 'emerald'
+                    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                    : reconEval.statusBadge.variant === 'rose'
+                    ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                }`}>
+                  {reconEval.statusBadge.label}
+                </span>
+              </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
                 {card.name} · Ciclo {cycle.start.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })} al {cycle.end.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })}
               </p>
@@ -211,7 +249,7 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
         </div>
 
         {/* Formulario & Comparador */}
-        <form onSubmit={handleSaveReconciliation} className="overflow-y-auto p-4 sm:p-6 space-y-6 flex-1">
+        <form onSubmit={handleSaveReconciliation} className="overflow-y-auto p-4 sm:p-6 space-y-5 flex-1">
           {/* Tarjeta de Comparación Visual */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-4 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800">
             <div>
@@ -224,11 +262,11 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
 
             <div>
               <span className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Estado de Cuenta</span>
-              <p className={`text-xl font-black mt-1 ${statementDebtStr.trim() !== '' ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
-                {statementDebtStr.trim() !== '' ? fmt.format(parseFloat(statementDebtStr) || 0) : '—'}
+              <p className={`text-xl font-black mt-1 ${reconEval.parsedDebt !== null ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+                {reconEval.parsedDebt !== null ? fmt.format(reconEval.parsedDebt) : '—'}
               </p>
               <span className="text-[10px] text-slate-400 font-medium">
-                {statementDebtStr.trim() !== '' ? 'Confirmado en PDF / banco' : 'Pendiente de ingresar'}
+                {reconEval.parsedDebt !== null ? (verificationMode === 'statement_verified' ? 'Identificado en doc.' : 'Declarado en app') : 'Pendiente de ingresar'}
               </span>
             </div>
 
@@ -279,6 +317,99 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
             </div>
           )}
 
+          {/* Trazabilidad: Tipo de Origen de Conciliación */}
+          <div className="p-3.5 bg-slate-50 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-800 space-y-2.5">
+            <span className="text-[10px] font-bold uppercase text-slate-500 tracking-wider block">
+              Origen y Trazabilidad del Saldo Declarado
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition text-xs ${
+                verificationMode === 'user_declared'
+                  ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-700 text-amber-950 dark:text-amber-200'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+              }`}>
+                <div className="flex items-center gap-2 font-bold">
+                  <input
+                    type="radio"
+                    name="verificationMode"
+                    value="user_declared"
+                    checked={verificationMode === 'user_declared'}
+                    onChange={() => setVerificationMode('user_declared')}
+                    className="text-amber-600"
+                  />
+                  <UserCheck size={14} />
+                  <span>Declaración Manual</span>
+                </div>
+                <span className="text-[10px] opacity-80 leading-tight">
+                  Revisado en banca móvil o web sin vincular documento PDF.
+                </span>
+              </label>
+
+              <label className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition text-xs ${
+                verificationMode === 'statement_verified'
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-300 dark:border-emerald-700 text-emerald-950 dark:text-emerald-200'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+              }`}>
+                <div className="flex items-center gap-2 font-bold">
+                  <input
+                    type="radio"
+                    name="verificationMode"
+                    value="statement_verified"
+                    checked={verificationMode === 'statement_verified'}
+                    onChange={() => setVerificationMode('statement_verified')}
+                    className="text-emerald-600"
+                  />
+                  <FileText size={14} />
+                  <span>Estado de Cuenta</span>
+                </div>
+                <span className="text-[10px] opacity-80 leading-tight">
+                  Respaldado con documento bancario oficial identificado.
+                </span>
+              </label>
+
+              <label className={`p-2.5 rounded-xl border flex flex-col gap-1 cursor-pointer transition text-xs ${
+                verificationMode === 'disputed'
+                  ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-300 dark:border-rose-700 text-rose-950 dark:text-rose-200'
+                  : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'
+              }`}>
+                <div className="flex items-center gap-2 font-bold">
+                  <input
+                    type="radio"
+                    name="verificationMode"
+                    value="disputed"
+                    checked={verificationMode === 'disputed'}
+                    onChange={() => setVerificationMode('disputed')}
+                    className="text-rose-600"
+                  />
+                  <HelpCircle size={14} />
+                  <span>Diferencia en Disputa</span>
+                </div>
+                <span className="text-[10px] opacity-80 leading-tight">
+                  Cargo no reconocido o diferencia pendiente de reclamo bancario.
+                </span>
+              </label>
+            </div>
+
+            {/* Referencia documental si se eligió verificación con estado de cuenta */}
+            {verificationMode === 'statement_verified' && (
+              <div className="pt-2 animate-in fade-in duration-150">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
+                  Referencia o Nombre del Archivo del Estado de Cuenta (Opcional)
+                </label>
+                <input
+                  type="text"
+                  value={documentRef}
+                  onChange={e => setDocumentRef(e.target.value)}
+                  placeholder="Ej. EECC_BBVA_Oct2026.pdf o N° Folio 48921"
+                  className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-1.5 text-xs text-slate-800 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                />
+                <span className="text-[10px] text-slate-400 mt-0.5 block">
+                  Identifica el documento de sustento sin inventar nombres ni evidencias ficticias.
+                </span>
+              </div>
+            )}
+          </div>
+
           {/* Inputs del Estado de Cuenta */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -315,7 +446,7 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
             </div>
 
             {/* Checkbox consciente para saldo cero */}
-            {isDebtZero && (
+            {reconEval.isDebtZero && (
               <div className="sm:col-span-2 p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl">
                 <label className="flex items-start gap-2.5 cursor-pointer">
                   <input
@@ -360,7 +491,7 @@ export const SmartCardReconciliationModal: React.FC<Props> = ({
                 No hay consumos registrados en este ciclo.
               </p>
             ) : (
-              <div className="max-h-44 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
+              <div className="max-h-40 overflow-y-auto border border-slate-200 dark:border-slate-800 rounded-xl divide-y divide-slate-100 dark:divide-slate-800">
                 {purchasesInCycle.map(p => (
                   <div key={p.id} className="p-2.5 flex items-center justify-between text-xs hover:bg-slate-50 dark:hover:bg-slate-800/40 transition">
                     <div className="min-w-0 pr-2">

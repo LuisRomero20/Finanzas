@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { X, CheckCircle2, SlidersHorizontal, CreditCard, RotateCcw, Wallet } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { X, CheckCircle2, SlidersHorizontal, CreditCard, RotateCcw, Wallet, AlertTriangle } from 'lucide-react';
 import { useFinanceStore } from '../store/financeStore';
 import { useCardStatementStore, type VerifiedStatement } from '../store/cardStatementStore';
+import { evaluateCardPayment } from '../domain/cards/smartCardEngine';
 import type { CardConfig, Cycle } from '../utils/creditCardCycles';
 
 interface Props {
@@ -27,6 +28,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   prevCycle,
   calculatedPrevTotal,
   netToPay,
+  currTotal: _currTotal,
   liveDebt,
   verifiedStatement,
   onSuccess,
@@ -36,14 +38,28 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
 
   const [activeTab, setActiveTab] = useState<'cancelar' | 'ajustar'>('cancelar');
 
+  const pendingDebt = useMemo(() => {
+    return netToPay > 0 ? netToPay : (calculatedPrevTotal > 0 ? calculatedPrevTotal : liveDebt);
+  }, [netToPay, calculatedPrevTotal, liveDebt]);
+
   // Estado para cancelar con pago
   const [payAmount, setPayAmount] = useState<string>(() => {
-    const amt = netToPay > 0 ? netToPay : (liveDebt > 0 ? liveDebt : 0);
-    return amt > 0 ? amt.toFixed(2) : '';
+    return pendingDebt > 0 ? pendingDebt.toFixed(2) : '';
   });
   const [payAccount, setPayAccount] = useState<string>('Interbank');
   const [payDate, setPayDate] = useState<string>(() => new Date().toISOString().slice(0, 10));
   const [confirmExternalZero, setConfirmExternalZero] = useState<boolean>(false);
+  const [confirmExcess, setConfirmExcess] = useState<boolean>(false);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  // Evaluación financiera determinística del pago
+  const paymentEval = useMemo(() => {
+    return evaluateCardPayment({
+      pendingDebt,
+      paymentAmount: payAmount,
+      confirmExcess,
+    });
+  }, [pendingDebt, payAmount, confirmExcess]);
 
   // Estado para ajuste manual de deuda
   const [customDebt, setCustomDebt] = useState<string>(() => {
@@ -57,31 +73,56 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
 
   const cycleKey = `${card.entity}_${prevCycle.payDate.toISOString().slice(0, 10)}`;
 
-  // 1. Manejo: Registrar Pago y Cancelar
+  // 1. Manejo: Registrar Pago con Evaluación Estricta
   const handleRegisterPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(payAmount);
-    if (isNaN(amount) || amount <= 0) {
-      alert('El monto del pago debe ser estrictamente mayor a S/ 0.00.');
+    if (isSubmitting) return;
+
+    if (!paymentEval.canProceed) {
+      alert(paymentEval.errorMessage || 'Verifica el importe del pago antes de continuar.');
       return;
     }
 
-    addTransaction({
-      Tipo: 'Egreso',
-      Categoria: 'Servicio',
-      Concepto: `Pago de Tarjeta ${card.entity}`,
-      Monto: amount,
-      Entidad: payAccount,
-      Fecha: payDate,
-    });
+    try {
+      setIsSubmitting(true);
 
-    onSuccess(`✅ ¡Pago de ${fmt.format(amount)} registrado! La tarjeta ${card.name} quedó marcada como cancelada.`);
-    onClose();
+      const opId = `pay-${card.entity.toLowerCase().replace(/[^a-z0-9]/g, '')}-${prevCycle.payDate.toISOString().slice(0, 10)}-${Date.now()}`;
+
+      let concepto = `Pago de Tarjeta ${card.entity}`;
+      if (paymentEval.classification === 'pago_parcial') {
+        concepto = `Pago parcial de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+      } else if (paymentEval.classification === 'pago_con_excedente') {
+        concepto = `Pago con excedente de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+      } else {
+        concepto = `Pago total de Tarjeta ${card.entity} (Ciclo vence ${prevCycle.payDate.toISOString().slice(0, 10)})`;
+      }
+
+      const newTx = addTransaction({
+        id: opId,
+        Tipo: 'Egreso',
+        Categoria: 'Servicio',
+        Concepto: concepto,
+        Monto: paymentEval.paymentAmount,
+        Entidad: payAccount,
+        Fecha: payDate,
+      });
+
+      if (!newTx) {
+        throw new Error('No se pudo persistir la transacción de pago');
+      }
+
+      onSuccess(`✅ ${paymentEval.summaryMessage}`);
+      onClose();
+    } catch (err) {
+      alert(`Error al registrar el pago: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 2. Manejo: Cancelar Directa a S/ 0 (Sin Egreso)
   const handleDirectCancel = () => {
-    if ((netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero) {
+    if (pendingDebt > 0 && !confirmExternalZero) {
       alert('Debes confirmar conscientemente que esta deuda fue saldada externamente.');
       return;
     }
@@ -95,7 +136,9 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       periodStart: prevCycle.start.toISOString().slice(0, 10),
       periodEnd: prevCycle.end.toISOString().slice(0, 10),
       finalDebt: 0,
-      fileName: 'Regularización (Cancelado Directo S/ 0)',
+      fileName: 'Cancelación Externa Directa (Sin Desembolso Contable)',
+      source: 'external',
+      verificationStatus: 'user_declared',
       matchedCount: 0,
       totalStatementItems: 0,
       totalAppItems: 0,
@@ -103,10 +146,10 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       totalAppCargos: calculatedPrevTotal,
       diferenciaGastos: 0,
       verifiedAt: new Date().toISOString(),
-      notes: 'Cancelado directamente por el usuario (confirmación externa consciente)',
+      notes: 'Cancelado directamente por el usuario como regularización externa (sin egreso contable en cuentas)',
     });
 
-    onSuccess(`✨ Deuda de ${card.name} para este ciclo marcada como CANCELADA (S/ 0.00).`);
+    onSuccess(`✨ Deuda de ${card.name} para este ciclo marcada como CANCELADA por regularización externa (sin egreso).`);
     onClose();
   };
 
@@ -128,7 +171,9 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       periodStart: prevCycle.start.toISOString().slice(0, 10),
       periodEnd: prevCycle.end.toISOString().slice(0, 10),
       finalDebt: amount,
-      fileName: 'Deuda Regularizada Manualmente',
+      fileName: 'Ajuste Manual de Deuda',
+      source: 'manual_entry',
+      verificationStatus: 'user_declared',
       matchedCount: 0,
       totalStatementItems: 0,
       totalAppItems: 0,
@@ -136,7 +181,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
       totalAppCargos: calculatedPrevTotal,
       diferenciaGastos: 0,
       verifiedAt: new Date().toISOString(),
-      notes: `Deuda regularizada a ${fmt.format(amount)}`,
+      notes: `Deuda ajustada manualmente por el usuario a ${fmt.format(amount)}`,
     });
 
     onSuccess(`💾 Deuda de ${card.name} regularizada a ${fmt.format(amount)}.`);
@@ -161,11 +206,11 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
               <CreditCard size={18} />
             </div>
             <div>
-              <h3 className="font-black text-sm sm:text-base">Regularizar Deuda & Cancelación</h3>
+              <h3 className="font-black text-sm sm:text-base">Regularizar Deuda & Pagos</h3>
               <p className="text-white/80 text-xs">{card.name} · Vence: {prevCycle.payDate.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition">
+          <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer">
             <X size={16} />
           </button>
         </div>
@@ -176,19 +221,19 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setActiveTab('cancelar')}
-              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'cancelar'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <CheckCircle2 size={14} />
-              <span>Poner como Cancelada</span>
+              <span>Registrar Pago / Cancelar</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('ajustar')}
-              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 ${
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'ajustar'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
@@ -212,9 +257,9 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
               </p>
             </div>
             <div>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Por Pagar</p>
-              <p className={`text-sm font-black mt-0.5 ${netToPay > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                {fmt.format(netToPay)}
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Obligación Neta</p>
+              <p className={`text-sm font-black mt-0.5 ${pendingDebt > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                {fmt.format(pendingDebt)}
               </p>
             </div>
             <div>
@@ -225,29 +270,44 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* TAB 1: PONER COMO CANCELADA */}
+          {/* TAB 1: REGISTRAR PAGO / CANCELAR */}
           {activeTab === 'cancelar' && (
             <div className="space-y-4">
               
-              {/* Opción A: Registrar Pago */}
-              <form onSubmit={handleRegisterPayment} className="space-y-3 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 rounded-2xl p-4">
-                <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-300">
-                  <Wallet size={15} />
-                  <span>Opción A: Registrar Pago en Cuenta (Recomendado)</span>
+              {/* Opción A: Registrar Pago en Cuenta */}
+              <form onSubmit={handleRegisterPayment} className="space-y-3.5 bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-900/40 rounded-2xl p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-900 dark:text-emerald-300">
+                    <Wallet size={15} />
+                    <span>Opción A: Registrar Pago en Cuenta</span>
+                  </div>
+                  {paymentEval.isValid && (
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                      paymentEval.statusBadge.variant === 'emerald'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : paymentEval.statusBadge.variant === 'amber'
+                        ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                        : 'bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300'
+                    }`}>
+                      {paymentEval.statusBadge.label}
+                    </span>
+                  )}
                 </div>
+
                 <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Crea un egreso de débito que salda la tarjeta y descuenta el saldo bancario real.
+                  Registra un egreso contable en tu cuenta seleccionada y actualiza el saldo deudor del ciclo.
                 </p>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-1">
                   <div>
-                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Monto a Pagar (S/)</label>
+                    <label className="block text-[10px] font-bold text-slate-500 dark:text-slate-400 mb-1">Monto a Abonar (S/)</label>
                     <input
                       type="number"
                       step="0.01"
                       required
                       value={payAmount}
                       onChange={e => setPayAmount(e.target.value)}
+                      placeholder="0.00"
                       className="w-full text-xs font-black px-3 py-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                   </div>
@@ -277,20 +337,68 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                   </div>
                 </div>
 
+                {/* Desglose previo a la confirmación (Saldo anterior -> Pago -> Saldo posterior) */}
+                {paymentEval.isValid && (
+                  <div className="p-3 bg-white dark:bg-slate-900/90 rounded-xl border border-emerald-100 dark:border-emerald-900/40 text-xs space-y-1">
+                    <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                      <span>Deuda pendiente antes del pago:</span>
+                      <strong className="text-slate-800 dark:text-slate-200">{fmt.format(pendingDebt)}</strong>
+                    </div>
+                    <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                      <span>Monto que se abonará:</span>
+                      <strong className="font-bold">- {fmt.format(paymentEval.paymentAmount)}</strong>
+                    </div>
+                    <div className="border-t border-slate-100 dark:border-slate-800 pt-1 flex justify-between font-bold">
+                      <span className="text-slate-700 dark:text-slate-300">Saldo pendiente resultante:</span>
+                      <span className={paymentEval.remainingDebt > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}>
+                        {paymentEval.remainingDebt > 0 ? fmt.format(paymentEval.remainingDebt) : 'S/ 0.00 (Cancelado)'}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Checkbox para pago con excedente */}
+                {paymentEval.requiresExcessConfirmation && (
+                  <div className="p-3 bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-xl text-xs space-y-1.5">
+                    <div className="flex items-start gap-2 text-blue-900 dark:text-blue-200 font-bold">
+                      <AlertTriangle size={15} className="text-blue-600 shrink-0 mt-0.5" />
+                      <span>Pago con Excedente Detectado</span>
+                    </div>
+                    <p className="text-[11px] text-blue-800 dark:text-blue-300 leading-relaxed">
+                      El monto ingresado ({fmt.format(paymentEval.paymentAmount)}) supera la obligación pendiente ({fmt.format(pendingDebt)}) en <strong>{fmt.format(paymentEval.excessAmount)}</strong>.
+                    </p>
+                    <label className="flex items-start gap-2 pt-1 cursor-pointer font-bold text-blue-950 dark:text-blue-100">
+                      <input
+                        type="checkbox"
+                        checked={confirmExcess}
+                        onChange={e => setConfirmExcess(e.target.checked)}
+                        className="mt-0.5 rounded text-blue-600 focus:ring-blue-500 cursor-pointer"
+                      />
+                      <span className="text-[11px]">
+                        Confirmo conscientemente que este pago genera un saldo a favor / pago adelantado de {fmt.format(paymentEval.excessAmount)} en la tarjeta.
+                      </span>
+                    </label>
+                  </div>
+                )}
+
                 <button
                   type="submit"
-                  disabled={!(Number(payAmount) > 0)}
+                  disabled={!paymentEval.canProceed || isSubmitting}
                   className={`w-full text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 mt-2 ${
-                    Number(payAmount) > 0
+                    paymentEval.canProceed && !isSubmitting
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                   }`}
                 >
                   <CheckCircle2 size={14} />
                   <span>
-                    {Number(payAmount) > 0
-                      ? `Registrar Pago de ${fmt.format(Number(payAmount))} y Cancelar`
-                      : 'Ingresa un monto mayor a S/ 0.00'}
+                    {!paymentEval.isValid
+                      ? 'Ingresa un monto mayor a S/ 0.00'
+                      : paymentEval.classification === 'pago_parcial'
+                      ? `Registrar Pago Parcial de ${fmt.format(paymentEval.paymentAmount)}`
+                      : paymentEval.classification === 'pago_con_excedente'
+                      ? `Registrar Pago con Excedente de ${fmt.format(paymentEval.paymentAmount)}`
+                      : `Registrar Pago Total de ${fmt.format(paymentEval.paymentAmount)} y Cancelar`}
                   </span>
                 </button>
               </form>
@@ -300,20 +408,20 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                 <div>
                   <h5 className="text-xs font-bold text-slate-800 dark:text-slate-200">Opción B: Marcar como Cancelada Directa (Sin Egreso)</h5>
                   <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                    Úsala únicamente si la deuda fue saldada por otros medios o no corresponde generar un egreso en tus cuentas.
+                    Úsala únicamente si la deuda fue saldada por otros medios o no corresponde generar un egreso en tus cuentas registradas.
                   </p>
                 </div>
 
-                {(netToPay > 0 || calculatedPrevTotal > 0) && (
+                {pendingDebt > 0 && (
                   <label className="flex items-start gap-2.5 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 rounded-xl cursor-pointer">
                     <input
                       type="checkbox"
                       checked={confirmExternalZero}
                       onChange={e => setConfirmExternalZero(e.target.checked)}
-                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500"
+                      className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                     />
                     <span className="text-[11px] font-bold text-amber-900 dark:text-amber-200">
-                      Confirmo conscientemente que la deuda pendiente ({fmt.format(netToPay || calculatedPrevTotal)}) fue cancelada externamente o no corresponde pagar nada en este ciclo.
+                      Confirmo conscientemente que la deuda pendiente ({fmt.format(pendingDebt)}) fue cancelada externamente o no corresponde pagar nada en este ciclo (regularización externa sin egreso).
                     </span>
                   </label>
                 )}
@@ -321,15 +429,15 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                 <div className="flex justify-end">
                   <button
                     type="button"
-                    disabled={(netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero}
+                    disabled={pendingDebt > 0 && !confirmExternalZero}
                     onClick={handleDirectCancel}
                     className={`text-xs font-bold px-3.5 py-2 rounded-xl transition ${
-                      ((netToPay > 0 || calculatedPrevTotal > 0) && !confirmExternalZero)
+                      pendingDebt > 0 && !confirmExternalZero
                         ? 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'
                         : 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer shadow-sm'
                     }`}
                   >
-                    Marcar S/ 0.00 (Cancelado)
+                    Marcar S/ 0.00 (Regularización Externa)
                   </button>
                 </div>
               </div>

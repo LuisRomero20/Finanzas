@@ -415,12 +415,20 @@ export const CronogramaPagos: React.FC = () => {
                 <div className="bg-emerald-50/80 dark:bg-emerald-950/40 border-b border-emerald-100 dark:border-emerald-900/50 px-6 py-2.5 flex flex-wrap items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2">
                     <FileCheck2 size={15} className="text-emerald-600 dark:text-emerald-400" />
-                    <span className="font-bold text-emerald-900 dark:text-emerald-200">Deuda Regularizada para este Ciclo:</span>
+                    <span className="font-bold text-emerald-900 dark:text-emerald-200">Deuda Conciliada/Regularizada:</span>
                     <span className="bg-emerald-200/60 dark:bg-emerald-900/60 text-emerald-900 dark:text-emerald-200 font-bold px-2 py-0.5 rounded text-[11px]">
                       {fmt.format(verifiedStatement.finalDebt)}
                     </span>
-                    <span className="text-slate-400 dark:text-slate-500 text-[11px] hidden sm:inline">
-                      ({verifiedStatement.fileName})
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full hidden sm:inline ${
+                      verifiedStatement.verificationStatus === 'statement_verified'
+                        ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                        : verifiedStatement.verificationStatus === 'disputed'
+                        ? 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-300'
+                        : 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300'
+                    }`}>
+                      {verifiedStatement.verificationStatus === 'statement_verified'
+                        ? `Doc. Verificado (${verifiedStatement.documentReference || verifiedStatement.fileName})`
+                        : (verifiedStatement.verificationStatus === 'disputed' ? 'En Disputa' : 'Declarado por Usuario')}
                     </span>
                   </div>
 

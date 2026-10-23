@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 
+export type VerificationStatus = 'draft' | 'user_declared' | 'statement_verified' | 'disputed';
+export type StatementSource = 'manual_entry' | 'statement_file' | 'external';
+
 export interface VerifiedStatement {
   id: string;
   cardEntity: string;
@@ -11,6 +14,9 @@ export interface VerifiedStatement {
   finalDebt: number;
   minPayment?: number;
   fileName: string;
+  documentReference?: string;
+  source?: StatementSource;
+  verificationStatus?: VerificationStatus;
   matchedCount: number;
   totalStatementItems: number;
   totalAppItems: number;
@@ -40,7 +46,23 @@ function loadFromStorage(): Record<string, VerifiedStatement> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return {};
-    return JSON.parse(raw);
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object') {
+      const migrated: Record<string, VerifiedStatement> = {};
+      for (const [k, v] of Object.entries(parsed as Record<string, any>)) {
+        if (!v || typeof v !== 'object') continue;
+        const isExternal = v.source === 'external' || (typeof v.id === 'string' && v.id.startsWith('cancel-'));
+        const hasDoc = Boolean(v.documentReference || (v.fileName && !v.fileName.includes('Manual') && !v.fileName.includes('Regularización')));
+        migrated[k] = {
+          ...v,
+          source: v.source || (isExternal ? 'external' : (hasDoc ? 'statement_file' : 'manual_entry')),
+          verificationStatus: v.verificationStatus || (isExternal ? 'user_declared' : (hasDoc ? 'statement_verified' : 'user_declared')),
+          documentReference: v.documentReference || (hasDoc && v.fileName ? v.fileName : undefined),
+        };
+      }
+      return migrated;
+    }
+    return {};
   } catch (e) {
     console.error('Error al cargar estados de cuenta desde localStorage:', e);
     return {};

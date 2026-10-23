@@ -72,16 +72,18 @@ Las 3 tarjetas del usuario operan con la siguiente lógica de corte y pago:
 
 ---
 
-## 4. Reglas de Conciliación Bancaria y Regularización
+## 4. Reglas de Conciliación Bancaria y Trazabilidad Documental
 
 1. **Campos No Precargados:**
    - Tanto el saldo total facturado como el pago mínimo inician vacíos.
    - FINPER jamás asume S/ 0.00 ni precarga montos ficticios (como S/ 30.00 de pago mínimo).
 2. **Protección de Saldo Cero (S/ 0.00):**
    - Si el usuario ingresa un saldo deudor de S/ 0.00, el sistema exige marcar conscientemente una casilla certificando que revisó el estado de cuenta bancario oficial.
-3. **Bloqueo de Regularización Nula:**
-   - Se prohíbe registrar pagos por montos menores o iguales a S/ 0.00.
-   - Para marcar una deuda como cancelada directa (Opción B, sin egreso contable), si existía deuda pendiente, se exige confirmación consciente obligatoria.
+3. **4 Estados de Verificación Explícitos:**
+   - `draft`: Conciliación en edición previa a su confirmación.
+   - `user_declared`: Importe verificado por el usuario en banca móvil/web sin identificar o adjuntar documento formal.
+   - `statement_verified`: Respaldado con documento bancario oficial identificado (`documentReference` o archivo real).
+   - `disputed`: Cargos no reconocidos o diferencia pendiente de reclamo bancario.
 4. **Varianza ($\Delta$):**
    $$\Delta = \text{Saldo Estado de Cuenta Confirmado} - \text{Total Consumos Calculados FINPER}$$
 5. **Interpretación:**
@@ -89,3 +91,25 @@ Las 3 tarjetas del usuario operan con la siguiente lógica de corte y pago:
    - $\Delta > 0.05$: **DISCREPANCIA (BANCO MAYOR)**. Indica posibles cargos no registrados en FINPER: seguros, comisiones, membresía o consumos de tarjeta omitidos.
    - $\Delta < -0.05$: **DISCREPANCIA (FINPER MAYOR)**. Indica posibles compras registradas por duplicado o consumos hechos el día de corte que el banco asignó al ciclo posterior.
 6. **Inmutabilidad:** La conciliación almacena el saldo verificado del estado de cuenta en `cardStatementStore` sin borrar ni alterar los movimientos individuales del usuario.
+
+---
+
+## 5. Reglas de Pagos Parciales, Totales y Control de Excedente
+
+1. **Clasificación Estricta del Pago:**
+   - **Pago Parcial:** $\text{Pago} < \text{DeudaPendiente} - 0.005$.
+     * Saldo pendiente restante: $\text{DeudaPendiente} - \text{Pago}$.
+     * Estado: Pendiente. La tarjeta **NO** se marca como cancelada.
+   - **Pago Total:** $|\text{Pago} - \text{DeudaPendiente}| \le 0.005$.
+     * Saldo restante: S/ 0.00.
+     * Estado: Cancelada al 100%.
+   - **Pago con Excedente:** $\text{Pago} > \text{DeudaPendiente} + 0.005$.
+     * Excedente generado: $\text{Pago} - \text{DeudaPendiente}$.
+     * Exige confirmación consciente del usuario antes de habilitar el registro (saldo a favor / pago adelantado).
+2. **Bloqueo de Pagos No Positivos:**
+   - Todo pago $\le \text{S/ } 0.00$, infinito o `NaN` es rechazado y bloquea el botón de envío.
+3. **Regularización Externa Directa (Opción B):**
+   - No genera egresos ni movimientos contables ficticios.
+   - Requiere confirmación obligatoria si existía saldo positivo y se etiqueta como cancelación externa.
+4. **Idempotencia y Prevención de Duplicados:**
+   - Cada pago se genera con identificador financiero único estable (`pay-[tarjeta]-[vencimiento]-[timestamp]`) y se bloquea el botón durante el envío (`isSubmitting`) para evitar doble cobro.

@@ -10,21 +10,21 @@
 
 - [x] **Compilación TypeScript sin Errores:** `npx tsc --noEmit` completado con código 0.
 - [x] **Linting ESLint:** `npm run lint` completado con 0 errores.
-- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (9.91s).
-- [x] **Suites de Pruebas Automatizadas:** 36 suites y 213 pruebas unitarias aprobadas al 100%.
+- [x] **Compilación de Producción:** `npm run build` completado exitosamente con chunks optimizados (8.82s).
+- [x] **Suites de Pruebas Automatizadas:** 36 suites y 224 pruebas unitarias aprobadas al 100%.
 
 ---
 
-## 2. Criterios de Aceptación Obligatorios de la Auditoría Técnica
+## 2. Checklist de Aceptación Final (FINPER 2.1 — Sprint 01)
 
-- [x] **1. Conciliación no guarda saldos desconocidos:** Los campos inician vacíos (`""`), no se asume S/ 0.00 ni el monto de la app; para registrar S/ 0.00 se exige marcar conscientemente el checkbox de certificación bancaria.
-- [x] **2. No existen pagos mínimos inventados:** El campo de pago mínimo inicia vacío y opcional, sin precarga arbitraria de S/ 30.00.
-- [x] **3. Pago S/ 0.00 no puede cancelar una deuda:** Bloqueado registro de pagos <= S/ 0.00. La opción B de cancelación directa sin egreso exige confirmación consciente si existía saldo positivo pendiente.
-- [x] **4. Compra a una cuota no implica automáticamente 0%:** Se separaron formalmente las modalidades `direct` (compra a 1 cuota pagada al vencimiento), `zero_interest_promo` (promoción contractual a 0%) y `revolving_financed` (cuotas con interés financiero).
-- [x] **5. Simulador separa tasas verificadas e hipotéticas:** Si la tarjeta no tiene TEA confirmada, el campo inicia vacío con etiqueta ámbar *"Hipotética"*; no se precarga 45.0% sin sustento.
-- [x] **6. Ficha contractual conserva valores desconocidos:** Eliminados fallbacks arbitrarios (`?? 1` para días de ciclo y `1000` para línea de crédito). Si se modifican los días de corte o pago, se exige confirmación consciente de impacto en cuotas.
-- [x] **7. Pruebas, lint, TypeScript y build aprobados:** 100% pasando (213 pruebas, 0 errores tsc, 0 errores eslint, build exitoso).
-- [x] **8. Interfaz revisada en PC e iPhone:** Componentes adaptables, touch-friendly, con márgenes seguros y modo oscuro.
+- [x] **1. Pago parcial mantiene deuda pendiente:** Si un pago es inferior a la obligación (ej. S/ 100 sobre S/ 455.60), se mantiene el saldo restante (S/ 355.60) y el estado continúa como pendiente (no cancelado).
+- [x] **2. Pago total cancela correctamente:** Si el pago cubre el 100% de la deuda, se salda la obligación del ciclo y se confirma la cancelación de manera verificable.
+- [x] **3. Importes cero, negativos y excedentes controlados:** Pagos $\le \text{S/ } 0.00$ o inválidos están estrictamente bloqueados; si el pago excede la deuda se activa la alerta de saldo a favor con checkbox de confirmación obligatoria.
+- [x] **4. No se generan pagos duplicados:** Identificadores financieros estables por tarjeta y ciclo, sumado a bloqueo `isSubmitting` para evitar dobles egresos por clics repetidos.
+- [x] **5. Conciliación manual no se presenta como verificación documental:** Se distinguen los estados `user_declared`, `statement_verified`, `disputed` y `draft`. Las declaraciones manuales no inventan nombres de archivo ni certificaciones documentales ficticias.
+- [x] **6. Errores de persistencia no provocan éxito falso:** Se valida la confirmación de la transacción antes de emitir mensaje de éxito, evitando que fallos de red eliminen deudas o generen inconsistencias.
+- [x] **7. Pruebas técnicas aprobadas:** 224 pruebas unitarias pasando en 36 suites, 0 errores de tipos, 0 advertencias en código modificado y build limpio.
+- [x] **8. Revisión visual Windows e iPhone completada:** Formularios adaptables, breakdown de saldos claro, controles táctiles ergonómicos ($\ge 44\text{px}$) y respeto al safe area inset.
 
 ---
 

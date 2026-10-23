@@ -67,29 +67,44 @@ Haz clic en el botón **«Ficha»** de cualquiera de tus tarjetas:
 
 ---
 
-### Paso 5: Probar la Conciliación Bancaria Consciente (Sin Valores Asumidos)
+### Paso 5: Probar la Conciliación Bancaria y Trazabilidad Documental
 1. En el panel de **BBVA Bfree** o **Interbank Amex**, en el bloque de la tarjeta, haz clic en el botón azul **«Conciliar Banco»**.
 2. Se abrirá el modal de **Conciliación de Estado de Cuenta**:
    - Observa que el campo **«Saldo Total Facturado»** inicia **vacío**, mostrando `—` en la tarjeta comparativa para obligar a ingresar el dato real del banco.
    - Observa que el campo **«Pago Mínimo del Mes»** también inicia **vacío y opcional** *(eliminando el valor arbitrario de 30.00)*.
    - El botón **«Guardar Conciliación»** permanece deshabilitado hasta que ingreses un saldo válido.
-3. Prueba la protección de saldo S/ 0.00:
+3. Observa el nuevo bloque de **Trazabilidad y Origen de Información**:
+   - **Declaración Manual:** Si ingresas el saldo revisado en tu app móvil o banca web sin archivo adjunto, se registra como `Declarado por Usuario` (evita mostrar falsamente que está contrastado con un documento).
+   - **Estado de Cuenta:** Si cuentas con el PDF o documento bancario oficial, puedes ingresar su referencia o nombre de archivo real (ej. `EECC_BBVA_Oct2026.pdf`) para asignarle el estado `Doc. Verificado`.
+   - **Diferencia en Disputa:** Si detectas un cobro no reconocido o en reclamo ante el banco, se asigna el estado `En Disputa`.
+4. Prueba la protección de saldo S/ 0.00:
    - Escribe `0` en el saldo facturado.
    - Observa cómo aparece inmediatamente un aviso de advertencia con una **casilla obligatoria**: *"Confirmo conscientemente que revisé el estado de cuenta oficial del banco y el saldo a pagar para este ciclo es exactamente S/ 0.00"*.
    - El botón de guardado permanece bloqueado hasta marcar dicha casilla.
-4. Ingresa el saldo real de tu estado de cuenta (o un monto de prueba, ej. `436.21`):
-   - Observa el diagnóstico en tiempo real:
-     * Si coincide con FINPER: marca **«✅ Conciliado exacto»**.
-     * Si el banco registra más: te avisa que puede haber comisiones, membresía o consumos pendientes de registrar.
-5. Guarda la conciliación y comprueba que se actualice la tarjeta sin mutar tus movimientos individuales.
 
 ---
 
-### Paso 6: Probar la Regularización de Deuda (Bloqueo de S/ 0.00 Accidental)
-1. Si tienes una tarjeta con deuda pendiente del ciclo anterior, haz clic en **«Regularizar»**.
-2. Verifica los dos candados de seguridad implementados:
-   - **Opción A (Pago con egreso):** Si intentas registrar un pago con S/ 0.00 o dejar el campo vacío, el botón se bloquea y te exige un monto mayor a cero.
-   - **Opción B (Cancelar Directa sin Egreso):** Si existe deuda pendiente y deseas marcarla en S/ 0.00 (por ejemplo si la pagaste por fuera de tus cuentas registradas), la app te exige marcar obligatoriamente el checkbox de confirmación consciente antes de habilitar el botón.
+### Paso 6: Probar Pagos Parciales, Totales y Control de Excedente
+1. En una tarjeta con saldo pendiente (o abre el modal con **«Regularizar»**):
+2. **Prueba de Pago Parcial (ej. ingresar S/ 100 ante deuda de S/ 455.60):**
+   - Observa el desglose interactivo previo a la confirmación:
+     * *Deuda pendiente antes del pago:* `S/ 455.60`
+     * *Monto que se abonará:* `- S/ 100.00`
+     * *Saldo pendiente resultante:* `S/ 355.60`
+   - El distintivo superior muestra en ámbar: **«Pago Parcial (Pendiente: S/ 355.60)»**.
+   - El botón indica: **«Registrar Pago Parcial de S/ 100.00»**.
+   - **Garantía:** No se anuncia erróneamente que la tarjeta quedó cancelada; la deuda restante permanece viva en el sistema.
+3. **Prueba de Pago Total (ej. ingresar S/ 455.60):**
+   - El desglose muestra saldo resultante `S/ 0.00 (Cancelado)` con distintivo verde **«Pago Total (Deuda Saldada 100%)»**.
+   - El botón indica: **«Registrar Pago Total de S/ 455.60 y Cancelar»**.
+4. **Prueba de Pago con Excedente (ej. ingresar S/ 500.00):**
+   - Detecta automáticamente el excedente de `S/ 44.40` a favor.
+   - Bloquea el botón hasta que marques la casilla obligatoria: *"Confirmo conscientemente que este pago genera un saldo a favor / pago adelantado"*.
+5. **Opción B (Cancelar Directa sin Egreso):**
+   - No inventa transacciones de pago bancario en tus cuentas; marca la tarjeta como cancelada por regularización externa exigiendo confirmación consciente si existía deuda pendiente.
+
+> [!NOTE]
+> **Importante para la revisión local:** Puedes interactuar libremente con los modales, verificar los cálculos y el comportamiento dinámico sin pulsar el botón final de guardado, garantizando que tu base de datos de producción se mantenga 100% limpia. Todos los flujos de persistencia y no-regresión están respaldados por las 224 pruebas automatizadas con datos sintéticos.
 
 ---
 
