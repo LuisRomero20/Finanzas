@@ -17,6 +17,7 @@ interface SettingsSyncPanelProps {
 export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: SettingsSyncPanelProps) {
   const { entries } = useSettingsSync();
   const [expanded, setExpanded] = useState(false);
+  const [showSecurityAlert, setShowSecurityAlert] = useState(true);
   const [internalUser, setInternalUser] = useState<User | null>(propUser ?? null);
   const [authDiag, setAuthDiag] = useState<AuthDiagnostic | null>(null);
   const [isManualSyncing, setIsManualSyncing] = useState(false);
@@ -177,7 +178,7 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
   return (
     <section className="mb-4 rounded-2xl border border-emerald-800/30 bg-white dark:bg-[#11191D] text-xs shadow-sm overflow-hidden" aria-label="Sincronización de ajustes financieros">
       {/* Alerta visible si existe discrepancia de proyecto Supabase */}
-      {!configHealth.isHealthy && (
+      {!configHealth.isHealthy && showSecurityAlert && (
         <div className="bg-rose-600 text-white px-4 py-2.5 text-xs flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <AlertTriangle size={16} className="shrink-0" />
@@ -185,12 +186,25 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <strong>Alerta de Seguridad:</strong> {configHealth.errorMessage} — Las escrituras están temporalmente protegidas.
             </span>
           </div>
-          <button
-            onClick={handleForceClearPwaCache}
-            className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold hover:bg-slate-100 cursor-pointer text-[11px] shrink-0"
-          >
-            Limpiar Caché
-          </button>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              onClick={handleForceClearPwaCache}
+              disabled={isClearingCache}
+              className="px-2.5 py-1 rounded bg-white text-rose-700 font-bold hover:bg-slate-100 cursor-pointer text-[11px] disabled:opacity-50"
+            >
+              {isClearingCache ? 'Actualizando…' : 'Limpiar Caché'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSecurityAlert(false)}
+              className="px-2.5 py-1 rounded border border-white/60 text-white font-bold hover:bg-white/20 cursor-pointer text-[11px]"
+              aria-label="Ocultar aviso detallado de seguridad"
+              title="Ocultar aviso; las escrituras seguirán protegidas"
+            >
+              Ocultar
+            </button>
+          </div>
         </div>
       )}
 
@@ -199,10 +213,11 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
         <button
           onClick={() => setExpanded(!expanded)}
           className="flex items-center gap-2.5 text-left cursor-pointer flex-1 min-w-0"
-          aria-expanded={expanded || needsAttention}
+          aria-expanded={expanded}
+          aria-controls="finper-sync-details"
         >
           <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
-            <ShieldCheck size={18} />
+            {needsAttention ? <AlertTriangle size={18} /> : <ShieldCheck size={18} />}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -212,6 +227,11 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
                 RLS Activo
               </span>
+              {!configHealth.isHealthy && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full border border-rose-500 text-rose-700 dark:text-rose-300 font-semibold" role="status">
+                  Escrituras protegidas
+                </span>
+              )}
               <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
                 <span className={`w-1.5 h-1.5 rounded-full ${configHealth.isHealthy ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
                 {configHealth.activeProjectRef}
@@ -244,15 +264,18 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
             onClick={() => setExpanded(!expanded)}
             className="p-1.5 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 transition cursor-pointer"
             title={expanded ? 'Colapsar panel' : 'Expandir detalle'}
+            aria-label={expanded ? 'Colapsar panel de sincronización' : 'Expandir detalles de sincronización'}
+            aria-expanded={expanded}
+            aria-controls="finper-sync-details"
           >
-            <span className="text-sm font-bold">{expanded || needsAttention ? '▲' : '▼'}</span>
+            <span className="text-sm font-bold">{expanded ? '▲' : '▼'}</span>
           </button>
         </div>
       </div>
 
       {/* Detalle expandido */}
-      {(expanded || needsAttention) && (
-        <div className="p-4 space-y-4 animate-in fade-in duration-150">
+      {expanded && (
+        <div id="finper-sync-details" className="p-4 space-y-4 animate-in fade-in duration-150">
           {/* Diagnóstico técnico amigable */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-2.5 p-3 rounded-xl bg-slate-100/60 dark:bg-slate-800/40 border border-slate-200/80 dark:border-slate-800">
             <div className="flex items-center gap-2">
