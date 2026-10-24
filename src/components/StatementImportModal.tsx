@@ -257,8 +257,8 @@ export const StatementImportModal: React.FC<Props> = ({
   const appOnlyCount = report?.matches.filter(m => m.status === 'app_only').length || 0;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-white dark:bg-[#11191D] rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden transition-colors">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="bg-white dark:bg-[#11191D] rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 w-full max-w-4xl max-h-[92dvh] sm:max-h-[88vh] flex flex-col overflow-hidden transition-colors">
         
         {/* Modal Header */}
         <div className="bg-[#0F2A1D] dark:bg-[#07130D] text-white px-6 py-4 flex items-center justify-between border-b border-emerald-950">
@@ -685,7 +685,7 @@ export const StatementImportModal: React.FC<Props> = ({
         </div>
 
         {/* Modal Footer */}
-        <div className="bg-slate-50 dark:bg-[#0c1417] border-t border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
+        <div className="bg-slate-50 dark:bg-[#0c1417] border-t border-slate-200 dark:border-slate-800 px-4 sm:px-6 py-3.5 sm:py-4 flex items-center justify-between shrink-0 pb-[max(1rem,env(safe-area-inset-bottom))]">
           {step === 'review' ? (
             <>
               <button

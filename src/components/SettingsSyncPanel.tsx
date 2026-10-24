@@ -211,35 +211,63 @@ export function SettingsSyncPanel({ onOpenAuth, currentUser: propUser }: Setting
             {needsAttention ? <AlertTriangle size={18} /> : <ShieldCheck size={18} />}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-slate-800 dark:text-slate-100">
-                Sincronización PC / iPhone
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                RLS sin cambios
-              </span>
-              <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 flex items-center gap-1">
-                <span className={`w-1.5 h-1.5 rounded-full ${configHealth.isHealthy ? 'bg-emerald-500' : 'bg-rose-500 animate-ping'}`} />
-                {configHealth.activeProjectRef}
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full font-mono text-slate-500 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-700">
-                v{configHealth.appVersion}
-              </span>
-            </div>
-            <p className={`text-[11px] mt-0.5 font-semibold ${configHealth.isHealthy ? 'text-emerald-700 dark:text-emerald-300' : configAlertClasses}`}>
-              {syncing ? 'Sincronizando con Supabase…' : configStatusLabel}
-              {` · Módulos con problemas: ${problemModuleCount}`}
-              {` · Operaciones pendientes: ${totalOutboxPending}`}
-            </p>
-            {!configHealth.isHealthy && (
-              <p className={`text-[10px] mt-0.5 line-clamp-2 ${configAlertClasses}`} role="alert">
-                {configHealth.errorMessage} Las escrituras permanecen protegidas.
-              </p>
+            {!needsAttention && !syncing ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm">
+                  Sincronizado con Supabase
+                </span>
+                {totalOutboxPending > 0 ? (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                    {totalOutboxPending} pendiente{totalOutboxPending > 1 ? 's' : ''}
+                  </span>
+                ) : (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-emerald-100/70 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300/60 dark:border-emerald-800/60">
+                    Al día
+                  </span>
+                )}
+                {lastSyncTime && (
+                  <span className="text-[10px] text-slate-400 dark:text-slate-500 hidden sm:inline">
+                    · Última sincronía: {lastSyncTime}
+                  </span>
+                )}
+              </div>
+            ) : syncing ? (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-blue-700 dark:text-blue-300 text-xs sm:text-sm animate-pulse">
+                  Sincronizando con Supabase…
+                </span>
+                {totalOutboxPending > 0 && (
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-blue-100 dark:bg-blue-950 text-blue-800 dark:text-blue-300">
+                    {totalOutboxPending} en cola
+                  </span>
+                )}
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-slate-800 dark:text-slate-100">
+                    Sincronización PC / iPhone
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full font-mono bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800">
+                    Atención requerida
+                  </span>
+                </div>
+                <p className={`text-[11px] mt-0.5 font-semibold ${configHealth.isHealthy ? 'text-amber-700 dark:text-amber-300' : configAlertClasses}`}>
+                  {configStatusLabel}
+                  {` · Módulos con problemas: ${problemModuleCount}`}
+                  {` · Operaciones pendientes: ${totalOutboxPending}`}
+                </p>
+                {!configHealth.isHealthy && (
+                  <p className={`text-[10px] mt-0.5 line-clamp-2 ${configAlertClasses}`} role="alert">
+                    {configHealth.errorMessage} Las escrituras permanecen protegidas.
+                  </p>
+                )}
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
+                  Sesión: <span className="font-semibold text-slate-700 dark:text-slate-300">{activeUser.email}</span>
+                  {lastSyncTime && ` · Última sincronía: ${lastSyncTime}`}
+                </p>
+              </div>
             )}
-            <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              Sesión: <span className="font-semibold text-slate-700 dark:text-slate-300">{activeUser.email}</span>
-              {lastSyncTime && ` · Última sincronía: ${lastSyncTime}`}
-            </p>
           </div>
         </button>
 

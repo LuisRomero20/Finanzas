@@ -326,28 +326,7 @@ export const CronogramaPagos: React.FC = () => {
                       <span>Ficha</span>
                     </button>
 
-                    {/* Botón Regularizar Deuda */}
-                    <button
-                      onClick={() => {
-                        setRegularizeModalCard(card);
-                        setRegularizeCycleData({
-                          prevCycle: prev,
-                          calculatedPrevTotal,
-                          netToPay,
-                          currTotal,
-                          liveDebt,
-                          isPaid,
-                          verifiedStatement,
-                        });
-                      }}
-                      className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1.5 rounded-lg backdrop-blur-sm transition border border-white/20 cursor-pointer"
-                      title="Regularizar monto o saldar deuda de esta tarjeta"
-                    >
-                      <SlidersHorizontal size={13} />
-                      <span>Regularizar</span>
-                    </button>
-
-                    {/* Botón Rápido: Poner como Cancelada (si aún no está cancelada) */}
+                    {/* Botón Registrar Pago / Cancelar */}
                     {!isPaid ? (
                       <button
                         onClick={() => {
@@ -363,14 +342,34 @@ export const CronogramaPagos: React.FC = () => {
                           });
                         }}
                         className="flex items-center gap-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-sm transition border border-emerald-400/40 cursor-pointer"
-                        title="Poner esta tarjeta como cancelada"
+                        title="Registrar abono, pago parcial o cancelación total"
                       >
                         <CheckCircle2 size={13} />
-                        <span>Poner como Cancelada</span>
+                        <span>Registrar Pago</span>
                       </button>
                     ) : (
-                      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-500 text-white shadow-sm">
-                        ✅ Cancelado
+                      <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-green-500 text-white shadow-sm">
+                          ✅ Cancelado
+                        </div>
+                        <button
+                          onClick={() => {
+                            setRegularizeModalCard(card);
+                            setRegularizeCycleData({
+                              prevCycle: prev,
+                              calculatedPrevTotal,
+                              netToPay,
+                              currTotal,
+                              liveDebt,
+                              isPaid,
+                              verifiedStatement,
+                            });
+                          }}
+                          className="p-1.5 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition cursor-pointer"
+                          title="Ver o modificar regularización de pago"
+                        >
+                          <SlidersHorizontal size={13} />
+                        </button>
                       </div>
                     )}
 

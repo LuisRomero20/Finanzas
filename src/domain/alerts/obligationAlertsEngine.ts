@@ -201,7 +201,11 @@ export function generateFinancialBriefing(options: GenerateBriefingOptions): Dai
   let liquidityStatus: LiquidityHealthStatus = 'surplus';
   let liquidityAlertMessage: string | undefined;
 
-  if (monthlyProjectedBalance < 0) {
+  if (projectedRows.length === 0) {
+    // Si no hay partidas proyectadas cargadas, no se emite falsa alarma de déficit ni de liquidez ajustada
+    liquidityStatus = 'insufficient_data';
+    liquidityAlertMessage = undefined;
+  } else if (monthlyProjectedBalance < 0) {
     liquidityStatus = 'deficit';
     const defFmt = Math.abs(monthlyProjectedBalance).toFixed(2);
     liquidityAlertMessage = `Déficit mensual proyectado de S/ ${defFmt} para ${targetMonth}. Las obligaciones superan los ingresos proyectados.`;
