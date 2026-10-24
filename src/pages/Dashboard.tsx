@@ -895,30 +895,46 @@ export const Dashboard: React.FC = () => {
             {cards.map(card => {
               const ent = card.entity;
               const totalLine = resolveAuthoritativeCreditLine(ent, creditLines, card);
-              const cardEgresos = entityEgresos[ent] || 0;
-              const cardIngresos = entityIngresos[ent] || 0;
-              const monthDebt = Math.max(0, cardEgresos - cardIngresos);
 
+              // 1. REGLA FINANCIERA ORIGINAL:
+              // Saldo inicial del mes: si existe transacción explícita "Linea Tarjeta" se respeta,
+              // de lo contrario se inicializa con la línea aprobada/configurada de la tarjeta.
+              const explicitLineTx = filtered
+                .filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && isCreditCardLine(t))
+                .reduce((a, t) => a + t.Monto, 0);
+              const saldoInicialMes = explicitLineTx > 0 ? explicitLineTx : totalLine;
+
+              // Abonos aplicables en el mes (excluye cupo inicial para no duplicar)
+              const cardAbonos = filtered
+                .filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t))
+                .reduce((a, t) => a + t.Monto, 0);
+
+              // Gastos registrados en el mes (egresos de la tarjeta)
+              const cardGastos = filtered
+                .filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isCreditCardLine(t))
+                .reduce((a, t) => a + t.Monto, 0);
+
+              // Fórmula Principal: Saldo disponible = Saldo inicial + Abonos - Gastos
+              const saldoDisponibleMes = saldoInicialMes + cardAbonos - cardGastos;
+              const consumoMesPct = saldoInicialMes > 0
+                ? Math.min(100, Math.max(0, Math.round((cardGastos / saldoInicialMes) * 100)))
+                : 0;
+
+              // 2. INFORMACIÓN BANCARIA CONTRACTUAL (Complementaria, sin mezclarse):
               const livePos = calculateCardLivePosition(card, rawTransactions);
-              const currentDebt = (selectedMonth !== 'Todos' && (cardEgresos > 0 || cardIngresos > 0))
-                ? monthDebt
-                : (livePos.liveDebt > 0 ? livePos.liveDebt : monthDebt);
-
-              const availableCredit = Math.max(0, totalLine - currentDebt);
-              const utilizationPct = totalLine > 0 ? Math.min(100, Math.round((currentDebt / totalLine) * 100)) : 0;
-              
               const todayDay = new Date().getDate();
               const isPastCutoff = todayDay >= card.cycleStartDay;
-              const billedDebtEst = livePos.netToPay > 0
+              const billedDebt = livePos.netToPay > 0
                 ? livePos.netToPay
-                : (isPastCutoff ? currentDebt : 0);
-              const unbilledDebtEst = livePos.currTotal > 0
+                : (isPastCutoff ? cardGastos : 0);
+              const unbilledDebt = livePos.currTotal > 0
                 ? livePos.currTotal
-                : (isPastCutoff ? 0 : currentDebt);
+                : (isPastCutoff ? 0 : cardGastos);
 
               return (
                 <div key={card.id} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
                   <div>
+                    {/* Cabecera con Nombre y Alias */}
                     <div className="flex items-center justify-between gap-1 mb-1">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{card.name}</span>
@@ -939,7 +955,7 @@ export const Dashboard: React.FC = () => {
                         >
                           <Edit3 size={13} />
                         </button>
-                        {cardEgresos === 0 && (
+                        {cardGastos === 0 && (
                           <button
                             type="button"
                             onClick={() => {
@@ -961,41 +977,69 @@ export const Dashboard: React.FC = () => {
                       <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
                     )}
 
-                    {/* Crédito Disponible Principal */}
+                    {/* BLOQUE 1: SALDO OPERATIVO MENSUAL (INDICADOR PRINCIPAL) */}
                     <div className="mt-2.5">
                       <div className="flex items-center justify-between text-[11px]">
-                        <span className="uppercase font-bold text-slate-400 dark:text-slate-500">Crédito Disponible</span>
-                        <span className="text-[10px] font-mono text-slate-500">Uso: {utilizationPct}%</span>
+                        <span className="uppercase font-bold text-slate-400 dark:text-slate-500">Saldo Disponible del Mes</span>
+                        <span className="text-[10px] font-mono text-slate-500">Consumo: {consumoMesPct}%</span>
                       </div>
-                      <p className="text-2xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
-                        {formatterPEN.format(availableCredit)}
+                      <p className={`text-2xl font-black mt-0.5 tracking-tight ${
+                        saldoDisponibleMes >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
+                      }`}>
+                        {formatterPEN.format(saldoDisponibleMes)}
                       </p>
                       
-                      {/* Barra de progreso de utilización de crédito */}
+                      {/* Barra de progreso de consumo del mes */}
                       <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-1.5 overflow-hidden">
                         <div
                           className={`h-full rounded-full transition-all duration-300 ${
-                            utilizationPct > 80 ? 'bg-rose-500' : utilizationPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                            consumoMesPct > 80 ? 'bg-rose-500' : consumoMesPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'
                           }`}
-                          style={{ width: `${utilizationPct}%` }}
+                          style={{ width: `${consumoMesPct}%` }}
                         />
+                      </div>
+
+                      {/* Desglose Operativo del Mes: Saldo Inicial + Abonos - Gastos */}
+                      <div className="mt-2.5 grid grid-cols-3 gap-1 py-1.5 px-2 rounded-xl bg-slate-50 dark:bg-slate-900/60 border border-slate-100 dark:border-slate-800/80 text-[10px]">
+                        <div>
+                          <span className="text-slate-400 block font-medium">Inicial:</span>
+                          <span className="font-bold text-slate-700 dark:text-slate-300 truncate block">
+                            {formatterPEN.format(saldoInicialMes)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-emerald-600 dark:text-emerald-400 block font-medium">Abonos (+):</span>
+                          <span className="font-bold text-emerald-700 dark:text-emerald-400 truncate block">
+                            {formatterPEN.format(cardAbonos)}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-rose-500 dark:text-rose-400 block font-medium">Gastos (-):</span>
+                          <span className="font-bold text-rose-600 dark:text-rose-400 truncate block">
+                            {formatterPEN.format(cardGastos)}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Métricas detalladas de deuda y ciclo */}
-                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+                  {/* BLOQUE 2: INFORMACIÓN BANCARIA & CONTRACTUAL (COMPLEMENTARIA) */}
+                  <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">
+                      <span>Posición Contractual</span>
+                      <span className="text-blue-600 dark:text-blue-400 font-semibold lowercase">bancaria</span>
+                    </div>
                     <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                       <span>Línea Aprobada:</span>
                       <span className="font-bold text-slate-800 dark:text-slate-200">{formatterPEN.format(totalLine)}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                       <span>Deuda Facturada:</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(billedDebtEst)}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(billedDebt)}</span>
                     </div>
                     <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
                       <span>Deuda No Facturada:</span>
-                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(unbilledDebtEst)}</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(unbilledDebt)}</span>
                     </div>
                     <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/60 text-[11px] text-slate-400">
                       <span>Próximo Vencimiento:</span>
