@@ -605,6 +605,19 @@ export const ProyeccionPage: React.FC = () => {
                 <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
                   Lista cronológica de entradas y salidas proyectadas para este periodo.
                 </p>
+                <div className="mt-1 text-[11px] flex items-center gap-2 flex-wrap text-slate-500 dark:text-slate-400">
+                  <span className="inline-flex items-center gap-1 text-slate-700 dark:text-slate-300 font-semibold">
+                    📅 Fecha = Consumo programado
+                  </span>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1 text-indigo-600 dark:text-indigo-400 font-semibold">
+                    💳 Ciclo = Periodo facturado
+                  </span>
+                  <span>·</span>
+                  <span className="inline-flex items-center gap-1 text-sky-600 dark:text-sky-400 font-semibold">
+                    🗓️ Caja = Salida real de dinero
+                  </span>
+                </div>
               </div>
               <Badge variant="default">{projectedRows.length} partidas</Badge>
             </div>
@@ -653,7 +666,12 @@ export const ProyeccionPage: React.FC = () => {
 
                         {/* Fecha */}
                         <td className="px-4 py-3 font-medium text-slate-700 dark:text-slate-300 whitespace-nowrap">
-                          {r.fecha.slice(8, 10)}/{r.fecha.slice(5, 7)}/{r.fecha.slice(0, 4)}
+                          <div className="flex flex-col">
+                            <span className="font-bold text-slate-900 dark:text-white">
+                              {r.fechaConsumo ? `${r.fechaConsumo.slice(8, 10)}/${r.fechaConsumo.slice(5, 7)}/${r.fechaConsumo.slice(0, 4)}` : `${r.fecha.slice(8, 10)}/${r.fecha.slice(5, 7)}/${r.fecha.slice(0, 4)}`}
+                            </span>
+                            <span className="text-[10px] text-slate-400">Consumo</span>
+                          </div>
                         </td>
 
                         {/* Categoría */}
@@ -680,12 +698,27 @@ export const ProyeccionPage: React.FC = () => {
                               )}
                             </div>
 
-                            {/* Detalle de ciclo de tarjeta de crédito */}
-                            {r.esTarjetaCredito && r.fechaPagoTarjeta && (
-                              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-[10px] font-bold text-indigo-700 dark:text-indigo-300">
-                                <CreditCard size={11} className="shrink-0" />
-                                <span>
-                                  Facturación: Pago el {r.fechaPagoTarjeta.slice(8, 10)}/{r.fechaPagoTarjeta.slice(5, 7)} ({MESES_ES[parseInt(r.fechaPagoTarjeta.slice(5, 7), 10) - 1]})
+                            {/* Triple fecha explícita para consumos de tarjeta */}
+                            {r.esTarjetaCredito && r.fechaPagoEfectiva && (
+                              <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+                                {r.cicloFacturacion && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/60 text-[10px] font-semibold text-indigo-700 dark:text-indigo-300" title={`Ciclo de facturación bancario: ${r.cicloFacturacion}`}>
+                                    <CreditCard size={10} className="shrink-0" />
+                                    <span>Ciclo: {r.cicloFacturacion}</span>
+                                  </span>
+                                )}
+                                <span
+                                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-bold ${
+                                    r.desfaseMesesCaja >= 2
+                                      ? 'bg-amber-50 dark:bg-amber-950/60 border-amber-200 dark:border-amber-800/60 text-amber-800 dark:text-amber-300'
+                                      : 'bg-sky-50 dark:bg-sky-950/60 border-sky-200 dark:border-sky-800/60 text-sky-800 dark:text-sky-300'
+                                  }`}
+                                  title="Fecha en que el dinero saldrá realmente de tu cuenta bancaria"
+                                >
+                                  <span>
+                                    Caja: Pago {r.fechaPagoEfectiva.slice(8, 10)}/{r.fechaPagoEfectiva.slice(5, 7)} ({MESES_ES[parseInt(r.fechaPagoEfectiva.slice(5, 7), 10) - 1]})
+                                    {r.desfaseMesesCaja >= 2 && ' · Cruza corte'}
+                                  </span>
                                 </span>
                               </div>
                             )}
