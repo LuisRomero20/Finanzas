@@ -5,6 +5,7 @@ import {
   fetchCardsConfigFromSupabase,
 } from '../services/supabaseService';
 import { broadcastRealtimeSync } from '../utils/syncBus';
+import { LINE_OVERRIDES, resolveAuthoritativeCreditLine } from '../utils/masterData';
 
 export interface CardConfig {
   id: string;
@@ -50,9 +51,9 @@ export const DEFAULT_CARDS: CardConfig[] = [
     paymentDay: 15,
     billingRulesStatus: 'unverified',
     status: 'active',
-    creditLine: 1000,
-    lineaCredito: 1000,
-    referenceCreditLine: 1000.00,
+    creditLine: LINE_OVERRIDES['Interbank Amex'] || 5000,
+    lineaCredito: LINE_OVERRIDES['Interbank Amex'] || 5000,
+    referenceCreditLine: LINE_OVERRIDES['Interbank Amex'] || 5000,
     referenceUsedDebt: 182.38,
     referenceDate: '2026-09-30',
     accentBg: 'bg-blue-600',
@@ -73,9 +74,9 @@ export const DEFAULT_CARDS: CardConfig[] = [
     paymentDay: 5,
     billingRulesStatus: 'unverified',
     status: 'active',
-    creditLine: 700,
-    lineaCredito: 700,
-    referenceCreditLine: 700.00,
+    creditLine: LINE_OVERRIDES['BBVA Bfree'] || 3000,
+    lineaCredito: LINE_OVERRIDES['BBVA Bfree'] || 3000,
+    referenceCreditLine: LINE_OVERRIDES['BBVA Bfree'] || 3000,
     referenceUsedDebt: 436.21,
     referenceDate: '2026-09-30',
     accentBg: 'bg-sky-600',
@@ -96,9 +97,9 @@ export const DEFAULT_CARDS: CardConfig[] = [
     paymentDay: 1,
     billingRulesStatus: 'unverified',
     status: 'active',
-    creditLine: 1000,
-    lineaCredito: 1000,
-    referenceCreditLine: 1000.00,
+    creditLine: LINE_OVERRIDES['Ripley'] || 2000,
+    lineaCredito: LINE_OVERRIDES['Ripley'] || 2000,
+    referenceCreditLine: LINE_OVERRIDES['Ripley'] || 2000,
     referenceUsedDebt: 358.66,
     referenceDate: '2026-09-30',
     accentBg: 'bg-purple-600',
@@ -122,6 +123,7 @@ export function normalizeCardConfig(value: unknown): CardConfig | null {
   if (typeof candidate.id !== 'string' || typeof candidate.entity !== 'string' || typeof candidate.name !== 'string') return null;
   const fallback = DEFAULT_CARDS.find(card => card.id === candidate.id || card.entity === candidate.entity);
   const visualFallback = fallback ?? DEFAULT_CARDS[0];
+  const authoritativeLine = resolveAuthoritativeCreditLine(candidate.entity, undefined, fallback);
   return {
     ...visualFallback,
     ...candidate,
@@ -133,6 +135,9 @@ export function normalizeCardConfig(value: unknown): CardConfig | null {
     billingRulesStatus: candidate.billingRulesStatus ?? (fallback ? 'unverified' : 'user_confirmed'),
     currency: candidate.currency ?? 'PEN',
     status: candidate.status ?? 'active',
+    creditLine: candidate.creditLine && candidate.creditLine > 0 ? candidate.creditLine : authoritativeLine,
+    lineaCredito: candidate.lineaCredito && candidate.lineaCredito > 0 ? candidate.lineaCredito : authoritativeLine,
+    referenceCreditLine: candidate.referenceCreditLine && candidate.referenceCreditLine > 0 ? candidate.referenceCreditLine : authoritativeLine,
   };
 }
 
