@@ -16,7 +16,7 @@ export function MobileProjectionList({ rows, actions, onCycle }: {
         <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 py-3">
           <div className="min-w-0">
             <p className="text-sm font-bold break-words">{row.concepto}</p>
-            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">{row.fecha.slice(8)}/{row.fecha.slice(5, 7)} · {row.entidad}</p>
+            <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">Consumo: {row.fechaConsumo ? `${row.fechaConsumo.slice(8, 10)}/${row.fechaConsumo.slice(5, 7)}` : `${row.fecha.slice(8, 10)}/${row.fecha.slice(5, 7)}`} · {row.entidad}</p>
           </div>
           <div className="shrink-0 text-right">
             <p className={`text-sm font-black ${row.tipo === 'Ingreso' ? 'text-emerald-600 dark:text-emerald-300' : ''}`}>{fmt.format(row.monto)}</p>
@@ -25,7 +25,7 @@ export function MobileProjectionList({ rows, actions, onCycle }: {
         </summary>
         <div className="space-y-2 pb-3 text-xs">
           <p>{row.categoria}{row.esTemporal ? ' · Temporal' : ''}{row.esModificado ? ' · Ajustado este mes' : ''}</p>
-          {row.fechaPagoTarjeta && <p className="text-indigo-600 dark:text-indigo-300">Pago de tarjeta: {row.fechaPagoTarjeta}</p>}
+          {row.esTarjetaCredito && row.fechaPagoEfectiva && (<div className="text-[11px] font-medium text-indigo-700 dark:text-indigo-300 space-y-0.5 pt-0.5">{row.cicloFacturacion && <p>💳 Ciclo: {row.cicloFacturacion}</p>}<p>🗓️ Impacto en caja: {row.fechaPagoEfectiva.slice(8, 10)}/{row.fechaPagoEfectiva.slice(5, 7)} {row.desfaseMesesCaja >= 2 ? '(Cruza corte · Paga en 2 meses)' : '(Mes siguiente)'}</p></div>)}
           {row.esPagoLiquidacionTarjeta && <button className="min-h-11 underline" onClick={() => onCycle(row)}>Ver consumos del ciclo ({row.detalleConsumosCiclo?.length || 0})</button>}
           <div className="flex flex-wrap gap-2 [&>button]:min-h-11 [&>button]:rounded-lg [&>button]:border [&>button]:border-slate-400/40 [&>button]:px-3">{actions(row)}</div>
         </div>

@@ -76,6 +76,14 @@ export interface EffectiveProjectedRow {
   detalleConsumosCiclo?: CardCycleDueDetail['consumos'];
   mesPagoTarjeta?: string; // Formato 'YYYY-MM'
   fechaPagoTarjeta?: string; // Formato 'YYYY-MM-DD'
+  // ── Triple Fecha Explícita (FINPER 2.1) ──
+  fechaConsumo: string; // 'YYYY-MM-DD' fecha programada del consumo
+  mesConsumo: string; // 'YYYY-MM'
+  cicloFacturacion?: string; // ej. '10/10 — 09/11'
+  fechaCorteTarjeta?: string; // 'YYYY-MM-DD'
+  fechaPagoEfectiva: string; // 'YYYY-MM-DD' fecha en que sale dinero de caja/banco
+  mesImpactoCaja: string; // 'YYYY-MM'
+  desfaseMesesCaja: number; // 0 = mismo mes, 1 = mes siguiente, 2 = cruza corte
 }
 
 export interface CardCycleRule {
@@ -109,25 +117,36 @@ export function resolveCardRule(entity: string): CardCycleRule | undefined {
  * - Si el consumo es EL DÍA DEL CORTE O DESPUÉS (día >= corteDay): pertenece al nuevo ciclo y se paga 2 meses después (mes + 2).
  *   Ejemplo BBVA (corte 10, pago 5): Consumo antes del 10 se paga el 5 del mes siguiente; del 10 en adelante se paga en 2 meses.
  */
-export function calculateCardPaymentDate(entity: string, year: number, monthIndex: number, day: number): { 
-  mesPago: string; 
-  fechaPago: string; 
+export interface CardPaymentDateResult {
+  mesPago: string;
+  fechaPago: string;
   cicloDescripcion: string;
   pagaEnMesSiguiente: boolean;
-} {
+  periodoFacturado: string;
+  fechaCorte: string;
+  desfaseMeses: number;
+}
+
+export function calculateCardPaymentDate(entity: string, year: number, monthIndex: number, day: number): CardPaymentDateResult {
+  const purchaseDate = formatDateOnly(year, monthIndex + 1, day);
   const rule = resolveCardRule(entity);
   if (!rule) {
-    const fallbackDate = formatDateOnly(year, monthIndex + 1, day);
     return { 
-      mesPago: fallbackDate.slice(0, 7),
-      fechaPago: fallbackDate,
+      mesPago: purchaseDate.slice(0, 7),
+      fechaPago: purchaseDate,
       cicloDescripcion: 'Sin ciclo de tarjeta',
       pagaEnMesSiguiente: false,
+      periodoFacturado: 'Sin ciclo',
+      fechaCorte: purchaseDate,
+      desfaseMeses: 0,
     };
   }
-  const purchaseDate = formatDateOnly(year, monthIndex + 1, day);
   const cycle = calculateBillingCycle(purchaseDate, { cutoffDay: rule.corteDay, dueDay: rule.pagoDay });
   const beforeCutoff = day < rule.corteDay;
+  const [pY, pM] = [year, monthIndex + 1];
+  const [dY, dM] = cycle.billingMonth.split('-').map(Number);
+  const desfaseMeses = Math.max(0, (dY * 12 + dM) - (pY * 12 + pM));
+  const periodoFacturado = `${cycle.periodStart.slice(8, 10)}/${cycle.periodStart.slice(5, 7)} — ${cycle.periodEnd.slice(8, 10)}/${cycle.periodEnd.slice(5, 7)}`;
 
   return {
     mesPago: cycle.billingMonth,
@@ -136,6 +155,9 @@ export function calculateCardPaymentDate(entity: string, year: number, monthInde
       ? `Antes del corte (día ${rule.corteDay}) · Paga mes siguiente`
       : `Corte día ${rule.corteDay} (nuevo ciclo) · Paga en 2 meses`,
     pagaEnMesSiguiente: beforeCutoff,
+    periodoFacturado,
+    fechaCorte: cycle.periodEnd,
+    desfaseMeses,
   };
 }
 
@@ -969,11 +991,19 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
       const fullDate = `${targetYear}-${padMonth}-${padDay}`;
 
       const isCreditCard = Boolean(CARD_RULES[item.entidad]);
-      let cardPayInfo: { mesPago: string; fechaPago: string } | undefined;
+      let cardPayInfo: CardPaymentDateResult | undefined;
 
       if (isCreditCard) {
         cardPayInfo = calculateCardPaymentDate(item.entidad, targetYear, targetMonth - 1, activeDay);
       }
+
+      const fechaConsumo = fullDate;
+      const mesConsumo = targetMonthStr;
+      const fechaPagoEfectiva = cardPayInfo?.fechaPago || fullDate;
+      const mesImpactoCaja = cardPayInfo?.mesPago || targetMonthStr;
+      const desfaseMesesCaja = cardPayInfo?.desfaseMeses ?? 0;
+      const cicloFacturacion = cardPayInfo?.periodoFacturado;
+      const fechaCorteTarjeta = cardPayInfo?.fechaCorte;
 
       rows.push({
         id: `${item.id}-${targetMonthStr}`,
@@ -996,6 +1026,13 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
         detalleConsumosCiclo: cardDueDetail?.consumos,
         mesPagoTarjeta: cardPayInfo?.mesPago,
         fechaPagoTarjeta: cardPayInfo?.fechaPago,
+        fechaConsumo,
+        mesConsumo,
+        cicloFacturacion,
+        fechaCorteTarjeta,
+        fechaPagoEfectiva,
+        mesImpactoCaja,
+        desfaseMesesCaja,
       });
     }
 
@@ -1022,6 +1059,10 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
               } catch {}
             }
 
+            const [iY, iM] = (t.Fecha || activeCuota.fechaPago).slice(0, 7).split('-').map(Number);
+            const [aY, aM] = activeCuota.mesPago.split('-').map(Number);
+            const installmentDesfase = Math.max(0, (aY * 12 + aM) - (iY * 12 + iM));
+
             rows.push({
               id: rowId,
               itemId: t.id,
@@ -1041,6 +1082,12 @@ export const useProjectionStore = create<ProjectionState>((set, get) => ({
               esPagoLiquidacionTarjeta: false,
               mesPagoTarjeta: activeCuota.mesPago,
               fechaPagoTarjeta: activeCuota.fechaPago,
+              fechaConsumo: t.Fecha || activeCuota.fechaPago,
+              mesConsumo: (t.Fecha || activeCuota.fechaPago).slice(0, 7),
+              cicloFacturacion: `Cuota ${activeCuota.cuotaNumber} de ${numCuotas}`,
+              fechaPagoEfectiva: activeCuota.fechaPago,
+              mesImpactoCaja: activeCuota.mesPago,
+              desfaseMesesCaja: installmentDesfase,
             });
           }
         }
