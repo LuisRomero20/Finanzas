@@ -3,6 +3,8 @@ import { useFinanceStore, MESES, ENTIDADES, getMonthNameFromDate, getCurrentMont
 import { usePendingPaymentsStore, type PendingPaymentItem } from '../store/pendingPaymentsStore';
 import { useAppStore } from '../store';
 import type { Transaction } from '../utils/masterData';
+import { resolveAuthoritativeCreditLine } from '../utils/masterData';
+import { calculateCardLivePosition } from '../utils/creditCardCycles';
 import {
   CATEGORIAS_PERSONALES,
   getEffectiveCategory,
@@ -163,13 +165,11 @@ export const Dashboard: React.FC = () => {
     .reduce((acc, t) => acc + t.Monto, 0);
 
   const { cards, deleteCard } = useCreditCardStore();
-  const isCardEntity = (ent: string) => cards.some(c => c.entity.toLowerCase() === ent.toLowerCase()) || /amex|bfree|ripley/i.test(ent);
 
   const entityList = ENTIDADES && ENTIDADES.length ? ENTIDADES : Array.from(new Set(filtered.map(t => t.Entidad).filter(Boolean)));
   const entityBalances: Record<string, number> = {};
   entityList.forEach(ent => {
-    const isCard = isCardEntity(ent);
-    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && (isCard || !isCreditCardLine(t))).reduce((a, t) => a + t.Monto, 0);
+    const ingresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     const egresosEnt = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isDebtTransaction(t) && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     const deudasEnt = filtered.filter(t => t.Entidad === ent && isDebtTransaction(t)).reduce((a, t) => a + t.Monto, 0);
     entityBalances[ent] = ingresosEnt - egresosEnt - deudasEnt;
@@ -186,8 +186,7 @@ export const Dashboard: React.FC = () => {
   const entityIngresos: Record<string, number> = {};
   const entityEgresos: Record<string, number> = {};
   entityList.forEach(ent => {
-    const isCard = isCardEntity(ent);
-    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && (isCard || !isCreditCardLine(t))).reduce((a, t) => a + t.Monto, 0);
+    const ingresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Ingreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     const egresos = filtered.filter(t => t.Entidad === ent && t.Tipo === 'Egreso' && !isCreditCardLine(t)).reduce((a, t) => a + t.Monto, 0);
     entityIngresos[ent] = ingresos;
     entityEgresos[ent] = egresos;
@@ -295,8 +294,8 @@ export const Dashboard: React.FC = () => {
 
   const activeAccountLabels = accountLabels;
 
-  Object.keys(entityLineaTotals).forEach(ent => {
-    if (Object.prototype.hasOwnProperty.call(creditLines, ent)) entityLineaTotals[ent] = creditLines[ent];
+  entityList.forEach(ent => {
+    entityLineaTotals[ent] = resolveAuthoritativeCreditLine(ent, creditLines);
   });
 
   const handleExport = () => {
@@ -895,17 +894,27 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3.5">
             {cards.map(card => {
               const ent = card.entity;
-              const totalLine = entityLineaTotals[ent] > 0 ? entityLineaTotals[ent] : (card.creditLine || 1000);
+              const totalLine = resolveAuthoritativeCreditLine(ent, creditLines, card);
               const cardEgresos = entityEgresos[ent] || 0;
               const cardIngresos = entityIngresos[ent] || 0;
-              const currentDebt = Math.max(0, cardEgresos - cardIngresos);
+              const monthDebt = Math.max(0, cardEgresos - cardIngresos);
+
+              const livePos = calculateCardLivePosition(card, rawTransactions);
+              const currentDebt = (selectedMonth !== 'Todos' && (cardEgresos > 0 || cardIngresos > 0))
+                ? monthDebt
+                : (livePos.liveDebt > 0 ? livePos.liveDebt : monthDebt);
+
               const availableCredit = Math.max(0, totalLine - currentDebt);
               const utilizationPct = totalLine > 0 ? Math.min(100, Math.round((currentDebt / totalLine) * 100)) : 0;
               
               const todayDay = new Date().getDate();
               const isPastCutoff = todayDay >= card.cycleStartDay;
-              const billedDebtEst = isPastCutoff ? currentDebt * 0.7 : currentDebt * 0.3;
-              const unbilledDebtEst = currentDebt - billedDebtEst;
+              const billedDebtEst = livePos.netToPay > 0
+                ? livePos.netToPay
+                : (isPastCutoff ? currentDebt : 0);
+              const unbilledDebtEst = livePos.currTotal > 0
+                ? livePos.currTotal
+                : (isPastCutoff ? 0 : currentDebt);
 
               return (
                 <div key={card.id} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">

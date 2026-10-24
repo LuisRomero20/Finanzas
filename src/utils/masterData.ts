@@ -48,6 +48,7 @@ export const LINE_OVERRIDES: Record<string, number> = {
   'BBVA Bfree': 3000,
   'Interbank Amex': 5000,
   'Ripley': 2000,
+  'Ripley Mastercard': 2000,
 };
 
 export const ACCOUNT_LABELS: Record<string, string> = {
@@ -56,7 +57,57 @@ export const ACCOUNT_LABELS: Record<string, string> = {
   'Interbank Amex': 'Tarjeta Crédito',
   'BCP': 'Cuenta Ahorro',
   'Ripley': 'Tarjeta Crédito',
+  'Ripley Mastercard': 'Tarjeta Crédito',
 };
+
+/**
+ * Resuelve la línea de crédito autorizada según la jerarquía estricta:
+ * 1. Configuración explícita del usuario en creditLineStore / Supabase (local o nube).
+ * 2. Valores maestros oficiales (LINE_OVERRIDES: Amex S/ 5,000, BBVA S/ 3,000, Ripley S/ 2,000).
+ * 3. Configuración propia de la tarjeta (card.creditLine / lineaCredito / referenceCreditLine).
+ * 4. Valor de respaldo por defecto (1000).
+ */
+export function resolveAuthoritativeCreditLine(
+  entity: string,
+  userCreditLines?: Record<string, number>,
+  cardConfig?: { creditLine?: number; lineaCredito?: number; referenceCreditLine?: number }
+): number {
+  if (!entity) return 1000;
+  const norm = entity.trim().toLowerCase();
+
+  // 1. Configuración explícita del usuario (creditLineStore)
+  if (userCreditLines) {
+    if (typeof userCreditLines[entity] === 'number' && userCreditLines[entity] > 0) {
+      return userCreditLines[entity];
+    }
+    for (const [key, val] of Object.entries(userCreditLines)) {
+      if (key.trim().toLowerCase() === norm && typeof val === 'number' && val > 0) {
+        return val;
+      }
+    }
+  }
+
+  // 2. Líneas maestras oficiales (LINE_OVERRIDES)
+  if (typeof LINE_OVERRIDES[entity] === 'number' && LINE_OVERRIDES[entity] > 0) {
+    return LINE_OVERRIDES[entity];
+  }
+  for (const [key, val] of Object.entries(LINE_OVERRIDES)) {
+    if (key.trim().toLowerCase() === norm && typeof val === 'number' && val > 0) {
+      return val;
+    }
+  }
+
+  // 3. Configuración propia de la tarjeta
+  if (cardConfig) {
+    const cardLine = cardConfig.creditLine ?? cardConfig.lineaCredito ?? cardConfig.referenceCreditLine;
+    if (typeof cardLine === 'number' && cardLine > 0) {
+      return cardLine;
+    }
+  }
+
+  // 4. Fallback estándar
+  return 1000;
+}
 
 export const masterTransactions: Transaction[] = [
   {

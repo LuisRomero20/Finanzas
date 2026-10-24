@@ -3,6 +3,7 @@ import { CreditCard, Wallet, X, Save, RotateCcw, Sliders, ShieldCheck, AlertCirc
 import { useCreditLineStore } from '../store/creditLineStore';
 import { useCreditCardStore } from '../store/creditCardStore';
 import { useAppStore } from '../store';
+import { resolveAuthoritativeCreditLine, LINE_OVERRIDES, ACCOUNT_LABELS } from '../utils/masterData';
 
 interface Props {
   isOpen: boolean;
@@ -70,6 +71,9 @@ export const CreditLineConfigModal: React.FC<Props> = ({ isOpen, onClose, initia
 
   const handleReset = () => {
     resetDefaults();
+    setTempLines({ ...LINE_OVERRIDES });
+    setTempLabels({ ...ACCOUNT_LABELS });
+    setValidationError(null);
     agregarNotificacion('Líneas de crédito restablecidas a valores de fábrica.', 'info');
     onClose();
   };
@@ -155,11 +159,12 @@ export const CreditLineConfigModal: React.FC<Props> = ({ isOpen, onClose, initia
               </div>
 
               {creditCardEntities.map((ent) => {
-                const matchingCard = cards.find(c => c.entity === ent);
-                const currentLine = tempLines[ent] ?? lines[ent] ?? (matchingCard?.creditLine || 1000);
+                const matchingCard = cards.find(c => c.entity.toLowerCase() === ent.toLowerCase());
+                const authoritativeLine = resolveAuthoritativeCreditLine(ent, lines, matchingCard);
+                const currentLine = tempLines[ent] ?? authoritativeLine;
                 const currentLabel = tempLabels[ent] ?? labels[ent] ?? '';
                 const isHighlight = initialEntity === ent;
-                const referenceLine = matchingCard?.referenceCreditLine ?? matchingCard?.creditLine;
+                const referenceLine = LINE_OVERRIDES[ent] ?? matchingCard?.referenceCreditLine ?? matchingCard?.creditLine ?? authoritativeLine;
 
                 return (
                   <div
@@ -220,7 +225,7 @@ export const CreditLineConfigModal: React.FC<Props> = ({ isOpen, onClose, initia
                       {/* Presets Rápidos — modifican solo el borrador */}
                       <div className="flex items-center gap-1.5 flex-wrap pt-1">
                         <span className="text-[10px] text-slate-400 font-semibold mr-1">Rápidos:</span>
-                        {[700, 1000, 2000, 3000, 5000].map((preset) => (
+                        {[1000, 2000, 3000, 5000, 8000].map((preset) => (
                           <button
                             key={preset}
                             type="button"
