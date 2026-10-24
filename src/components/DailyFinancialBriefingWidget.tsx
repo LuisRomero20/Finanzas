@@ -137,9 +137,15 @@ export const DailyFinancialBriefingWidget: React.FC<DailyFinancialBriefingWidget
                 </>
               )}
               <span>·</span>
-              <span className={`font-semibold ${briefing.monthlyProjectedBalance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
-                Balance {fmt.format(briefing.monthlyProjectedBalance)}
-              </span>
+              {briefing.liquidityStatus === 'insufficient_data' ? (
+                <span className="text-slate-400 dark:text-slate-500 font-normal">
+                  Balance: Sin proyecciones cargadas
+                </span>
+              ) : (
+                <span className={`font-semibold ${briefing.monthlyProjectedBalance < 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                  Balance {fmt.format(briefing.monthlyProjectedBalance)}
+                </span>
+              )}
             </p>
           </div>
         </button>

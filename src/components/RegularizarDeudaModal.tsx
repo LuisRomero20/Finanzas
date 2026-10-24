@@ -231,57 +231,61 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
-      <div className="bg-white dark:bg-[#11191D] rounded-3xl max-w-lg w-full overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl space-y-0">
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-150">
+      <div className="bg-white dark:bg-[#11191D] rounded-3xl max-w-lg w-full flex flex-col max-h-[92dvh] sm:max-h-[85vh] overflow-hidden border border-slate-200 dark:border-slate-800 shadow-2xl space-y-0">
         
         {/* Header Modal */}
-        <div className={`bg-gradient-to-r ${card.headerBg} px-6 py-4 text-white flex items-center justify-between`}>
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-white/20 rounded-xl">
+        <div className={`bg-gradient-to-r ${card.headerBg} px-5 sm:px-6 py-4 text-white flex items-center justify-between shrink-0`}>
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="p-2 bg-white/20 rounded-xl shrink-0">
               <CreditCard size={18} />
             </div>
-            <div>
-              <h3 className="font-black text-sm sm:text-base">Regularizar Deuda & Pagos</h3>
-              <p className="text-white/80 text-xs">{card.name} · Vence: {prevCycle.payDate.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</p>
+            <div className="min-w-0">
+              <h3 className="font-black text-sm sm:text-base truncate">Registrar Pago & Regularización</h3>
+              <p className="text-white/80 text-xs truncate">{card.name} · Vence: {prevCycle.payDate.toLocaleDateString('es-PE', { day: '2-digit', month: 'short' })}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer">
+          <button
+            onClick={onClose}
+            className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white transition cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center shrink-0"
+            aria-label="Cerrar modal"
+          >
             <X size={16} />
           </button>
         </div>
 
         {/* Segmented Control Tabs */}
-        <div className="px-6 pt-4 pb-2 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40">
+        <div className="px-4 sm:px-6 pt-3 pb-2 border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-900/40 shrink-0">
           <div className="grid grid-cols-2 p-1 bg-slate-200/60 dark:bg-slate-800/80 rounded-2xl gap-1 text-xs font-bold">
             <button
               type="button"
               onClick={() => setActiveTab('cancelar')}
-              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] ${
                 activeTab === 'cancelar'
                   ? 'bg-emerald-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <CheckCircle2 size={14} />
-              <span>Registrar Pago / Cancelar</span>
+              <span>Registrar Pago</span>
             </button>
             <button
               type="button"
               onClick={() => setActiveTab('ajustar')}
-              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`py-2 px-3 rounded-xl transition flex items-center justify-center gap-1.5 cursor-pointer min-h-[40px] ${
                 activeTab === 'ajustar'
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
               }`}
             >
               <SlidersHorizontal size={14} />
-              <span>Ajustar Monto</span>
+              <span>Ajustar Conciliación</span>
             </button>
           </div>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-5">
+        <div className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1 overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))]">
           
           {/* Resumen Deuda Actual */}
           <div className="grid grid-cols-3 gap-2.5 bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl border border-slate-200/60 dark:border-slate-800 text-center">
@@ -445,7 +449,7 @@ export const RegularizarDeudaModal: React.FC<Props> = ({
                 <button
                   type="submit"
                   disabled={!paymentEval.canProceed || isSubmitting || (equivalentCheck.hasEquivalentPayment && !allowDuplicatePayment)}
-                  className={`w-full text-xs font-bold py-2.5 px-4 rounded-xl shadow-md transition flex items-center justify-center gap-1.5 mt-2 ${
+                  className={`w-full text-xs font-bold py-3 px-4 min-h-[44px] rounded-xl shadow-md transition flex items-center justify-center gap-1.5 mt-2 ${
                     paymentEval.canProceed && !isSubmitting && (!equivalentCheck.hasEquivalentPayment || allowDuplicatePayment)
                       ? 'bg-emerald-600 hover:bg-emerald-700 text-white cursor-pointer'
                       : 'bg-slate-200 dark:bg-slate-800 text-slate-400 cursor-not-allowed'

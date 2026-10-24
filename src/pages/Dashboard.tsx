@@ -53,7 +53,6 @@ import {
   Sliders,
   Calculator,
   CalendarDays,
-  Lock,
 } from 'lucide-react';
 import { LaborBenefitsModal } from '../components/LaborBenefitsCalculatorWidget';
 import { TodayProjectedExpensesWidget } from '../components/TodayProjectedExpensesWidget';
@@ -741,9 +740,9 @@ export const Dashboard: React.FC = () => {
 
       </div>
 
-      {/* ── POSICIÓN POR ENTIDAD BANCARIA (INDEPENDIENTE DEL FILTRO DE MES) ── */}
-      <div>
-        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+      {/* ── POSICIÓN POR ENTIDAD BANCARIA Y TARJETA ── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
             <h2 className="text-lg font-black text-slate-800 dark:text-white tracking-tight flex items-center gap-2 flex-wrap">
               <Building2 size={18} className="text-emerald-700 dark:text-emerald-400" />
@@ -753,7 +752,7 @@ export const Dashboard: React.FC = () => {
               </span>
             </h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Saldos disponibles, flujo de ingresos/egresos y límites de crédito asignados.
+              Diferenciación nítida entre liquidez real en cuentas y líneas de crédito asignadas.
             </p>
           </div>
 
@@ -785,178 +784,220 @@ export const Dashboard: React.FC = () => {
           </div>
         </div>
 
-        {(() => {
-          const CARD_ORDER = ['Interbank', 'BCP', ...cards.map(c => c.entity)];
+        {/* 1. SECCIÓN: CUENTAS BANCARIAS Y LIQUIDEZ REAL */}
+        <div>
+          <div className="flex items-center gap-2 mb-2.5">
+            <Wallet size={14} className="text-emerald-600 dark:text-emerald-400" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+              Cuentas Bancarias & Liquidez Real
+            </h3>
+          </div>
 
-          return (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5">
-              {CARD_ORDER.map(ent => {
-                // Cuenta Interbank (Saldo Líquido disponible)
-                if (/^Interbank$/i.test(ent)) {
-                  const { ingresos, egresos, balance } = liveAccountPositions.Interbank;
-                  return (
-                    <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
-                          <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full">Cuenta</span>
-                        </div>
-                        {activeAccountLabels[ent] && (
-                          <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
-                        )}
-                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Saldo Líquido</p>
-                        <p className={`text-xl font-black mt-0.5 tracking-tight ${balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
-                          {formatterPEN.format(balance)}
-                        </p>
-                      </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            {/* Cuenta Interbank */}
+            {(() => {
+              const { ingresos, egresos, balance } = liveAccountPositions.Interbank;
+              const lastIbkTx = rawTransactions.find(t => /^Interbank$/i.test(t.Entidad));
+              const lastUpdatedStr = lastIbkTx ? lastIbkTx.Fecha : 'Al día';
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
-                        </div>
+              return (
+                <div className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">Interbank</span>
+                        <span className="text-[10px] font-bold bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-300/40">
+                          Cuenta Líquida
+                        </span>
                       </div>
+                      <span className="text-[10px] text-slate-400">Actualizado: {lastUpdatedStr}</span>
                     </div>
-                  );
-                }
+                    {activeAccountLabels['Interbank'] && (
+                      <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels['Interbank']}</p>
+                    )}
+                    <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Saldo Líquido Disponible</p>
+                    <p className={`text-2xl font-black mt-0.5 tracking-tight ${balance >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'}`}>
+                      {formatterPEN.format(balance)}
+                    </p>
+                  </div>
 
-                // Cuenta BCP
-                if (/^BCP$/i.test(ent)) {
-                  const { ingresos, egresos, balance } = liveAccountPositions.BCP;
-                  return (
-                    <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
-                          <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-2 py-0.5 rounded-full">Cuenta</span>
-                        </div>
-                        {activeAccountLabels[ent] && (
-                          <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
-                        )}
-                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
-                        <p className="text-xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
-                          {formatterPEN.format(balance)}
-                        </p>
-                      </div>
-
-                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Cargos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Abonos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
-                        </div>
-                      </div>
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl">
+                      <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
                     </div>
-                  );
-                }
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl">
+                      <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
-                // Tarjetas de crédito: Ingresos - Egresos de la entidad, filtrado por mes
-                const matchingCard = cards.find(c => c.entity === ent);
-                const totalLine = entityLineaTotals[ent] || 0;
-                const cardIngresos = entityIngresos[ent] || 0;
-                const cardEgresos = entityEgresos[ent] || 0;
-                const cardNeto = cardIngresos - cardEgresos;
+            {/* Cuenta BCP */}
+            {(() => {
+              const { ingresos, egresos, balance } = liveAccountPositions.BCP;
+              const lastBcpTx = rawTransactions.find(t => /^BCP$/i.test(t.Entidad));
+              const lastUpdatedStr = lastBcpTx ? lastBcpTx.Fecha : 'Al día';
 
-                if (matchingCard || cardIngresos > 0 || cardEgresos > 0) {
-                  return (
-                    <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-center justify-between gap-1 mb-1">
-                          <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
-                          <div className="flex items-center gap-1">
-                            <span className="text-[10px] font-bold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 px-1.5 py-0.5 rounded-full">
-                              Tarjeta
-                            </span>
-                            {matchingCard && (
-                              cardNeto >= 0 ? (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(`¿Eliminar definitivamente la tarjeta "${matchingCard.name}"? Su saldo en el mes está saldado.`)) {
-                                      deleteCard(matchingCard.id);
-                                      agregarNotificacion(`Tarjeta "${matchingCard.name}" eliminada.`, 'info');
-                                    }
-                                  }}
-                                  className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
-                                  title="Eliminar tarjeta"
-                                >
-                                  <Trash2 size={12} />
-                                </button>
-                              ) : (
-                                <span
-                                  className="p-1 text-slate-300 dark:text-slate-600 cursor-not-allowed"
-                                  title={`No se puede eliminar: Hay egresos activos de ${formatterPEN.format(cardEgresos)} en este mes.`}
-                                >
-                                  <Lock size={12} />
-                                </span>
-                              )
-                            )}
-                          </div>
-                        </div>
-                        {activeAccountLabels[ent] && (
-                          <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
-                        )}
-                        <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto del Mes</p>
-                        <p className={`text-xl font-black mt-0.5 tracking-tight ${cardNeto >= 0 ? 'text-emerald-700 dark:text-emerald-400' : 'text-rose-700 dark:text-rose-400'}`}>
-                          {formatterPEN.format(cardNeto)}
-                        </p>
+              return (
+                <div className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white">BCP</span>
+                        <span className="text-[10px] font-bold bg-sky-100 dark:bg-sky-950/80 text-sky-800 dark:text-sky-300 px-2 py-0.5 rounded-full border border-sky-300/40">
+                          Cuenta Débito
+                        </span>
                       </div>
+                      <span className="text-[10px] text-slate-400">Actualizado: {lastUpdatedStr}</span>
+                    </div>
+                    {activeAccountLabels['BCP'] && (
+                      <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels['BCP']}</p>
+                    )}
+                    <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Saldo Neto en Cuenta</p>
+                    <p className="text-2xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
+                      {formatterPEN.format(balance)}
+                    </p>
+                  </div>
 
-                      <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1 text-xs">
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Ingresos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardIngresos)}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
-                          <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Egresos:</span>
-                          <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(cardEgresos)}</span>
-                        </div>
-                        {totalLine > 0 && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 grid grid-cols-2 gap-2 text-xs">
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl">
+                      <span className="flex items-center gap-1"><Plus className="text-emerald-600 dark:text-emerald-400" size={12}/> Cargos:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(ingresos)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-xl">
+                      <span className="flex items-center gap-1"><Minus className="text-rose-500 dark:text-rose-400" size={12}/> Abonos:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-200">{formatterPEN.format(egresos)}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* 2. SECCIÓN: TARJETAS DE CRÉDITO Y LÍNEAS ASIGNADAS */}
+        <div>
+          <div className="flex items-center justify-between mb-2.5 flex-wrap gap-1.5">
+            <div className="flex items-center gap-2">
+              <CreditCard size={14} className="text-blue-600 dark:text-blue-400" />
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                Tarjetas de Crédito & Líneas Asignadas
+              </h3>
+            </div>
+            <span className="text-[10px] text-amber-700 dark:text-amber-300 font-semibold bg-amber-50 dark:bg-amber-950/40 px-2 py-0.5 rounded-full border border-amber-200/60 dark:border-amber-800/40">
+              Línea crediticia — No representa efectivo líquido
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-3.5">
+            {cards.map(card => {
+              const ent = card.entity;
+              const totalLine = entityLineaTotals[ent] > 0 ? entityLineaTotals[ent] : (card.creditLine || 1000);
+              const cardEgresos = entityEgresos[ent] || 0;
+              const cardIngresos = entityIngresos[ent] || 0;
+              const currentDebt = Math.max(0, cardEgresos - cardIngresos);
+              const availableCredit = Math.max(0, totalLine - currentDebt);
+              const utilizationPct = totalLine > 0 ? Math.min(100, Math.round((currentDebt / totalLine) * 100)) : 0;
+              
+              const todayDay = new Date().getDate();
+              const isPastCutoff = todayDay >= card.cycleStartDay;
+              const billedDebtEst = isPastCutoff ? currentDebt * 0.7 : currentDebt * 0.3;
+              const unbilledDebtEst = currentDebt - billedDebtEst;
+
+              return (
+                <div key={card.id} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{card.name}</span>
+                        <span className="text-[10px] font-bold bg-blue-100 dark:bg-blue-950/80 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full border border-blue-300/40 shrink-0">
+                          {card.network || 'Tarjeta'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedCardForConfig(ent);
+                            setIsCreditLineModalOpen(true);
+                          }}
+                          className="p-1 text-slate-400 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition"
+                          title="Ajustar límite de línea de crédito"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        {cardEgresos === 0 && (
                           <button
                             type="button"
                             onClick={() => {
-                              setSelectedCardForConfig(ent);
-                              setIsCreditLineModalOpen(true);
+                              if (confirm(`¿Eliminar definitivamente la tarjeta "${card.name}"?`)) {
+                                deleteCard(card.id);
+                                agregarNotificacion(`Tarjeta "${card.name}" eliminada.`, 'info');
+                              }
                             }}
-                            className="w-full flex items-center justify-between pt-1 border-t border-slate-100/60 dark:border-slate-800 font-semibold text-blue-900 dark:text-blue-300 hover:text-emerald-600 dark:hover:text-emerald-400 text-[11px] transition group cursor-pointer"
-                            title="Clic para modificar la línea de crédito de esta tarjeta"
+                            className="p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                            title="Eliminar tarjeta"
                           >
-                            <span className="flex items-center gap-1">
-                              <span>Línea:</span>
-                              <Edit3 size={11} className="opacity-60 group-hover:opacity-100 transition-opacity text-emerald-600 dark:text-emerald-400" />
-                            </span>
-                            <span className="group-hover:underline underline-offset-2">{formatterPEN.format(totalLine)}</span>
+                            <Trash2 size={13} />
                           </button>
                         )}
                       </div>
                     </div>
-                  );
-                }
 
-                // Fallback si no es tarjeta conocida
-                const fallbackIngresos = entityIngresos[ent] || 0;
-                const fallbackEgresos = entityEgresos[ent] || 0;
-                const fallbackDisp = fallbackIngresos - fallbackEgresos;
-                return (
-                  <div key={ent} className="bg-white dark:bg-[#11191D] border border-slate-200/80 dark:border-slate-800 rounded-2xl p-4 shadow-sm hover:shadow-md transition flex flex-col justify-between">
-                    <div>
-                      <span className="font-bold text-sm text-slate-900 dark:text-white truncate">{ent}</span>
-                      <p className="text-[11px] uppercase font-bold text-slate-400 dark:text-slate-500 mt-2">Neto</p>
-                      <p className="text-xl font-black mt-0.5 tracking-tight text-slate-900 dark:text-white">{formatterPEN.format(fallbackDisp)}</p>
+                    {activeAccountLabels[ent] && (
+                      <p className="text-xs text-slate-400 font-medium truncate">{activeAccountLabels[ent]}</p>
+                    )}
+
+                    {/* Crédito Disponible Principal */}
+                    <div className="mt-2.5">
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="uppercase font-bold text-slate-400 dark:text-slate-500">Crédito Disponible</span>
+                        <span className="text-[10px] font-mono text-slate-500">Uso: {utilizationPct}%</span>
+                      </div>
+                      <p className="text-2xl font-black mt-0.5 tracking-tight text-emerald-700 dark:text-emerald-400">
+                        {formatterPEN.format(availableCredit)}
+                      </p>
+                      
+                      {/* Barra de progreso de utilización de crédito */}
+                      <div className="w-full h-1.5 bg-slate-100 dark:bg-slate-800 rounded-full mt-1.5 overflow-hidden">
+                        <div
+                          className={`h-full rounded-full transition-all duration-300 ${
+                            utilizationPct > 80 ? 'bg-rose-500' : utilizationPct > 50 ? 'bg-amber-500' : 'bg-emerald-500'
+                          }`}
+                          style={{ width: `${utilizationPct}%` }}
+                        />
+                      </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          );
-        })()}
+
+                  {/* Métricas detalladas de deuda y ciclo */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 space-y-1.5 text-xs">
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                      <span>Línea Aprobada:</span>
+                      <span className="font-bold text-slate-800 dark:text-slate-200">{formatterPEN.format(totalLine)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                      <span>Deuda Facturada:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(billedDebtEst)}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-slate-500 dark:text-slate-400">
+                      <span>Deuda No Facturada:</span>
+                      <span className="font-semibold text-slate-700 dark:text-slate-300">{formatterPEN.format(unbilledDebtEst)}</span>
+                    </div>
+                    <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-slate-800/60 text-[11px] text-slate-400">
+                      <span>Próximo Vencimiento:</span>
+                      <span className="font-bold text-indigo-600 dark:text-indigo-400">Día {card.paymentDay} de cada mes</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
       </div>
 
       {/* ── 🤖 MOTOR DE INSIGHTS INTELIGENTES ── */}

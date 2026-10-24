@@ -33,7 +33,7 @@ export interface ObligationItem {
   detail?: string;
 }
 
-export type LiquidityHealthStatus = 'surplus' | 'tight' | 'deficit';
+export type LiquidityHealthStatus = 'surplus' | 'tight' | 'deficit' | 'insufficient_data';
 
 export interface DailyFinancialBriefing {
   /** Fecha de corte en zona horaria America/Lima (YYYY-MM-DD) */

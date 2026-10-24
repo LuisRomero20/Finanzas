@@ -78,4 +78,32 @@ describe('SettingsSyncPanel colapsable con alertas', () => {
     expect(screen.getByRole('button', { name: 'Colapsar panel de sincronización' }).getAttribute('aria-expanded')).toBe('true');
     expect(screen.getByText('Movimientos en Cola')).toBeTruthy();
   });
+
+  it('en estado saludable y sin conflictos muestra exclusivamente "Sincronizado con Supabase" y "Al día"', () => {
+    const healthyConfig: SupabaseConfigHealth = {
+      ...blockedHealth,
+      isHealthy: true,
+      configurationState: 'healthy',
+      severity: 'none',
+      keyStatus: 'valid',
+      errorMessage: undefined,
+    };
+    vi.mocked(getSupabaseConfigHealth).mockReturnValue(healthyConfig);
+    vi.mocked(verifySupabaseConfiguration).mockResolvedValue(healthyConfig);
+    useSettingsSync.setState({
+      entries: {
+        budgets: { status: 'synced' },
+        projections: { status: 'synced' },
+        statements: { status: 'synced' },
+        classifications: { status: 'synced' },
+      },
+    });
+
+    render(<SettingsSyncPanel currentUser={currentUser} />);
+
+    expect(screen.getByText('Sincronizado con Supabase')).toBeTruthy();
+    expect(screen.getByText('Al día')).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText(/Módulos con problemas/)).toBeNull();
+  });
 });

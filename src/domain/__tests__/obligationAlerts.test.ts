@@ -4,9 +4,8 @@ import { getLimaDateTime } from '../alerts/dateUtils';
 import type { EffectiveProjectedRow } from '../../store/projectionStore';
 import type { Transaction } from '../../utils/masterData';
 
-describe('FINPER 2.1 — Sprint 02: Motor de Alertas Tempranas y Obligaciones', () => {
-  // Snapshot sintético del escenario de referencia de Noviembre 2026 (23 partidas)
-  const SCENARIO_NOV_2026_ROWS: EffectiveProjectedRow[] = [
+// Snapshot sintético del escenario de referencia de Noviembre 2026 (23 partidas)
+export const SCENARIO_NOV_2026_ROWS: EffectiveProjectedRow[] = [
     // Ingresos (Suma: S/ 4,007.32)
     {
       id: 'row-ing-1',
@@ -405,6 +404,7 @@ describe('FINPER 2.1 — Sprint 02: Motor de Alertas Tempranas y Obligaciones', 
     },
   ];
 
+describe('FINPER 2.1 — Sprint 02: Motor de Alertas Tempranas y Obligaciones', () => {
   it('1. El escenario de referencia de noviembre 2026 suma exactamente 23 partidas con las cifras auditadas', () => {
     expect(SCENARIO_NOV_2026_ROWS.length).toBe(23);
 
@@ -591,5 +591,7 @@ describe('FINPER 2.1 — Sprint 02: Motor de Alertas Tempranas y Obligaciones', 
     expect(briefingVacio.cardsDue).toEqual([]);
     expect(briefingVacio.totalTodayPending).toBe(0);
     expect(briefingVacio.monthlyProjectedBalance).toBe(0);
+    expect(briefingVacio.liquidityStatus).toBe('insufficient_data');
+    expect(briefingVacio.liquidityAlertMessage).toBeUndefined();
   });
 });
